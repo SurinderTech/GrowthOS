@@ -287,7 +287,7 @@ function ExecutionLabPanel({ skill, onClose }: { skill: Skill; onClose: () => vo
                       </button>
                     </div>
                     <div style={lab.taskList}>
-                      {mod.tasks.map((task, ti) => (
+                      {mod.tasks.map((task: any, ti: number) => (
                         <div key={ti} style={lab.taskChip}>→ {task}</div>
                       ))}
                     </div>
