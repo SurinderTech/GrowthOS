@@ -271,7 +271,7 @@ function ExecutionLabPanel({ skill, onClose }: { skill: Skill; onClose: () => vo
               <div style={lab.sectionTitle}>📚 Micro Modules</div>
               <div style={lab.sectionSub}>Small focused sessions. Complete one module = one step forward.</div>
               <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "16px" }}>
-                {modules.map((mod) => (
+                {modules.map((mod: any) => (
                   <div key={mod.id} style={{ ...lab.moduleCard, ...(completedModules.has(mod.id) ? lab.moduleCardDone : {}) }}>
                     <div style={lab.moduleHeader}>
                       <div>
