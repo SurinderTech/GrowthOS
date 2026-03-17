@@ -243,7 +243,7 @@ export default function YourArenaPage() {
                 {label:"Missions Done", value:selectedPlayer.missions.toLocaleString(), color:"#22c55e", icon:"✅"},
                 {label:"Accuracy",      value:`${selectedPlayer.accuracy}%`,         color:"#3b82f6", icon:"🎯"},
                 {label:"League",        value:selectedPlayer.league,                 color:LEAGUE_COLORS[selectedPlayer.league], icon:"🏅"},
-              ].map((stat,i)=>(
+              ].map((stat: any, i: number)=>(
                 <div key={i} style={s.profileStat}>
                   <div style={{fontSize:"1.1rem"}}>{stat.icon}</div>
                   <div style={{fontSize:"1rem",fontWeight:700,color:stat.color}}>{stat.value}</div>
