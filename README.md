@@ -25,7 +25,7 @@
   <img src="https://media.giphy.com/media/3o7TKsQ8UQXWg6v9dC/giphy.gif" width="120"/>
 </p>
 
-> ⚡ Inspired by your **custom loading screen system**
+
 
 - Rotating dual rings 🔄  
 - Pulsing AI core 🧠  
