@@ -1,6 +1,6 @@
 <h1 align="center">🚀 GrowthOS</h1>
 <p align="center">
-  Your Personal AI Growth Operating System
+  Your Digital sillicon valley
 </p>
 
 ---
