@@ -71,7 +71,7 @@ GrowthOS = System that connects both
 ### 🧩 How it works:
 
 #### 1. Message Engine
-```js
+js
 const messages = [
   "Analyzing your goals...",
   "Designing your growth roadmap...",
