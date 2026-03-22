@@ -71,7 +71,7 @@ GrowthOS = System that connects both
 ### 🧩 How it works:
 
 #### 1. Message Engine
-js
+```
 const messages = [
   "Analyzing your goals...",
   "Designing your growth roadmap...",
@@ -79,6 +79,7 @@ const messages = [
 ];
 
 👉 Rotates every 900ms → gives illusion of AI thinking
+```
 
 2. Auto Transition System
 setTimeout(() => {
@@ -108,7 +109,6 @@ pulseGlow → breathing effect
   to { width: 100% }
 }
 
-👉 Fake loading → feels real (UX trick 💯)
 
 🧬 System Architecture
 User Input
