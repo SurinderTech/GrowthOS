@@ -68,10 +68,6 @@ GrowthOS = System that connects both
 
 ---
 
-## 🎬 Loading System (Deep Explanation)
-
-Your loading screen (from your code) is actually 🔥 **very powerful conceptually**
-
 ### 🧩 How it works:
 
 #### 1. Message Engine
