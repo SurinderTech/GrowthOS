@@ -110,18 +110,16 @@ pulseGlow → breathing effect
 }
 
 
-🧬 System Architecture
-User Input
-   ↓
-AI Analysis Layer
-   ↓
-Growth Planning Engine
-   ↓
-Execution Dashboard
-   ↓
-Feedback Loop
-🎯 Vision
+## 🧬 System Architecture
 
+```mermaid
+flowchart TD
+    A[User Input] --> B[AI Analysis Layer]
+    B --> C[Growth Planning Engine]
+    C --> D[Execution Dashboard]
+    D --> E[Feedback Loop]
+    E --> B
+----
 Build a system where:
 
 You don’t just work
