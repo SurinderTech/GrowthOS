@@ -114,11 +114,26 @@ pulseGlow → breathing effect
 
 ```mermaid
 flowchart TD
+
     A[User Input] --> B[AI Analysis Layer]
-    B --> C[Growth Planning Engine]
-    C --> D[Execution Dashboard]
-    D --> E[Feedback Loop]
-    E --> B
+
+    B --> C1[Goal Understanding]
+    B --> C2[Behavior Analysis]
+
+    C1 --> D[Growth Planning Engine]
+    C2 --> D
+
+    D --> E1[Task Breakdown]
+    D --> E2[Roadmap Generation]
+
+    E1 --> F[Execution Dashboard]
+    E2 --> F
+
+    F --> G[Progress Tracking]
+
+    G --> H[Feedback Loop]
+    H --> B
+
 ```
 ----
 Build a system where:
