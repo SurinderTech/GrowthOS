@@ -12,12 +12,13 @@ print("DATABASE_URL =", DATABASE_URL)
 
 engine = create_engine(
     DATABASE_URL,
+    pool_size=1,          # 🔥 VERY IMPORTANT
+    max_overflow=0,       # 🔥 VERY IMPORTANT
     pool_pre_ping=True,
-    pool_recycle=300,
     connect_args={
         "sslmode": "require",
         "connect_timeout": 10
-    } if DATABASE_URL and "localhost" not in DATABASE_URL and "127.0.0.1" not in DATABASE_URL else {"connect_timeout": 10}
+    }
 )
 
 SessionLocal = sessionmaker(

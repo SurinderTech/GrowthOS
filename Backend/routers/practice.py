@@ -156,6 +156,18 @@ async def get_practice_session(
     # ── Build session record ───────────────────────────────────────────────
     session_id = str(uuid.uuid4())
 
+    new_session = UserPracticeSession(
+        id           = session_id,
+        user_id      = current_user.id,
+        topic        = topic_focus,
+        session_date = date.today(),
+        correct_count= 0,
+        total_count  = 0,
+        accuracy_pct = 0,
+    )
+    db.add(new_session)
+    db.commit()
+
     return SessionOut(
         session_id      = session_id,
         questions       = [
@@ -191,6 +203,18 @@ async def submit_answer(
     Returns correct_answer so frontend can show it.
     """
 
+    # Validate that the session exists and belongs to the current user
+    existing_session = (
+        db.query(UserPracticeSession)
+        .filter(
+            UserPracticeSession.id      == req.session_id,
+            UserPracticeSession.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not existing_session:
+        raise HTTPException(status_code=400, detail="Invalid session_id")
+
     # ── Fetch question ─────────────────────────────────────────────────────
     question = (
         db.query(PracticeQuestion)
@@ -205,7 +229,6 @@ async def submit_answer(
 
     # ── Evaluate based on type ─────────────────────────────────────────────
     if question.q_type in ("mcq", "numeric"):
-        # Simple string comparison (case-insensitive, stripped)
         is_correct = (
             str(req.user_answer).strip().upper() ==
             str(question.correct_answer or "").strip().upper()
@@ -235,7 +258,7 @@ async def submit_answer(
     # ── Calculate skill delta (only on correct) ────────────────────────────
     skill_delta = 0
     if is_correct:
-        if question.difficulty == "easy":   skill_delta = 2
+        if question.difficulty == "easy":     skill_delta = 2
         elif question.difficulty == "medium": skill_delta = 3
         elif question.difficulty == "hard":   skill_delta = 5
 
@@ -305,25 +328,42 @@ async def complete_session(
     # ── Update streak ─────────────────────────────────────────────────────
     streak_data = update_streak(current_user.id, db)
 
-    # ── Save session summary ──────────────────────────────────────────────
-    topic = answers[0].question.topic if answers else "Practice" if hasattr(answers[0], 'question') else "Practice"
-    try:
-        first_q = db.query(PracticeQuestion).filter(
+    # ── Determine topic from first answer ──────────────────────────────────
+    if answers:
+        first_question = db.query(PracticeQuestion).filter(
             PracticeQuestion.id == answers[0].question_id
         ).first()
-        topic = first_q.topic if first_q else "Practice"
-    except Exception:
+        topic = first_question.topic if first_question else "Practice"
+    else:
         topic = "Practice"
 
-    session_row = UserPracticeSession(
-        user_id      = current_user.id,
-        topic        = topic,
-        correct_count= correct_count,
-        total_count  = total_count,
-        accuracy_pct = accuracy_pct,
-        session_date = date.today(),
+    # ── Update existing session row (created in /session) ─────────────────
+    session_row = (
+        db.query(UserPracticeSession)
+        .filter(
+            UserPracticeSession.id      == req.session_id,
+            UserPracticeSession.user_id == current_user.id,
+        )
+        .first()
     )
-    db.add(session_row)
+    if session_row:
+        session_row.topic         = topic
+        session_row.correct_count = correct_count
+        session_row.total_count   = total_count
+        session_row.accuracy_pct  = accuracy_pct
+        session_row.session_date  = date.today()
+    else:
+        # Fallback: session row missing — insert fresh
+        session_row = UserPracticeSession(
+            user_id      = current_user.id,
+            topic        = topic,
+            correct_count= correct_count,
+            total_count  = total_count,
+            accuracy_pct = accuracy_pct,
+            session_date = date.today(),
+        )
+        db.add(session_row)
+
     db.commit()
 
     return SessionResult(

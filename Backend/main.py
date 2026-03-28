@@ -33,9 +33,19 @@ app = FastAPI(
 )
 
 # ─────────────────────────────────
-# CORS Middleware
-# Allows frontend (Next.js) to call API
+# MIDDLEWARE ORDER MATTERS!
+# In Starlette, middleware runs in REVERSE order of registration.
+# Last added = outermost = runs FIRST on incoming requests.
+# So CORSMiddleware must be added LAST to handle OPTIONS preflight first.
 # ─────────────────────────────────
+
+# Step 1: Add SessionMiddleware FIRST (will run AFTER CORS)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SECRET_KEY", "fallback-secret"),
+)
+
+# Step 2: Add CORSMiddleware LAST (will run FIRST, handles OPTIONS preflight)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -46,14 +56,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
-
-# ─────────────────────────────────
-# Session Middleware (needed for OAuth)
-# ─────────────────────────────────
-app.add_middleware(
-    SessionMiddleware,
-    secret_key=os.getenv("SECRET_KEY", "fallback-secret"),
 )
 
 # ─────────────────────────────────
@@ -70,9 +72,7 @@ app.include_router(activity.router,       prefix="/activity",       tags=["Activ
 app.include_router(accountability.router, prefix="/accountability", tags=["Accountability"])
 app.include_router(settings_router, prefix="/settings", tags=["Settings"])
 app.include_router(growth_plan_router, prefix="/growth-plan", tags=["Growth Plan"])
-# Add this line with the other app.include_router() calls
 app.include_router(arena_router, prefix="/practice-arena", tags=["Practice Arena"])
-# Note: practice_router is included via practice.router if they are the same
 
 # ─────────────────────────────────
 # Root Endpoint
@@ -88,10 +88,11 @@ def root():
 
 # ─────────────────────────────────
 # Startup Event
+# ─────────────────────────────────
 @app.on_event("startup")
 def startup():
     print("🚀 Starting GrowthOS Backend...")
-    
+
     # Initialize database tables
     try:
         from db.init_db import init_db
@@ -100,7 +101,7 @@ def startup():
     except Exception as e:
         print(f"❌ Database initialization failed: {e}")
 
-    # ── Start APScheduler for smart daily tasks ──────────────────────────
+    # Start APScheduler for smart daily tasks
     try:
         start_scheduler()
         print("✅ Task scheduler started (runs at 00:05 UTC daily)")

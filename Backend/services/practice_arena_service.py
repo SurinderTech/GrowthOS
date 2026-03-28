@@ -586,6 +586,9 @@ def _increment_activity(user_id, db: Session):
             xp_earned        = 0,
         )
         db.add(log)
+    
+    db.flush()   # ← add this
+    db.commit()  # ← add this
 
 
 def _add_xp(user_id, xp: int, db: Session):
