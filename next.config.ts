@@ -5,14 +5,9 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
 
-  // ✅ Ignore TypeScript errors during build (for deployment)
+  // ✅ Keep this (important)
   typescript: {
     ignoreBuildErrors: true,
-  },
-
-  // ✅ Ignore ESLint errors during build
-  eslint: {
-    ignoreDuringBuilds: true,
   },
 };
 
