@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from Backend.db.session import get_db
-from auth import get_current_user
+from Backend.routers.auth import get_current_user
 from Backend.services.practice_arena_service import (
     get_mcq_questions, evaluate_mcq_answer,
     get_numeric_questions, evaluate_numeric_answer,

@@ -29,7 +29,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from Backend.db.session import get_db
-from auth import get_current_user, hash_password, verify_password
+from Backend.routers.auth import get_current_user, hash_password, verify_password
 from Backend.models.user import User
 from Backend.models.onboarding import UserOnboarding
 

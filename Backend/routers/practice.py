@@ -24,7 +24,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 
 from Backend.db.session import get_db
-from auth import get_current_user
+from Backend.routers.auth import get_current_user
 from Backend.models.onboarding import UserOnboarding
 from Backend.models.practice import (
     PracticeQuestion,

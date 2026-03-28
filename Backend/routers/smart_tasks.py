@@ -11,7 +11,7 @@ from typing import List
 from uuid import UUID
 
 from Backend.db.session import get_db
-from auth import get_current_user
+from Backend.routers.auth import get_current_user
 from Backend.models.smart_task import SmartDailyTask
 from Backend.models.onboarding import UserOnboarding
 from Backend.schemas.smart_task import SmartTaskOut, SubmitAnswerRequest, SubmitAnswerResponse

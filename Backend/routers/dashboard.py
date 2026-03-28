@@ -27,7 +27,7 @@ from Backend.services.gemini_service import (
     generate_job_skills,
     generate_skill_subskills
 )
-from auth import get_current_user
+from Backend.routers.auth import get_current_user
 
 
 router = APIRouter(tags=["Dashboard"])

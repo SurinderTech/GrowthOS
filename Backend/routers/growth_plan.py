@@ -18,7 +18,7 @@ from datetime import datetime, timezone, date, timedelta
 from uuid import UUID
 
 from Backend.db.session import get_db
-from auth import get_current_user
+from Backend.routers.auth import get_current_user
 from Backend.models.growth_plan import UserGrowthPlan, GrowthPhase, GrowthTask
 from Backend.models.practice import UserStreak              # reuse existing streak model
 from Backend.routers.dashboard import get_user_profile      # reuse existing profile builder

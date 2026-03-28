@@ -17,7 +17,7 @@ from Backend.schemas.onboarding import (
     Step6Schema, Step7Schema, OnboardingResponse
 )
 # Import your existing auth dependency
-from auth import get_current_user
+from Backend.routers.auth import get_current_user
 
 router = APIRouter(tags=["Onboarding"])
 
