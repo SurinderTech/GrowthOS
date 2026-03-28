@@ -23,7 +23,7 @@ from Backend.routers.settings import router as settings_router
 from Backend.scheduler.task_scheduler import start_scheduler, shutdown_scheduler
 
 # Database
-from db.init_db import init_db
+from Backend.db.init_db import init_db
 
 # Load environment variables
 load_dotenv()
@@ -51,7 +51,7 @@ app.add_middleware(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",
+        "https://growth-os-vfso.vercel.app",
         "http://127.0.0.1:3000",
         "http://192.168.1.68:3000",
     ],
@@ -97,7 +97,7 @@ def startup():
 
     # Initialize database tables
     try:
-        from db.init_db import init_db
+        
         init_db()
         print("✅ Database tables ready")
     except Exception as e:
@@ -105,7 +105,7 @@ def startup():
 
     # Start APScheduler for smart daily tasks
     try:
-        start_scheduler()
+        #start_scheduler()
         print("✅ Task scheduler started (runs at 00:05 UTC daily)")
     except Exception as e:
         print(f"❌ Scheduler failed to start: {e}")
@@ -117,5 +117,8 @@ def startup():
 
 @app.on_event("shutdown")
 def shutdown():
-    shutdown_scheduler()
-    print("🛑 Scheduler stopped")
+    try:
+        shutdown_scheduler()
+        print("🛑 Scheduler stopped")
+    except:
+        pass
