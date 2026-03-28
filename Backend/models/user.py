@@ -3,9 +3,9 @@ from sqlalchemy.dialects.postgresql import UUID
 from datetime import datetime
 import uuid
 
-from db.base import Base
+from Backend.db.base import Base
 from sqlalchemy.orm import relationship
-from models.growth_plan import UserGrowthPlan
+from Backend.models.growth_plan import UserGrowthPlan
 
 
 class User(Base):

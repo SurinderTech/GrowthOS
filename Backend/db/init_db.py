@@ -1,5 +1,5 @@
 from sqlalchemy import text
-from db.base import Base
+from Backend.db.base import Base
 from db.session import engine
 
 # Import models
