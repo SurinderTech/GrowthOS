@@ -11,7 +11,7 @@ Gemini is never called twice for the same combination.
 """
 
 import json
-from services.gemini_service import _get_model, _safe_json
+from Backend.services.gemini_service import _get_model, _safe_json
 
 
 # ── Question type rules per user type ─────────────────────────────────────────

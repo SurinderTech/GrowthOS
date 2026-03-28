@@ -6,7 +6,7 @@ Uses SQLAlchemy session — same pattern as rest of your app.
 
 from datetime import date, timedelta
 from sqlalchemy.orm import Session
-from models.practice import UserStreak, UserSkillProgress
+from Backend.models.practice import UserStreak, UserSkillProgress
 from uuid import UUID
 
 

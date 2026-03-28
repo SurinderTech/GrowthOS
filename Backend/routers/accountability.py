@@ -3,8 +3,8 @@
 # GET /accountability/message?user_id=xxx  → get Gemini-generated message
 
 from fastapi import APIRouter
-from models.schemas import AccountabilityRequest, AccountabilityResponse
-from services.accountability_service import generate_accountability_message
+from Backend.models.schemas import AccountabilityRequest, AccountabilityResponse
+from Backend.services.accountability_service import generate_accountability_message
 
 router = APIRouter()
 

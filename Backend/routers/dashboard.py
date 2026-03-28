@@ -10,12 +10,12 @@ from datetime import date, datetime, timezone
 from uuid import UUID
 import uuid
 
-from db.session import get_db
-from models.dashboard import GrowthPlan, DailyTask, AIInsight
-from models.onboarding import UserOnboarding
-from services.smart_task_service import generate_smart_daily_tasks
+from Backend.db.session import get_db
+from Backend.models.dashboard import GrowthPlan, DailyTask, AIInsight
+from Backend.models.onboarding import UserOnboarding
+from Backend.services.smart_task_service import generate_smart_daily_tasks
 
-from services.gemini_service import (
+from Backend.services.gemini_service import (
     generate_growth_plan,
     generate_daily_tasks,
     generate_ai_insight,

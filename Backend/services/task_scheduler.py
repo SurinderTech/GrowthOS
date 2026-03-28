@@ -2,11 +2,11 @@ from scheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
-from db.session import SessionLocal
-from models.dashboard import DailyTask
-from models.onboarding import UserOnboarding
-from services.gemini_service import generate_daily_tasks
-from routers.dashboard import get_user_profile
+from Backend.db.session import SessionLocal
+from Backend.models.dashboard import DailyTask
+from Backend.models.onboarding import UserOnboarding
+from Backend.services.gemini_service import generate_daily_tasks
+from Backend.routers.dashboard import get_user_profile
 
 
 def generate_tasks_for_all_users():

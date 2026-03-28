@@ -2,8 +2,8 @@
 # GET /streaks/{user_id}  → get current streak status
 
 from fastapi import APIRouter, HTTPException
-from models.schemas import StreakStatus
-from services.streak_service import get_streak
+from Backend.models.schemas import StreakStatus
+from Backend.services.streak_service import get_streak
 from datetime import date
 
 router = APIRouter()

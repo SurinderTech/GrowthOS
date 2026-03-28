@@ -18,13 +18,13 @@ from authlib.integrations.starlette_client import OAuth
 from starlette.config import Config
 import os
 from dotenv import load_dotenv
-from schemas.auth import RegisterRequest, AuthResponse
-from schemas.user import UserResponse
+from Backend.schemas.auth import RegisterRequest, AuthResponse
+from Backend.schemas.user import UserResponse
 
-from db.session import get_db
-from models.onboarding import UserOnboarding
+from Backend.db.session import get_db
+from Backend.models.onboarding import UserOnboarding
 from datetime import datetime
-from models.user import User
+from Backend.models.user import User
 from auth import hash_password, verify_password, create_access_token, get_current_user
 
 load_dotenv()

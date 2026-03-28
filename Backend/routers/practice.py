@@ -23,22 +23,22 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
 
-from db.session import get_db
+from Backend.db.session import get_db
 from auth import get_current_user
-from models.onboarding import UserOnboarding
-from models.practice import (
+from Backend.models.onboarding import UserOnboarding
+from Backend.models.practice import (
     PracticeQuestion,
     UserPracticeSession,
     UserPracticeAnswer,
     UserStreak,
     UserSkillProgress,
 )
-from services.practice_gemini import (
+from Backend.services.practice_gemini import (
     get_or_generate_questions,
     evaluate_short_answer,
 )
-from services.streak_service import update_streak, get_or_create_streak, increment_skill_progress
-from routers.dashboard import get_user_profile
+from Backend.services.streak_service import update_streak, get_or_create_streak, increment_skill_progress
+from Backend.routers.dashboard import get_user_profile
 
 router = APIRouter()
 

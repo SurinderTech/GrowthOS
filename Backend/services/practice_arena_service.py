@@ -10,18 +10,18 @@ from datetime import date, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import func as sqlfunc
 
-from models.practice import (
+from Backend.models.practice import (
     PracticeQuestion, UserStreak, UserSkillProgress,
     UserPracticeSession, UserPracticeAnswer
 )
-from models.practice_arena import (
+from Backend.models.practice_arena import (
     CodingProblem, CodingSubmission, ExamSession,
     PracticeActivityLog, RecentSubmission
 )
-from models.onboarding import UserOnboarding
-from services.streak_service import update_streak, get_or_create_streak, increment_skill_progress
-from services.practice_gemini import get_or_generate_questions, evaluate_short_answer, _get_user_config
-from services.gemini_service import _get_model
+from Backend.models.onboarding import UserOnboarding
+from Backend.services.streak_service import update_streak, get_or_create_streak, increment_skill_progress
+from Backend.services.practice_gemini import get_or_generate_questions, evaluate_short_answer, _get_user_config
+from Backend.services.gemini_service import _get_model
 
 
 # ── MCQ ───────────────────────────────────────────────────────────────────────

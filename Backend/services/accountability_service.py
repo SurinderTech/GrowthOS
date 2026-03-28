@@ -4,7 +4,7 @@
 # based on user's current state
 
 from config import supabase, gemini_model
-from services.streak_service import get_streak
+from Backend.services.streak_service import get_streak
 from datetime import date
 
 

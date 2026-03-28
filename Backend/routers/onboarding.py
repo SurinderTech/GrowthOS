@@ -8,9 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 
-from db.session import get_db
-from models.onboarding import UserOnboarding
-from schemas.onboarding import (
+from Backend.db.session import get_db
+from Backend.models.onboarding import UserOnboarding
+from Backend.schemas.onboarding import (
     Step1Schema, Step2Schema, Step3Schema, Step4Schema,
     Step5StudentSchema, Step5FreelancerSchema, Step5BusinessSchema,
     Step5CreatorSchema, Step5ExamSchema,

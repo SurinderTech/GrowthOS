@@ -28,10 +28,10 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 
-from db.session import get_db
+from Backend.db.session import get_db
 from auth import get_current_user, hash_password, verify_password
-from models.user import User
-from models.onboarding import UserOnboarding
+from Backend.models.user import User
+from Backend.models.onboarding import UserOnboarding
 
 router = APIRouter()
 

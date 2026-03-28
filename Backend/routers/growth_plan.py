@@ -17,17 +17,17 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timezone, date, timedelta
 from uuid import UUID
 
-from db.session import get_db
+from Backend.db.session import get_db
 from auth import get_current_user
-from models.growth_plan import UserGrowthPlan, GrowthPhase, GrowthTask
-from models.practice import UserStreak              # reuse existing streak model
-from routers.dashboard import get_user_profile      # reuse existing profile builder
-from services.growth_plan_ai import (
+from Backend.models.growth_plan import UserGrowthPlan, GrowthPhase, GrowthTask
+from Backend.models.practice import UserStreak              # reuse existing streak model
+from Backend.routers.dashboard import get_user_profile      # reuse existing profile builder
+from Backend.services.growth_plan_ai import (
     generate_full_growth_plan,
     generate_smart_message,
     get_fallback_plan,
 )
-from schemas.growth_plan import GrowthPlanResponse, TaskToggleResponse
+from Backend.schemas.growth_plan import GrowthPlanResponse, TaskToggleResponse
 
 router = APIRouter(tags=["Growth Plan"])
 

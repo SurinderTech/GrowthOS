@@ -26,9 +26,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
-from db.session import get_db
+from Backend.db.session import get_db
 from auth import get_current_user
-from services.practice_arena_service import (
+from Backend.services.practice_arena_service import (
     get_mcq_questions, evaluate_mcq_answer,
     get_numeric_questions, evaluate_numeric_answer,
     get_coding_problems, submit_code,
@@ -36,7 +36,7 @@ from services.practice_arena_service import (
     get_activity_graph, get_recent_submissions,
     get_practice_stats,
 )
-from services.streak_service import update_streak
+from Backend.services.streak_service import update_streak
 
 router = APIRouter()
 

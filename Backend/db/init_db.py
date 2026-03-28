@@ -3,11 +3,11 @@ from db.base import Base
 from db.session import engine
 
 # Import models
-from models.dashboard import GrowthPlan, DailyTask, AIInsight
-from models.user import User
-from models.onboarding import UserOnboarding
-import models.practice
-import models.practice_arena    # ← ADD THIS LINE
+from Backend.models.dashboard import GrowthPlan, DailyTask, AIInsight
+from Backend.models.user import User
+from Backend.models.onboarding import UserOnboarding
+import Backend.models.practice
+import Backend.models.practice_arena    # ← ADD THIS LINE
 
 
 def init_db():

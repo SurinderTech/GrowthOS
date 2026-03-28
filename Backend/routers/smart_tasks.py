@@ -10,13 +10,13 @@ from datetime import datetime, timezone, date
 from typing import List
 from uuid import UUID
 
-from db.session import get_db
+from Backend.db.session import get_db
 from auth import get_current_user
-from models.smart_task import SmartDailyTask
-from models.onboarding import UserOnboarding
-from schemas.smart_task import SmartTaskOut, SubmitAnswerRequest, SubmitAnswerResponse
-from services.smart_task_service import generate_smart_daily_tasks
-from services.gemini_service import ask_ai   # reuse your existing ask_ai
+from Backend.models.smart_task import SmartDailyTask
+from Backend.models.onboarding import UserOnboarding
+from Backend.schemas.smart_task import SmartTaskOut, SubmitAnswerRequest, SubmitAnswerResponse
+from Backend.services.smart_task_service import generate_smart_daily_tasks
+from Backend.services.gemini_service import ask_ai   # reuse your existing ask_ai
 
 router = APIRouter()
 

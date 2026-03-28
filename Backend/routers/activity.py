@@ -4,7 +4,7 @@
 # GET /activity/feed?user_id=xxx&limit=10  → get cohort activity feed
 
 from fastapi import APIRouter, HTTPException
-from models.schemas import BatchActivityResponse, BatchActivityItem
+from Backend.models.schemas import BatchActivityResponse, BatchActivityItem
 from config import supabase
 
 router = APIRouter()
