@@ -25,7 +25,7 @@ from Backend.db.session import get_db
 from Backend.models.onboarding import UserOnboarding
 from datetime import datetime
 from Backend.models.user import User
-from auth import hash_password, verify_password, create_access_token, get_current_user
+from Backend.auth import hash_password, verify_password, create_access_token, get_current_user
 
 load_dotenv()
 
@@ -168,7 +168,7 @@ async def dev_reset_password(email: str, new_password: str, db: Session = Depend
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    from auth import hash_password
+    from Backend.auth import hash_password
     user.hashed_password = hash_password(new_password.strip())
     db.commit()
     return {"message": f"Password successfully updated for {email}. You can now log in with the new password."}
