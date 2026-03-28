@@ -9,16 +9,18 @@ import os
 from dotenv import load_dotenv
 
 # Routers
-from routers import practice, streaks, missions, activity, accountability
-from routers.practice import router as practice_router
-from routers.auth import router as auth_router
-from routers.dashboard import router as dashboard_router
-from routers.onboarding import router as onboarding_router
-from routers.practice_arena import router as arena_router
-from routers.smart_tasks import router as smart_tasks_router
-from scheduler.task_scheduler import start_scheduler, shutdown_scheduler
-from routers.growth_plan import router as growth_plan_router
-from routers.settings import router as settings_router
+from Backend.routers import practice, streaks, missions, activity, accountability
+
+from Backend.routers.practice import router as practice_router
+from Backend.routers.auth import router as auth_router
+from Backend.routers.dashboard import router as dashboard_router
+from Backend.routers.onboarding import router as onboarding_router
+from Backend.routers.practice_arena import router as arena_router
+from Backend.routers.smart_tasks import router as smart_tasks_router
+from Backend.routers.growth_plan import router as growth_plan_router
+from Backend.routers.settings import router as settings_router
+
+from Backend.scheduler.task_scheduler import start_scheduler, shutdown_scheduler
 
 # Database
 from db.init_db import init_db
