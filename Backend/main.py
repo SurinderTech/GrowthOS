@@ -30,10 +30,58 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Root
+# Root endpoint
 @app.get("/")
 def root():
     return {
         "message": "GrowthOS API is running ✅",
         "docs": "/docs",
     }
+
+
+# ===============================
+# 🔥 ADD ROUTERS (STEP BY STEP)
+# ===============================
+
+try:
+    from Backend.routers.auth import router as auth_router
+    app.include_router(auth_router)
+    print("✅ Auth router loaded")
+except Exception as e:
+    print("❌ Auth router error:", e)
+
+
+# ===============================
+# 🔥 DATABASE INIT (SAFE)
+# ===============================
+
+@app.on_event("startup")
+def startup():
+    print("🚀 Starting GrowthOS Backend...")
+
+    try:
+        from Backend.db.init_db import init_db
+
+        db_url = os.getenv("DATABASE_URL")
+        if not db_url:
+            raise Exception("DATABASE_URL missing ❌")
+
+        init_db()
+        print("✅ Database initialized")
+
+    except Exception as e:
+        print("❌ DB ERROR:", e)
+
+
+# ===============================
+# 🔥 SHUTDOWN SAFE
+# ===============================
+
+@app.on_event("shutdown")
+def shutdown():
+    try:
+        from Backend.scheduler.task_scheduler import shutdown_scheduler
+        shutdown_scheduler()
+        print("🛑 Scheduler stopped")
+    except:
+        pass
