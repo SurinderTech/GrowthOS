@@ -5,7 +5,7 @@
 
 from fastapi import APIRouter, HTTPException
 from Backend.models.schemas import BatchActivityResponse, BatchActivityItem
-from config import supabase
+from Backend.config import supabase
 
 router = APIRouter()
 
