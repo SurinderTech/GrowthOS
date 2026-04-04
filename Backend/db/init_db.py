@@ -1,6 +1,6 @@
 from sqlalchemy import text
 from Backend.db.base import Base
-from db.session import engine
+from Backend.db.session import engine
 
 # Import models
 from Backend.models.dashboard import GrowthPlan, DailyTask, AIInsight

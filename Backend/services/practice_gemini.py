@@ -293,7 +293,7 @@ def get_or_generate_questions(ob, db, count: int = 5) -> list:
     2. If Gemini fails → fallback to DB.
     3. If DB empty → return [].
     """
-    from models.practice import PracticeQuestion
+    from Backend.models.practice import PracticeQuestion
     from sqlalchemy import func as sqlfunc
 
     config    = _get_user_config(ob)

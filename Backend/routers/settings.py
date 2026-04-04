@@ -331,7 +331,7 @@ def export_data(
     Export all user data as a downloadable JSON file.
     Includes profile, onboarding, growth plans, tasks, insights.
     """
-    from models.dashboard import GrowthPlan, DailyTask, AIInsight
+    from Backend.models.dashboard import GrowthPlan, DailyTask, AIInsight
 
     # Build complete data export
     ob = db.query(UserOnboarding).filter(

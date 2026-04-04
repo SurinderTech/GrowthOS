@@ -14,12 +14,12 @@ from sqlalchemy import cast, Date
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
 
-from db.session import SessionLocal
-from models.smart_task import SmartDailyTask
-from models.onboarding import UserOnboarding
+from Backend.db.session import SessionLocal
+from Backend.models.smart_task import SmartDailyTask
+from Backend.models.onboarding import UserOnboarding
 
 # Import your new smart task generator
-from services.smart_task_service import generate_smart_daily_tasks
+from Backend.services.smart_task_service import generate_smart_daily_tasks
 
 # ── Build profile from onboarding row (self-contained, no circular imports) ──
 

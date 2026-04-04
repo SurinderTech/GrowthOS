@@ -5,7 +5,7 @@ Practice Arena API.
 Plugs into your existing FastAPI app — same auth, same DB session, same patterns.
 
 Add to main.py:
-    from routers.practice import router as practice_router
+    from Backend.routers.practice import router as practice_router
     app.include_router(practice_router, prefix="/practice", tags=["Practice"])
 
 Endpoints:

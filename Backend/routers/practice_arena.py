@@ -4,7 +4,7 @@ routers/practice_arena.py
 Practice Arena API — powers the full dashboard/practice/page.tsx
 
 Add to main.py:
-    from routers.practice_arena import router as arena_router
+    from Backend.routers.practice_arena import router as arena_router
     app.include_router(arena_router, prefix="/practice-arena", tags=["Practice Arena"])
 
 Endpoints:

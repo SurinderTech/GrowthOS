@@ -8,7 +8,7 @@ from sqlalchemy import Column, String, Integer, Boolean, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID
 
 # Replace with your actual Base import path
-from db.session import Base   # e.g. from database import Base
+from Backend.db.session import Base   # e.g. from database import Base
 
 
 class SmartDailyTask(Base):

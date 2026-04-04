@@ -1,6 +1,6 @@
 # routers/smart_tasks.py
 # Mount in main.py:
-#   from routers.smart_tasks import router as smart_tasks_router
+#   from Backend.routers.smart_tasks import router as smart_tasks_router
 #   app.include_router(smart_tasks_router, prefix="/api/tasks", tags=["smart-tasks"])
 
 from fastapi import APIRouter, Depends, HTTPException

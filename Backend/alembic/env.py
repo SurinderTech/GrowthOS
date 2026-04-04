@@ -9,12 +9,12 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
 
-from db.session import Base
+from Backend.db.session import Base
 from sqlalchemy import create_engine
 
 # Import models so Alembic detects them
-from models.user import User
-from models.dashboard import GrowthPlan, DailyTask, AIInsight
+from Backend.models.user import User
+from Backend.models.dashboard import GrowthPlan, DailyTask, AIInsight
 from dotenv import load_dotenv
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")

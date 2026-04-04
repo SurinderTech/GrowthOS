@@ -9,8 +9,8 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
-from db.session import get_db
-from models.user import User
+from Backend.db.session import get_db
+from Backend.models.user import User
 import os
 from dotenv import load_dotenv
 
