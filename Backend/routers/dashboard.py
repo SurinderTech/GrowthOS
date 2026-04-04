@@ -372,11 +372,17 @@ def get_skills(current_user=Depends(get_current_user), db: Session = Depends(get
     profile = get_user_profile(current_user.id, db)
 
     try:
-        skills_data = generate_skill_recommendations(profile)
-        if ob and skills_data:
-            ob.generated_skills = skills_data
-            db.commit()
-        return skills_data
+       skills_data = generate_skill_recommendations(profile)
+
+if not skills_data:
+    print("Gemini failed → using fallback")
+    return _get_fallback_skills(profile)
+
+if ob:
+    ob.generated_skills = skills_data
+    db.commit()
+
+return skills_data
     except Exception as e:
         print(f"Skill generation failed: {e}")
         return _get_fallback_skills(profile)
