@@ -12,12 +12,12 @@ print("DATABASE_URL =", DATABASE_URL)
 
 engine = create_engine(
     DATABASE_URL,
-    pool_size=1,          # 🔥 VERY IMPORTANT
-    max_overflow=0,       # 🔥 VERY IMPORTANT
+    pool_size=5,          # 🔥 VERY IMPORTANT
+    max_overflow=10,       # 🔥 VERY IMPORTANT
     pool_pre_ping=True,
     connect_args={
         "sslmode": "require",
-        "connect_timeout": 10
+        "connect_timeout": 30
     }
 )
 
