@@ -8,7 +8,7 @@
 from fastapi import APIRouter, HTTPException
 from datetime import date
 from Backend.models.schemas import Mission, MissionCompleteRequest, MissionControlResponse
-from config import supabase, gemini_model
+from Backend.config import supabase, gemini_model
 import json
 import uuid
 
