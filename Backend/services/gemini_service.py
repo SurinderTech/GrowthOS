@@ -294,7 +294,7 @@ Return JSON array ONLY (no markdown):
         return json.loads(raw)
     except Exception as e:
         print(f"Skill recommendation failed: {e}")
-          raise e []
+        raise e
 
 # ── 5. Generate Opportunities ─────────────────────────────────────────────────
 def generate_opportunities(user_profile: dict) -> list:
