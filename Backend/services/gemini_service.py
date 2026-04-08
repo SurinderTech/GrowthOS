@@ -102,8 +102,7 @@ Be specific, actionable, and inspiring. No generic advice.
         response = model.generate_content(prompt, request_options={"timeout": 15})
         return _safe_json(response.text)
     except Exception as e:
-        print(f"Growth plan generation failed: {e}")
-        raise e
+        raise Exception(f"Gemini Error: {str(e)}")
 
 
 # ── 2. Generate Daily Tasks ───────────────────────────────────────────────────
