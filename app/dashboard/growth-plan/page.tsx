@@ -225,10 +225,6 @@ export default function GrowthPlanPage() {
 
       {/* Sidebar */}
       <aside style={s.sidebar}>
-        <div style={s.sidebarLogo}>
-          <Image src="/images/GrowthOs.png" alt="GrowthOS" width={32} height={32} style={{ borderRadius: "50%" }} />
-          <span style={s.sidebarLogoText}>GrowthOS</span>
-        </div>
         <nav style={s.nav}>
           {[
             { icon: <LayoutDashboard size={18}/>, label: "Dashboard",     href: "/dashboard" },

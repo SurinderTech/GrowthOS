@@ -410,10 +410,6 @@ export default function LeaderboardPage() {
 
       {/* ── Sidebar ── */}
       <aside style={s.sidebar}>
-        <div style={s.sidebarLogo}>
-          <Image src="/images/GrowthOs.png" alt="GrowthOS" width={32} height={32} style={{borderRadius:"50%"}}/>
-          <span style={s.sidebarLogoText}>GrowthOS</span>
-        </div>
         <nav style={s.nav}>
           {NAV.map(item=>(
             <Link key={item.label} href={item.href} style={{textDecoration:"none"}}>
