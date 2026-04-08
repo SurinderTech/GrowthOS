@@ -15,8 +15,12 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 genai.configure(api_key=GEMINI_API_KEY)
 print("Available Gemini models:")
 
-for m in genai.list_models():
-    print(m.name)
+def print_models_safe():
+    try:
+        for m in genai.list_models():
+            print(m.name)
+    except Exception as e:
+        print("Gemini not available in this region:", e)
 
 MODEL_NAME = "gemini-flash-latest"   # Fast + free tier friendly. Change to "gemini-1.5-pro" for better quality
 
