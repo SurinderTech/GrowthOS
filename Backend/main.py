@@ -97,12 +97,12 @@ def startup():
 
     # Initialize database tables
     try:
-        
-        init_db()
-        print("✅ Database tables ready")
-    except Exception as e:
-        print(f"❌ Database initialization failed: {e}")
-
+    init_db()
+    print("✅ Database tables ready")
+except Exception as e:
+    print("❌ DB error:", str(e))
+    # IMPORTANT: crash avoid karne ke liye pass
+    pass
     # Start APScheduler for smart daily tasks
     try:
         #start_scheduler()
