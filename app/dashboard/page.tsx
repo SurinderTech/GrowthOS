@@ -622,10 +622,11 @@ export default function DashboardPage() {
 
       {/* Sidebar */}
       <aside style={s.sidebar}>
-        <div style={s.sidebarLogo}>
+        {/* GrowthOS Logo - Commented Out */}
+        {/* <div style={s.sidebarLogo}>
           <Image src="/images/GrowthOs.png" alt="GrowthOS" width={32} height={32} style={{ borderRadius: "50%" }} />
           <span style={s.sidebarLogoText}>GrowthOS</span>
-        </div>
+        </div> */}
         <nav style={s.nav}>
           {[
             { icon: <LayoutDashboard size={18}/>, label: "Dashboard",      href: "/dashboard",            active: true },
