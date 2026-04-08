@@ -1,16 +1,100 @@
 "use client";
 // app/login/page.tsx
-// Login page. Calls FastAPI POST /auth/login.
-// On success: saves JWT token → redirects to /dashboard
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import toast from "react-hot-toast";
-import { Eye, EyeOff, Mail, Lock, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, Loader2, Brain } from "lucide-react";
 import { apiLogin, saveToken, saveUser, loginWithGoogle, loginWithFacebook, loginWithLinkedIn } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+
+/* ── Animated Neon Brain Orb ── */
+function BrainOrb() {
+  return (
+    <>
+      <style>{`
+        @keyframes spinSlow   { from { transform: rotate(0deg);   } to { transform: rotate(360deg);  } }
+        @keyframes spinRev    { from { transform: rotate(0deg);   } to { transform: rotate(-360deg); } }
+        @keyframes orbPulse   { 0%,100% { opacity:.6; transform:scale(.96); } 50% { opacity:1; transform:scale(1.05); } }
+        @keyframes orbFloat   { 0%,100% { transform:translateY(0px); } 50% { transform:translateY(-7px); } }
+        @keyframes conicSpin  { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+      `}</style>
+
+      {/* Float wrapper */}
+      <div style={{ animation: "orbFloat 4s ease-in-out infinite", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ position: "relative", width: 160, height: 160, display: "flex", alignItems: "center", justifyContent: "center" }}>
+
+          {/* ── Soft ambient pulse bloom ── */}
+          <div style={{
+            position: "absolute", inset: -18, borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(99,102,241,0.45) 0%, rgba(59,130,246,0.22) 45%, transparent 70%)",
+            animation: "orbPulse 3s ease-in-out infinite",
+            zIndex: 0,
+          }} />
+
+          {/* ── Cyan accent glow ── */}
+          <div style={{
+            position: "absolute", inset: -8, borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(6,182,212,0.2) 0%, transparent 65%)",
+            zIndex: 0,
+          }} />
+
+          {/* ── Spinning conic border ring ── */}
+          <div style={{
+            position: "absolute", inset: 0, borderRadius: "50%",
+            background: "conic-gradient(from 0deg, #6366f1 0deg, #3b82f6 60deg, #06b6d4 120deg, #818cf8 180deg, transparent 181deg, transparent 360deg)",
+            animation: "conicSpin 3s linear infinite",
+            zIndex: 1,
+            filter: "blur(0.5px)",
+          }} />
+
+          {/* ── Dark mask to isolate ring ── */}
+          <div style={{
+            position: "absolute", inset: 4, borderRadius: "50%",
+            background: "#0d1f3c",
+            zIndex: 1,
+          }} />
+
+          {/* ── Inner spinning orbit ring 1 ── */}
+          <div style={{
+            position: "absolute", inset: 10, borderRadius: "50%",
+            border: "1.5px solid transparent",
+            borderTopColor: "#818cf8", borderRightColor: "#3b82f6",
+            animation: "spinSlow 2.8s linear infinite",
+            filter: "drop-shadow(0 0 5px rgba(129,140,248,0.85))",
+            zIndex: 2,
+          }} />
+
+          {/* ── Inner spinning orbit ring 2 ── */}
+          <div style={{
+            position: "absolute", inset: 24, borderRadius: "50%",
+            border: "1.5px solid transparent",
+            borderBottomColor: "#06b6d4", borderLeftColor: "rgba(6,182,212,0.4)",
+            animation: "spinRev 2s linear infinite",
+            filter: "drop-shadow(0 0 5px rgba(6,182,212,0.8))",
+            zIndex: 2,
+          }} />
+
+          {/* ── Center core ── */}
+          <div style={{
+            position: "relative", zIndex: 3,
+            width: 72, height: 72, borderRadius: "50%",
+            background: "radial-gradient(circle at 38% 35%, rgba(147,197,253,0.22) 0%, rgba(13,31,60,0.97) 65%)",
+            border: "1.5px solid rgba(129,140,248,0.55)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            animation: "orbPulse 2.2s ease-in-out infinite",
+            backdropFilter: "blur(12px)",
+            boxShadow: "0 0 32px rgba(99,102,241,0.6), 0 0 12px rgba(59,130,246,0.4), inset 0 0 22px rgba(99,102,241,0.18)",
+          }}>
+            <Brain size={30} style={{ color: "#a5b4fc", filter: "drop-shadow(0 0 8px rgba(165,180,252,0.9))" }} />
+          </div>
+
+        </div>
+      </div>
+    </>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,23 +109,15 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) { toast.error("Please fill in all fields"); return; }
-
     setLoading(true);
     try {
-      console.log("Logging in with email:", email);
       const data = await apiLogin(email, password);
-      console.log("Login success! User info:", data.user);
-
       saveToken(data.access_token);
       saveUser(data.user);
       setUser(data.user);
-
       toast.success("Welcome back! 🎉");
-
-      // Redirect to dashboard as requested by user
       router.push("/dashboard");
     } catch (err: any) {
-      console.error("Login Error:", err);
       toast.error(err.message || "Login failed");
     } finally {
       setLoading(false);
@@ -50,51 +126,45 @@ export default function LoginPage() {
 
   return (
     <div style={s.root}>
-      {/* ── LEFT: GrowthOS Brand Panel */}
+      {/* ── LEFT: Brand Panel ── */}
       <div style={s.left}>
         <div style={s.grid} />
         <div style={s.leftInner}>
 
-          {/* ✅ FIXED: Logo with circular clip + inner glow + pulse animation */}
-          <div style={styles.logoWrapper}>
-  <div style={styles.glowOrb} />
-  <div style={styles.glowRing1} />
-  <div style={styles.glowRing2} />
-  <div style={styles.glowMask} />   {/* ← ADD THIS */}
-  <div style={styles.logoCircle}>
-    <Image
-      src="/images/GrowthOs.png"
-      alt="GrowthOS Logo"
-      width={150}
-      height={150}
-      style={{ objectFit: "contain", display: "block", borderRadius: "50%" }}
-      priority
-    />
-  </div>
-</div>
+          {/* Neon Brain Orb */}
+          <div style={{ marginBottom: 32 }}>
+            <BrainOrb />
+          </div>
+
+          {/* Brand name under orb */}
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontFamily: "'Rajdhani','Segoe UI',sans-serif", fontSize: "2rem", fontWeight: 800, color: "#fff", letterSpacing: "-0.5px", lineHeight: 1 }}>
+              Growth<span style={{ background: "linear-gradient(135deg,#818cf8,#38bdf8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>OS</span>
+            </div>
+            <div style={{ fontSize: "0.62rem", letterSpacing: "0.22em", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", marginTop: 4 }}>Digital Silicon Valley</div>
+          </div>
 
           <h1 style={s.headline}>
-            Your Digital Sillicon<span style={s.orange}>Valley.</span>
+            Your Digital Silicon <span style={s.orange}>Valley.</span>
           </h1>
           <p style={s.sub}>
-            Turn Potential Into Progress power your digital growth journey.
+            Turn Potential Into Progress — power your digital growth journey.
           </p>
 
           <div style={s.stats}>
-  {[["500+","Members"],["120+","Projects Built"],["1000+","Hours of Learning"]].map(([n,l]) => (
-    <div key={l} style={s.statCard}>
-      <div style={s.statNum}>{n}</div>
-      <div style={s.statLbl}>{l}</div>
-    </div>
+            {[["500+","Members"],["120+","Projects Built"],["1000+","Hours of Learning"]].map(([n,l]) => (
+              <div key={l} style={s.statCard}>
+                <div style={s.statNum}>{n}</div>
+                <div style={s.statLbl}>{l}</div>
+              </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* ── RIGHT: Login Form */}
+      {/* ── RIGHT: Login Form ── */}
       <div style={s.right}>
         <div style={s.box}>
-          {/* Tabs */}
           <div style={s.tabs}>
             <Link href="/login" style={{...s.tab,...s.tabOn}}>Sign In</Link>
             <Link href="/signup" style={s.tab}>Sign Up</Link>
@@ -142,7 +212,6 @@ export default function LoginPage() {
             <div style={s.line}/><span style={s.or}>or continue with</span><div style={s.line}/>
           </div>
 
-          {/* Social login */}
           <div style={s.socials}>
             <button style={s.socialBtn} onClick={loginWithGoogle} disabled={!!socialLoading}>
               <svg width="18" height="18" viewBox="0 0 24 24">
@@ -174,130 +243,50 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* ✅ FIX 1: pulseGlow keyframe added here */}
       <style>{`
-  @keyframes spin { to { transform: rotate(360deg); } }
-  @keyframes rotateConic {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
-  }
-  @keyframes pulseGlow {
-    0%, 100% { opacity: 0.5; transform: scale(0.97); }
-    50%       { opacity: 1;   transform: scale(1.04); }
-  }
-  input:focus { border-color: #1565c0 !important; box-shadow: 0 0 0 3px rgba(21,101,192,0.12) !important; outline: none; }
-  button:not(:disabled):hover { opacity: 0.88; transform: translateY(-1px); }
-`}</style>
+        @keyframes spin { to { transform: rotate(360deg); } }
+        input:focus { border-color: #1565c0 !important; box-shadow: 0 0 0 3px rgba(21,101,192,0.12) !important; outline: none; }
+        button:not(:disabled):hover { opacity: 0.88; transform: translateY(-1px); }
+      `}</style>
     </div>
   );
 }
 
-/* ─── Main styles ─────────────────────────────────────────────────────────── */
 const s: Record<string, React.CSSProperties> = {
-  root: { display:"flex", minHeight:"100vh", fontFamily:"'DM Sans','Segoe UI',sans-serif" },
-  left: { width:"52%", position:"relative", display:"flex", alignItems:"center", justifyContent:"center", padding:"60px 50px", overflow:"visible", background:"radial-gradient(ellipse at 30% 40%,rgba(21,101,192,.22) 0%,transparent 60%),linear-gradient(135deg,#0d1f3c 0%,#0a1628 60%,#0d2547 100%)" },
-  grid: { position:"absolute", inset:0, backgroundImage:"linear-gradient(rgba(33,150,243,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(33,150,243,.05) 1px,transparent 1px)", backgroundSize:"40px 40px" },
-  leftInner: { position:"relative", zIndex:2, textAlign:"center", maxWidth:"420px" , overflow: "visible", } ,
-  logoText: { fontFamily:"'Rajdhani','Segoe UI',sans-serif", fontSize:"2.8rem", fontWeight:700, lineHeight:1, textAlign:"left" },
-  blue: { color:"#1e88e5" }, silver: { color:"#b0bec5" }, orange: { color:"#ff6b00" },
-  tagline: { fontSize:"0.6rem", letterSpacing:"0.22em", color:"#b0bec5", opacity:.65, marginTop:"4px", textTransform:"uppercase", textAlign:"left" },
-  headline: { fontFamily:"'Rajdhani','Segoe UI',sans-serif", fontSize:"2.5rem", fontWeight:700, color:"#fff", lineHeight:1.15, marginBottom:"16px" },
-  sub: { fontSize:"0.93rem", color:"#b0bec5", lineHeight:1.7, marginBottom:"36px" },
-  stats: { display:"flex", gap:"14px", justifyContent:"center" },
-  statCard: { background:"rgba(255,255,255,.06)", border:"1px solid rgba(255,255,255,.1)", borderRadius:"12px", padding:"14px 20px", textAlign:"center" },
-  statNum: { fontFamily:"'Rajdhani',sans-serif", fontSize:"1.5rem", fontWeight:700, color:"#2196f3" },
-  statLbl: { fontSize:"0.68rem", color:"#b0bec5", textTransform:"uppercase", letterSpacing:"0.1em" },
-  right: { width:"48%", background:"linear-gradient(145deg,#fff 0%,#e8f0fe 100%)", display:"flex", alignItems:"center", justifyContent:"center", padding:"50px 40px", overflowY:"auto" },
-  box: { width:"100%", maxWidth:"400px" },
-  tabs: { display:"flex", background:"#e0e7f0", borderRadius:"12px", padding:"5px", marginBottom:"28px" },
-  tab: { flex:1, textAlign:"center", padding:"10px", fontSize:"0.9rem", fontWeight:600, color:"#6b7a99", textDecoration:"none", borderRadius:"9px", transition:"all .25s" },
-  tabOn: { background:"white", color:"#1565c0", boxShadow:"0 2px 8px rgba(0,0,0,.12)" },
-  title: { fontFamily:"'Rajdhani',sans-serif", fontSize:"1.9rem", fontWeight:700, color:"#0d1f3c", marginBottom:"4px" },
-  desc: { fontSize:"0.85rem", color:"#7a8aa0", marginBottom:"24px" },
-  form: { display:"flex", flexDirection:"column", gap:"14px" },
-  field: { display:"flex", flexDirection:"column", gap:"5px" },
-  lbl: { fontSize:"0.7rem", fontWeight:700, color:"#4a5568", letterSpacing:"0.06em" },
-  wrap: { position:"relative" },
-  icon: { position:"absolute", left:"13px", top:"50%", transform:"translateY(-50%)", color:"#1565c0", opacity:.5, pointerEvents:"none" },
-  input: { width:"100%", padding:"11px 14px 11px 38px", border:"1.5px solid #d0dbe8", borderRadius:"10px", fontSize:"0.88rem", color:"#1a2740", background:"white", transition:"all .25s", fontFamily:"inherit", boxSizing:"border-box" },
-  eyeBtn: { position:"absolute", right:"12px", top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"#7a8aa0", display:"flex", alignItems:"center", padding:0 },
-  forgot: { fontSize:"0.78rem", color:"#1565c0", textDecoration:"none", fontWeight:500 },
-  btnMain: { width:"100%", padding:"13px", background:"linear-gradient(135deg,#1565c0 0%,#1e88e5 100%)", border:"none", borderRadius:"10px", fontSize:"0.95rem", fontWeight:700, letterSpacing:"0.06em", color:"white", cursor:"pointer", transition:"all .25s", boxShadow:"0 4px 15px rgba(21,101,192,.35)", fontFamily:"'Rajdhani',sans-serif", marginTop:"4px" },
-  row: { display:"flex", alignItems:"center", justifyContent:"center", gap:"8px" },
-  spin: { animation:"spin .8s linear infinite" },
-  divider: { display:"flex", alignItems:"center", gap:"12px", margin:"20px 0" },
-  line: { flex:1, height:"1px", background:"#d0dbe8" },
-  or: { fontSize:"0.75rem", color:"#9aabb8", whiteSpace:"nowrap", fontWeight:500 },
-  socials: { display:"flex", gap:"10px" },
+  root:      { display:"flex", minHeight:"100vh", fontFamily:"'DM Sans','Segoe UI',sans-serif" },
+  left:      { width:"52%", position:"relative", display:"flex", alignItems:"center", justifyContent:"center", padding:"60px 50px", overflow:"visible", background:"radial-gradient(ellipse at 30% 40%,rgba(21,101,192,.22) 0%,transparent 60%),linear-gradient(135deg,#0d1f3c 0%,#0a1628 60%,#0d2547 100%)" },
+  grid:      { position:"absolute", inset:0, backgroundImage:"linear-gradient(rgba(33,150,243,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(33,150,243,.05) 1px,transparent 1px)", backgroundSize:"40px 40px" },
+  leftInner: { position:"relative", zIndex:2, textAlign:"center", maxWidth:"420px", overflow:"visible" },
+  orange:    { color:"#ff6b00" },
+  headline:  { fontFamily:"'Rajdhani','Segoe UI',sans-serif", fontSize:"2rem", fontWeight:700, color:"#fff", lineHeight:1.15, marginBottom:"12px", marginTop:"16px" },
+  sub:       { fontSize:"0.93rem", color:"#b0bec5", lineHeight:1.7, marginBottom:"32px" },
+  stats:     { display:"flex", gap:"12px", justifyContent:"center" },
+  statCard:  { background:"rgba(255,255,255,.06)", border:"1px solid rgba(255,255,255,.1)", borderRadius:"12px", padding:"12px 16px", textAlign:"center" },
+  statNum:   { fontFamily:"'Rajdhani',sans-serif", fontSize:"1.5rem", fontWeight:700, color:"#2196f3" },
+  statLbl:   { fontSize:"0.65rem", color:"#b0bec5", textTransform:"uppercase", letterSpacing:"0.1em" },
+  right:     { width:"48%", background:"linear-gradient(145deg,#fff 0%,#e8f0fe 100%)", display:"flex", alignItems:"center", justifyContent:"center", padding:"50px 40px", overflowY:"auto" },
+  box:       { width:"100%", maxWidth:"400px" },
+  tabs:      { display:"flex", background:"#e0e7f0", borderRadius:"12px", padding:"5px", marginBottom:"28px" },
+  tab:       { flex:1, textAlign:"center", padding:"10px", fontSize:"0.9rem", fontWeight:600, color:"#6b7a99", textDecoration:"none", borderRadius:"9px", transition:"all .25s" },
+  tabOn:     { background:"white", color:"#1565c0", boxShadow:"0 2px 8px rgba(0,0,0,.12)" },
+  title:     { fontFamily:"'Rajdhani',sans-serif", fontSize:"1.9rem", fontWeight:700, color:"#0d1f3c", marginBottom:"4px" },
+  desc:      { fontSize:"0.85rem", color:"#7a8aa0", marginBottom:"24px" },
+  form:      { display:"flex", flexDirection:"column", gap:"14px" },
+  field:     { display:"flex", flexDirection:"column", gap:"5px" },
+  lbl:       { fontSize:"0.7rem", fontWeight:700, color:"#4a5568", letterSpacing:"0.06em" },
+  wrap:      { position:"relative" },
+  icon:      { position:"absolute", left:"13px", top:"50%", transform:"translateY(-50%)", color:"#1565c0", opacity:.5, pointerEvents:"none" },
+  input:     { width:"100%", padding:"11px 14px 11px 38px", border:"1.5px solid #d0dbe8", borderRadius:"10px", fontSize:"0.88rem", color:"#1a2740", background:"white", transition:"all .25s", fontFamily:"inherit", boxSizing:"border-box" },
+  eyeBtn:    { position:"absolute", right:"12px", top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"#7a8aa0", display:"flex", alignItems:"center", padding:0 },
+  forgot:    { fontSize:"0.78rem", color:"#1565c0", textDecoration:"none", fontWeight:500 },
+  btnMain:   { width:"100%", padding:"13px", background:"linear-gradient(135deg,#1565c0 0%,#1e88e5 100%)", border:"none", borderRadius:"10px", fontSize:"0.95rem", fontWeight:700, letterSpacing:"0.06em", color:"white", cursor:"pointer", transition:"all .25s", boxShadow:"0 4px 15px rgba(21,101,192,.35)", fontFamily:"'Rajdhani',sans-serif", marginTop:"4px" },
+  row:       { display:"flex", alignItems:"center", justifyContent:"center", gap:"8px" },
+  spin:      { animation:"spin .8s linear infinite" },
+  divider:   { display:"flex", alignItems:"center", gap:"12px", margin:"20px 0" },
+  line:      { flex:1, height:"1px", background:"#d0dbe8" },
+  or:        { fontSize:"0.75rem", color:"#9aabb8", whiteSpace:"nowrap", fontWeight:500 },
+  socials:   { display:"flex", gap:"10px" },
   socialBtn: { flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:"7px", padding:"10px 8px", border:"1.5px solid #d0dbe8", borderRadius:"10px", background:"white", fontSize:"0.8rem", fontWeight:600, color:"#1a2740", cursor:"pointer", transition:"all .25s", fontFamily:"inherit" },
-  switch: { textAlign:"center", marginTop:"20px", fontSize:"0.82rem", color:"#7a8aa0" },
-  switchLink: { color:"#1565c0", fontWeight:600, textDecoration:"none" },
-};
-
-/* ─── ✅ FIX 2: Logo styles with TypeScript type + correct structure ──────── */
-const styles: Record<string, React.CSSProperties> = {
-  logoWrapper: {
-    position: "relative",
-    width: "180px",
-    height: "180px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    margin: "0 auto 28px",
-  },
-
-  // Rotating conic ray burst — the "SaaS glow" effect
-  glowOrb: {
-    position: "absolute",
-    inset: "-25px",
-    borderRadius: "50%",
-    background: "conic-gradient(from 0deg, transparent 0deg, rgba(59,130,246,0.8) 20deg, transparent 40deg, transparent 90deg, rgba(99,102,241,0.6) 110deg, transparent 130deg, transparent 180deg, rgba(56,189,248,0.7) 200deg, transparent 220deg, transparent 270deg, rgba(99,102,241,0.5) 290deg, transparent 310deg, transparent 360deg)",
-    animation: "rotateConic 4s linear infinite",
-    zIndex: 0,
-    filter: "blur(6px)",
-  },
-
-  // Outer soft ambient glow pulse
-  glowRing1: {
-    position: "absolute",
-    inset: "-15px",
-    borderRadius: "50%",
-    background: "radial-gradient(circle, rgba(59,130,246,0.35) 0%, rgba(99,102,241,0.2) 50%, transparent 70%)",
-    animation: "pulseGlow 3s ease-in-out infinite",
-    zIndex: 0,
-  },
-
-  // Hard spinning border ring
-  glowRing2: {
-    position: "absolute",
-    inset: "-2px",
-    borderRadius: "50%",
-    background: "conic-gradient(from 0deg, #6366f1 0deg, #3b82f6 60deg, #06b6d4 120deg, #6366f1 180deg, transparent 181deg, transparent 360deg)",
-    animation: "rotateConic 3s linear infinite",
-    zIndex: 1,
-    filter: "blur(0.5px)",
-  },
-
-  // Mask to create clean ring from glowRing2
-  glowMask: {
-    position: "absolute",
-    inset: "3px",
-    borderRadius: "50%",
-    background: "#0d1f3c",
-    zIndex: 1,
-  },
-
-  logoCircle: {
-    position: "relative",
-    zIndex: 2,
-    width: "160px",
-    height: "160px",
-    borderRadius: "50%",
-    overflow: "hidden",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "radial-gradient(circle at 40% 35%, rgba(147,197,253,0.18) 0%, rgba(13,31,60,0.97) 65%)",
-    boxShadow: "inset 0 0 35px rgba(99,102,241,0.5), inset 0 0 12px rgba(59,130,246,0.3)",
-  },
+  switch:    { textAlign:"center", marginTop:"20px", fontSize:"0.82rem", color:"#7a8aa0" },
+  switchLink:{ color:"#1565c0", fontWeight:600, textDecoration:"none" },
 };

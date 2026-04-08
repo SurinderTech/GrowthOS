@@ -24,7 +24,7 @@ export default function ScrollSection() {
         <p className="mt-8 text-gray-400 text-lg">
           Millions start goals every day.
           Few finish them.
-          Execution AI is built to change that.
+          GrowthOs is built to change that.
         </p>
       </motion.div>
 

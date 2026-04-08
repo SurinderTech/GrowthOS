@@ -125,7 +125,7 @@ export default function Footer() {
                 <span style={{ color: "#7b5ef8" }}>success.</span>
               </h2>
               <p className="mt-3 text-sm leading-relaxed max-w-md" style={{ color: "#5a6478" }}>
-                ExecutionAI is where ambition meets systems. Get early access and start executing at a different level.
+               GrowthOs where ambition meets systems. Get early access and start executing at a different level.
               </p>
             </div>
 
@@ -190,7 +190,7 @@ export default function Footer() {
                     ⚡
                   </div>
                   <span className="text-lg font-bold" style={{ color: "#eef1f7" }}>
-                    Execution<span style={{ color: "#7b5ef8" }}>AI</span>
+                    Growth<span style={{ color: "#7b5ef8" }}>Os</span>
                   </span>
                 </div>
 
@@ -261,7 +261,7 @@ export default function Footer() {
               {/* Left: copyright + legal */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8 flex-wrap">
                 <span className="text-xs" style={{ color: "#5a6478" }}>
-                  © 2025 ExecutionAI. All rights reserved.
+                  © 2025 GrowthOS. All rights reserved.
                 </span>
                 <nav className="flex flex-wrap gap-5">
                   {LEGAL.map((l) => (

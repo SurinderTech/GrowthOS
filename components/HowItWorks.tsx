@@ -629,13 +629,13 @@ function CardComponent({ step, data, isInView, hovered, sparking, onHover, onLea
 const steps = [
   {
     title: "Define Identity",
-    desc: "Choose your goals and tell Execution AI who you are becoming. Set the foundation for everything that follows.",
+    desc: "Choose your goals and tell GrowthOS who you are becoming. Set the foundation for everything that follows.",
     icon: "🎯",
     accent: "#a78bfa",
   },
   {
     title: "AI Builds System",
-    desc: "Our AI creates a personalized execution environment tailored precisely to your goals and working style.",
+    desc: "GrowthOS creates a personalized execution environment tailored precisely to your goals and working style.",
     icon: "⚡",
     accent: "#34d399",
   },
@@ -647,7 +647,7 @@ const steps = [
   },
   {
     title: "Continuous Evolution",
-    desc: "Execution AI adapts and improves your workflow over time. The longer you use it, the smarter it gets.",
+    desc: "GrowthOS adapts and improves your workflow over time. The longer you use it, the smarter it gets.",
     icon: "∞",
     accent: "#60a5fa",
   },
