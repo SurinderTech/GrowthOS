@@ -166,4 +166,4 @@ Pull requests are welcome.
 If this project inspires you, give it a ⭐
 Let’s build the future of personal growth systems.
 
-<p align="center"> ⚡ Built for builders, thinkers, and future founders </p> ```
+
