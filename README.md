@@ -66,10 +66,7 @@ Visual progress system
 Step-based growth indicators
 
 <img src="Screenshot (50).png" width="90%" /> </td> <td align="center" width="50%">
-⚡ Adaptive Intelligence
-
-Learns from your actions
-Improves recommendations
+Login and Sign up 
 
 <img src="Screenshot (51).png" width="90%" /> </td> </tr> </table>
 
