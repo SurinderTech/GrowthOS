@@ -19,18 +19,7 @@
 
 ---
 
-## 🔵 Orb Core 
 
-<p align="center">
-  <img src="https://media.giphy.com/media/3o7TKsQ8UQXWg6v9dC/giphy.gif" width="120"/>
-</p>
-
-
-
-- Rotating dual rings 🔄  
-- Pulsing AI core 🧠  
-- Dynamic progress system 📊  
-- Real-time messaging engine  
 
 ---
 
