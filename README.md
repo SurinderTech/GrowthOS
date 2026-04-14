@@ -55,7 +55,7 @@ GrowthOS = System that connects both
 Generates roadmap for your goals
 Breaks big vision into daily execution
 
-<img src="" width="90%" /> </td> <td align="center" width="50%">
+<img src="Screenshot (48).png" width="90%" /> </td> <td align="center" width="50%">
 🧠 Smart Command Center
 
 Central dashboard for all tasks
