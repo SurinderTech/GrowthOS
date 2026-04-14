@@ -87,12 +87,13 @@ flowchart TD
 
 ```
 ----
-Build a system where:
+# Build a system where:
 
 You don’t just work
 You operate like a company
-🛠️ Tech Stack
-⚛️ React / Next.js
+| 🛠️ Tech | Stack |
+| --------|-------|
+|⚛️ React | Next.js|
 🎨 CSS Animations
 🧠 AI APIs (future scalable)
 💡 System Design Thinking
