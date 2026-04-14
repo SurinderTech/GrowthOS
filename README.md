@@ -49,22 +49,31 @@ GrowthOS = System that connects both
 ---
 
 ## ⚙️ Features
+<table> <tr> <td align="center" width="50%">
+🚀 AI Growth Engine
 
-### 🚀 1. AI Growth Engine
-- Generates roadmap for your goals
-- Breaks big vision into daily execution
+Generates roadmap for your goals
+Breaks big vision into daily execution
 
-### 🧠 2. Smart Command Center
-- Central dashboard for all tasks
-- AI-guided decision making
+<img src="https://your-image-link.com/growth-engine.png" width="90%" /> </td> <td align="center" width="50%">
+🧠 Smart Command Center
 
-### 📊 3. Execution Tracking
-- Visual progress system
-- Step-based growth indicators
+Central dashboard for all tasks
+AI-guided decision making
 
-### ⚡ 4. Adaptive Intelligence
-- Learns from your actions
-- Improves recommendations
+<img src="https://your-image-link.com/command-center.png" width="90%" /> </td> </tr> <tr> <td align="center" width="50%">
+📊 Execution Tracking
+
+Visual progress system
+Step-based growth indicators
+
+<img src="https://your-image-link.com/execution-tracking.png" width="90%" /> </td> <td align="center" width="50%">
+⚡ Adaptive Intelligence
+
+Learns from your actions
+Improves recommendations
+
+<img src="https://your-image-link.com/adaptive-intelligence.png" width="90%" /> </td> </tr> </table>
 
 ---
 
