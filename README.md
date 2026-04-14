@@ -71,7 +71,7 @@ Step-based growth indicators
 Learns from your actions
 Improves recommendations
 
-<img src="https://your-image-link.com/adaptive-intelligence.png" width="90%" /> </td> </tr> </table>
+<img src="Screenshot (51).png" width="90%" /> </td> </tr> </table>
 
 ---
 
