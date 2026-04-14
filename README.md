@@ -5,8 +5,6 @@
 
 ---
 
-## 🧠 ⚡ System Booting...
-
 <p align="center">
   <img src="https://capsule-render.vercel.app/api?type=cylinder&color=0:0f172a,100:1e293b&height=120&section=header&text=GrowthOS%20Loading...&fontSize=28&fontColor=818cf8&animation=fadeIn"/>
 </p>
