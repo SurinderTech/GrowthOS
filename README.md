@@ -59,46 +59,6 @@ Login and Sign up
 
 ---
 
-### 🧩 How it works:
-
-#### 1. Message Engine
-
-const messages = [
-  "Analyzing your goals...",
-  "Designing your growth roadmap...",
-  "Preparing your AI growth system..."
-];
-
-👉 Rotates every 900ms → gives illusion of AI thinking
-
-
-2. Auto Transition System
-setTimeout(() => {
-  onDone();
-}, 3000);
-
-👉 After 3 seconds → system loads main app
-
-3. Orb Animation System
-
-You built a 3-layer animation:
-
-Outer Ring → Slow rotation
-Inner Ring → Reverse rotation
-Center Core → Pulse glow
-spinSlow → clockwise  
-spinReverse → anti-clockwise  
-pulseGlow → breathing effect
-
-👉 This creates:
-
-🧠 “AI Brain Processing” illusion
-
-4. Progress Simulation
-@keyframes progressMove {
-  from { width: 0% }
-  to { width: 100% }
-}
 
 
 ## 🧬 System Architecture
