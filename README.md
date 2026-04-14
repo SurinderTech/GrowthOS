@@ -65,7 +65,7 @@ Breaks big vision into daily execution
 Visual progress system
 Step-based growth indicators
 
-<img src="https://your-image-link.com/execution-tracking.png" width="90%" /> </td> <td align="center" width="50%">
+<img src="Screenshot (50).png" width="90%" /> </td> <td align="center" width="50%">
 ⚡ Adaptive Intelligence
 
 Learns from your actions
