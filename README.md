@@ -56,10 +56,8 @@ Generates roadmap for your goals
 Breaks big vision into daily execution
 
 <img src="Screenshot (48).png" width="90%" /> </td> <td align="center" width="50%">
-🧠 Smart Command Center
+❄️Reality of Internet
 
-Central dashboard for all tasks
-AI-guided decision making
 
 <img src="Screenshot (49).png" width="90%" /> </td> </tr> <tr> <td align="center" width="50%">
 📊 Execution Tracking
