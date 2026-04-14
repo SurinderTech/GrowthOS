@@ -61,7 +61,7 @@ Breaks big vision into daily execution
 Central dashboard for all tasks
 AI-guided decision making
 
-<img src="https://your-image-link.com/command-center.png" width="90%" /> </td> </tr> <tr> <td align="center" width="50%">
+<img src="Screenshot (49).png" width="90%" /> </td> </tr> <tr> <td align="center" width="50%">
 📊 Execution Tracking
 
 Visual progress system
