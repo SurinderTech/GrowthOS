@@ -1,7 +1,11 @@
 <h1 align="center">🚀 GrowthOS</h1>
+
 <p align="center">
-  Your Digital sillicon valley
-  https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExb3M3ajBwZ3F4ZTY0aXBlc3pwMW5zbnhiYjM2a2w1ZjNmeHIxYnBmMiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/dBZU8FAGD5R2gFWB2L/giphy.gif
+  Your Digital Silicon Valley
+</p>
+
+<p align="center">
+  <img src="https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExb3M3ajBwZ3F4ZTY0aXBlc3pwMW5zbnhiYjM2a2w1ZjNmeHIxYnBmMiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/dBZU8FAGD5R2gFWB2L/giphy.gif" alt="GrowthOS Animation" />
 </p>
 
 ---
