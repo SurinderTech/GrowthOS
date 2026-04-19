@@ -39,7 +39,9 @@ GrowthOS = System that connects both
 
 
 ---
-
+## Problem solving
+<img src="" width="90%" /> </td> <td align="center" width="50%">
+-----
 ## ⚙️ Features
 <table> <tr> <td align="center" width="50%">
 🚀 AI Growth Engine
