@@ -39,8 +39,10 @@ GrowthOS = System that connects both
 
 
 ---
-## Problem solving
+## Problem solving:-
 <img src="Screenshot_19-4-2026_21221_.jpeg" width="90%" /> </td> <td align="center" width="50%">
+<br>
+<img src="" width="90%" /> </td> <td align="center" width="50%">
 -----
 ## ⚙️ Features
 <table> <tr> <td align="center" width="50%">
