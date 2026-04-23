@@ -17,7 +17,7 @@
 <p align="center">
   🔄 Initializing Intelligence Engine... <br/>
   🔄 Designing Your Growth Roadmap... <br/>
-  🔄 Activating AI Command Center...
+  🔄 Activating AI Command Center..>
 </p>
 
 ---
