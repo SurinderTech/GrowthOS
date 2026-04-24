@@ -67,7 +67,7 @@ Login and Sign up
 <img src="Screenshot (51).png" width="90%" /> </td> </tr> </table>
 
 # What is GrowhtOs
-<img src="" width="90%" /> </td> </tr> </table>
+<img src="Screenshot_24-4-2026_192338_.jpeg" width="90%" /> </td> </tr> </table>
 ---
 
 
