@@ -100,10 +100,7 @@ flowchart TD
 
 ```
 ----
-# Build a system where:
-
-You don’t just work
-You operate like a company
+# Built a system where you don't just learn You don’t just work You operate like a company
 | 🛠️ Tech  Stack |
 | --------|-------|
 |⚛️ React | Next.js|
