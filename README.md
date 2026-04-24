@@ -44,6 +44,9 @@ GrowthOS = System that connects both
 <br>
 <img src="Screenshot_19-4-2026_21626_.jpeg" width="90%" /> </td> <td align="center" width="50%">
 -----
+
+# What is GrowhtOs
+<img src="Screenshot_24-4-2026_192338_.jpeg" width="90%" /> </td> </tr> </table>
 ## ⚙️ Features of the system
 <table> <tr> <td align="center" width="50%">
 🚀 AI Growth Engine
@@ -66,8 +69,7 @@ Login and Sign up
 
 <img src="Screenshot (51).png" width="90%" /> </td> </tr> </table>
 
-# What is GrowhtOs
-<img src="Screenshot_24-4-2026_192338_.jpeg" width="90%" /> </td> </tr> </table>
+
 ---
 
 
