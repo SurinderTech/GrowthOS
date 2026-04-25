@@ -14,82 +14,152 @@ function BrainOrb() {
   return (
     <>
       <style>{`
-        @keyframes spinSlow   { from { transform: rotate(0deg);   } to { transform: rotate(360deg);  } }
-        @keyframes spinRev    { from { transform: rotate(0deg);   } to { transform: rotate(-360deg); } }
-        @keyframes orbPulse   { 0%,100% { opacity:.6; transform:scale(.96); } 50% { opacity:1; transform:scale(1.05); } }
-        @keyframes orbFloat   { 0%,100% { transform:translateY(0px); } 50% { transform:translateY(-7px); } }
-        @keyframes conicSpin  { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+      @keyframes spinSlow   { from { transform: rotate(0deg);   } to { transform: rotate(360deg);  } }
+      @keyframes spinRev    { from { transform: rotate(0deg);   } to { transform: rotate(-360deg); } }
+      @keyframes orbPulse   { 0%,100% { opacity:.6; transform:scale(.96); } 50% { opacity:1; transform:scale(1.05); } }
+      @keyframes orbFloat   { 0%,100% { transform:translateY(0px); } 50% { transform:translateY(-7px); } }
+      @keyframes conicSpin  { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+
+      @media (max-width: 768px) {
+        * { -webkit-touch-callout: none; -webkit-user-select: none; }
+      }
       `}</style>
 
       {/* Float wrapper */}
-      <div style={{ animation: "orbFloat 4s ease-in-out infinite", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ position: "relative", width: 160, height: 160, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div
+        style={{
+          animation: "orbFloat 4s ease-in-out infinite",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "100%",
+          minHeight: "auto",
+          padding: "8px 0",
+          maxWidth: "100vw",
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+            width: "clamp(92px, 40vw, 160px)",
+            height: "clamp(92px, 40vw, 160px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            maxWidth: "100%",
+            maxHeight: "100%",
+          }}
+        >
+          {/* Soft ambient pulse bloom */}
+          <div
+            style={{
+              position: "absolute",
+              inset: "clamp(-14px, -4vw, -18px)",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, rgba(99,102,241,0.45) 0%, rgba(59,130,246,0.22) 45%, transparent 70%)",
+              animation: "orbPulse 3s ease-in-out infinite",
+              zIndex: 0,
+            }}
+          />
 
-          {/* ── Soft ambient pulse bloom ── */}
-          <div style={{
-            position: "absolute", inset: -18, borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(99,102,241,0.45) 0%, rgba(59,130,246,0.22) 45%, transparent 70%)",
-            animation: "orbPulse 3s ease-in-out infinite",
-            zIndex: 0,
-          }} />
+          {/* Cyan accent glow */}
+          <div
+            style={{
+              position: "absolute",
+              inset: "clamp(-6px, -2vw, -8px)",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle, rgba(6,182,212,0.2) 0%, transparent 65%)",
+              zIndex: 0,
+            }}
+          />
 
-          {/* ── Cyan accent glow ── */}
-          <div style={{
-            position: "absolute", inset: -8, borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(6,182,212,0.2) 0%, transparent 65%)",
-            zIndex: 0,
-          }} />
+          {/* Spinning conic border ring */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              borderRadius: "50%",
+              background:
+                "conic-gradient(from 0deg, #6366f1 0deg, #3b82f6 60deg, #06b6d4 120deg, #818cf8 180deg, transparent 181deg, transparent 360deg)",
+              animation: "conicSpin 3s linear infinite",
+              zIndex: 1,
+              filter: "blur(0.5px)",
+            }}
+          />
 
-          {/* ── Spinning conic border ring ── */}
-          <div style={{
-            position: "absolute", inset: 0, borderRadius: "50%",
-            background: "conic-gradient(from 0deg, #6366f1 0deg, #3b82f6 60deg, #06b6d4 120deg, #818cf8 180deg, transparent 181deg, transparent 360deg)",
-            animation: "conicSpin 3s linear infinite",
-            zIndex: 1,
-            filter: "blur(0.5px)",
-          }} />
+          {/* Dark mask to isolate ring */}
+          <div
+            style={{
+              position: "absolute",
+              inset: "clamp(3px, 1vw, 4px)",
+              borderRadius: "50%",
+              background: "#0d1f3c",
+              zIndex: 1,
+            }}
+          />
 
-          {/* ── Dark mask to isolate ring ── */}
-          <div style={{
-            position: "absolute", inset: 4, borderRadius: "50%",
-            background: "#0d1f3c",
-            zIndex: 1,
-          }} />
+          {/* Inner spinning orbit ring 1 */}
+          <div
+            style={{
+              position: "absolute",
+              inset: "clamp(8px, 2.2vw, 10px)",
+              borderRadius: "50%",
+              border: "1.5px solid transparent",
+              borderTopColor: "#818cf8",
+              borderRightColor: "#3b82f6",
+              animation: "spinSlow 2.8s linear infinite",
+              filter: "drop-shadow(0 0 5px rgba(129,140,248,0.85))",
+              zIndex: 2,
+            }}
+          />
 
-          {/* ── Inner spinning orbit ring 1 ── */}
-          <div style={{
-            position: "absolute", inset: 10, borderRadius: "50%",
-            border: "1.5px solid transparent",
-            borderTopColor: "#818cf8", borderRightColor: "#3b82f6",
-            animation: "spinSlow 2.8s linear infinite",
-            filter: "drop-shadow(0 0 5px rgba(129,140,248,0.85))",
-            zIndex: 2,
-          }} />
+          {/* Inner spinning orbit ring 2 */}
+          <div
+            style={{
+              position: "absolute",
+              inset: "clamp(18px, 5vw, 24px)",
+              borderRadius: "50%",
+              border: "1.5px solid transparent",
+              borderBottomColor: "#06b6d4",
+              borderLeftColor: "rgba(6,182,212,0.4)",
+              animation: "spinRev 2s linear infinite",
+              filter: "drop-shadow(0 0 5px rgba(6,182,212,0.8))",
+              zIndex: 2,
+            }}
+          />
 
-          {/* ── Inner spinning orbit ring 2 ── */}
-          <div style={{
-            position: "absolute", inset: 24, borderRadius: "50%",
-            border: "1.5px solid transparent",
-            borderBottomColor: "#06b6d4", borderLeftColor: "rgba(6,182,212,0.4)",
-            animation: "spinRev 2s linear infinite",
-            filter: "drop-shadow(0 0 5px rgba(6,182,212,0.8))",
-            zIndex: 2,
-          }} />
-
-          {/* ── Center core ── */}
-          <div style={{
-            position: "relative", zIndex: 3,
-            width: 72, height: 72, borderRadius: "50%",
-            background: "radial-gradient(circle at 38% 35%, rgba(147,197,253,0.22) 0%, rgba(13,31,60,0.97) 65%)",
-            border: "1.5px solid rgba(129,140,248,0.55)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            animation: "orbPulse 2.2s ease-in-out infinite",
-            backdropFilter: "blur(12px)",
-            boxShadow: "0 0 32px rgba(99,102,241,0.6), 0 0 12px rgba(59,130,246,0.4), inset 0 0 22px rgba(99,102,241,0.18)",
-          }}>
-            <Brain size={30} style={{ color: "#a5b4fc", filter: "drop-shadow(0 0 8px rgba(165,180,252,0.9))" }} />
+          {/* Center core */}
+          <div
+            style={{
+              position: "relative",
+              zIndex: 3,
+              width: "clamp(44px, 20vw, 72px)",
+              height: "clamp(44px, 20vw, 72px)",
+              borderRadius: "50%",
+              background:
+                "radial-gradient(circle at 38% 35%, rgba(147,197,253,0.22) 0%, rgba(13,31,60,0.97) 65%)",
+              border: "1.5px solid rgba(129,140,248,0.55)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              animation: "orbPulse 2.2s ease-in-out infinite",
+              backdropFilter: "blur(12px)",
+              boxShadow:
+                "0 0 32px rgba(99,102,241,0.6), 0 0 12px rgba(59,130,246,0.4), inset 0 0 22px rgba(99,102,241,0.18)",
+            }}
+          >
+            <Brain
+              size={26}
+              style={{
+                width: "clamp(18px, 6vw, 30px)",
+                height: "clamp(18px, 6vw, 30px)",
+                color: "#a5b4fc",
+                filter: "drop-shadow(0 0 8px rgba(165,180,252,0.9))",
+              }}
+            />
           </div>
-
         </div>
       </div>
     </>
@@ -138,10 +208,10 @@ export default function LoginPage() {
 
           {/* Brand name under orb */}
           <div style={{ marginBottom: 8 }}>
-            <div style={{ fontFamily: "'Rajdhani','Segoe UI',sans-serif", fontSize: "2rem", fontWeight: 800, color: "#fff", letterSpacing: "-0.5px", lineHeight: 1 }}>
+            <div style={{ fontFamily: "'Rajdhani','Segoe UI',sans-serif", fontSize: "clamp(1.2rem, 5vw, 2rem)", fontWeight: 800, color: "#fff", letterSpacing: "-0.5px", lineHeight: 1 }}>
               Growth<span style={{ background: "linear-gradient(135deg,#818cf8,#38bdf8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>OS</span>
             </div>
-            <div style={{ fontSize: "0.62rem", letterSpacing: "0.22em", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", marginTop: 4 }}>Digital Silicon Valley</div>
+            <div style={{ fontSize: "clamp(0.45rem, 2vw, 0.62rem)", letterSpacing: "0.22em", color: "rgba(255,255,255,0.3)", textTransform: "uppercase", marginTop: 4 }}>Digital Silicon Valley</div>
           </div>
 
           <h1 style={s.headline}>
@@ -247,46 +317,54 @@ export default function LoginPage() {
         @keyframes spin { to { transform: rotate(360deg); } }
         input:focus { border-color: #1565c0 !important; box-shadow: 0 0 0 3px rgba(21,101,192,0.12) !important; outline: none; }
         button:not(:disabled):hover { opacity: 0.88; transform: translateY(-1px); }
+        
+        @media (max-width: 1024px) {
+          input { font-size: 16px; }
+        }
+        
+        @media (max-width: 768px) {
+          input { font-size: 16px; }
+        }
       `}</style>
     </div>
   );
 }
 
 const s: Record<string, React.CSSProperties> = {
-  root:      { display:"flex", minHeight:"100vh", fontFamily:"'DM Sans','Segoe UI',sans-serif" },
-  left:      { width:"52%", position:"relative", display:"flex", alignItems:"center", justifyContent:"center", padding:"60px 50px", overflow:"visible", background:"radial-gradient(ellipse at 30% 40%,rgba(21,101,192,.22) 0%,transparent 60%),linear-gradient(135deg,#0d1f3c 0%,#0a1628 60%,#0d2547 100%)" },
+  root:      { display:"flex", minHeight:"100vh", fontFamily:"'DM Sans','Segoe UI',sans-serif", flexDirection:"row" },
+  left:      { width:"52%", position:"relative", display:"flex", alignItems:"center", justifyContent:"center", padding:"clamp(20px, 8vw, 60px)", overflow:"visible", background:"radial-gradient(ellipse at 30% 40%,rgba(21,101,192,.22) 0%,transparent 60%),linear-gradient(135deg,#0d1f3c 0%,#0a1628 60%,#0d2547 100%)" },
   grid:      { position:"absolute", inset:0, backgroundImage:"linear-gradient(rgba(33,150,243,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(33,150,243,.05) 1px,transparent 1px)", backgroundSize:"40px 40px" },
   leftInner: { position:"relative", zIndex:2, textAlign:"center", maxWidth:"420px", overflow:"visible" },
   orange:    { color:"#ff6b00" },
-  headline:  { fontFamily:"'Rajdhani','Segoe UI',sans-serif", fontSize:"2rem", fontWeight:700, color:"#fff", lineHeight:1.15, marginBottom:"12px", marginTop:"16px" },
-  sub:       { fontSize:"0.93rem", color:"#b0bec5", lineHeight:1.7, marginBottom:"32px" },
-  stats:     { display:"flex", gap:"12px", justifyContent:"center" },
-  statCard:  { background:"rgba(255,255,255,.06)", border:"1px solid rgba(255,255,255,.1)", borderRadius:"12px", padding:"12px 16px", textAlign:"center" },
-  statNum:   { fontFamily:"'Rajdhani',sans-serif", fontSize:"1.5rem", fontWeight:700, color:"#2196f3" },
-  statLbl:   { fontSize:"0.65rem", color:"#b0bec5", textTransform:"uppercase", letterSpacing:"0.1em" },
-  right:     { width:"48%", background:"linear-gradient(145deg,#fff 0%,#e8f0fe 100%)", display:"flex", alignItems:"center", justifyContent:"center", padding:"50px 40px", overflowY:"auto" },
+  headline:  { fontFamily:"'Rajdhani','Segoe UI',sans-serif", fontSize:"clamp(1.3rem, 6vw, 2rem)", fontWeight:700, color:"#fff", lineHeight:1.15, marginBottom:"12px", marginTop:"16px" },
+  sub:       { fontSize:"clamp(0.85rem, 3vw, 0.93rem)", color:"#b0bec5", lineHeight:1.7, marginBottom:"32px" },
+  stats:     { display:"flex", gap:"clamp(8px, 2vw, 12px)", justifyContent:"center", flexWrap:"wrap" },
+  statCard:  { background:"rgba(255,255,255,.06)", border:"1px solid rgba(255,255,255,.1)", borderRadius:"12px", padding:"clamp(8px, 2vw, 12px) clamp(12px, 3vw, 16px)", textAlign:"center", minWidth:"clamp(80px, 22vw, 120px)" },
+  statNum:   { fontFamily:"'Rajdhani',sans-serif", fontSize:"clamp(1rem, 4vw, 1.5rem)", fontWeight:700, color:"#2196f3" },
+  statLbl:   { fontSize:"clamp(0.5rem, 1.8vw, 0.65rem)", color:"#b0bec5", textTransform:"uppercase", letterSpacing:"0.1em" },
+  right:     { width:"48%", background:"linear-gradient(145deg,#fff 0%,#e8f0fe 100%)", display:"flex", alignItems:"center", justifyContent:"center", padding:"clamp(20px, 5vw, 50px)", overflowY:"auto" },
   box:       { width:"100%", maxWidth:"400px" },
   tabs:      { display:"flex", background:"#e0e7f0", borderRadius:"12px", padding:"5px", marginBottom:"28px" },
-  tab:       { flex:1, textAlign:"center", padding:"10px", fontSize:"0.9rem", fontWeight:600, color:"#6b7a99", textDecoration:"none", borderRadius:"9px", transition:"all .25s" },
+  tab:       { flex:1, textAlign:"center", padding:"10px", fontSize:"clamp(0.75rem, 2vw, 0.9rem)", fontWeight:600, color:"#6b7a99", textDecoration:"none", borderRadius:"9px", transition:"all .25s" },
   tabOn:     { background:"white", color:"#1565c0", boxShadow:"0 2px 8px rgba(0,0,0,.12)" },
-  title:     { fontFamily:"'Rajdhani',sans-serif", fontSize:"1.9rem", fontWeight:700, color:"#0d1f3c", marginBottom:"4px" },
-  desc:      { fontSize:"0.85rem", color:"#7a8aa0", marginBottom:"24px" },
+  title:     { fontFamily:"'Rajdhani',sans-serif", fontSize:"clamp(1.4rem, 5vw, 1.9rem)", fontWeight:700, color:"#0d1f3c", marginBottom:"4px" },
+  desc:      { fontSize:"clamp(0.75rem, 2.5vw, 0.85rem)", color:"#7a8aa0", marginBottom:"24px" },
   form:      { display:"flex", flexDirection:"column", gap:"14px" },
   field:     { display:"flex", flexDirection:"column", gap:"5px" },
-  lbl:       { fontSize:"0.7rem", fontWeight:700, color:"#4a5568", letterSpacing:"0.06em" },
+  lbl:       { fontSize:"clamp(0.6rem, 1.8vw, 0.7rem)", fontWeight:700, color:"#4a5568", letterSpacing:"0.06em" },
   wrap:      { position:"relative" },
   icon:      { position:"absolute", left:"13px", top:"50%", transform:"translateY(-50%)", color:"#1565c0", opacity:.5, pointerEvents:"none" },
-  input:     { width:"100%", padding:"11px 14px 11px 38px", border:"1.5px solid #d0dbe8", borderRadius:"10px", fontSize:"0.88rem", color:"#1a2740", background:"white", transition:"all .25s", fontFamily:"inherit", boxSizing:"border-box" },
+  input:     { width:"100%", padding:"clamp(8px, 2vw, 11px) clamp(10px, 2vw, 14px) clamp(8px, 2vw, 11px) 38px", border:"1.5px solid #d0dbe8", borderRadius:"10px", fontSize:"clamp(0.8rem, 2.5vw, 0.88rem)", color:"#1a2740", background:"white", transition:"all .25s", fontFamily:"inherit", boxSizing:"border-box" },
   eyeBtn:    { position:"absolute", right:"12px", top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", color:"#7a8aa0", display:"flex", alignItems:"center", padding:0 },
-  forgot:    { fontSize:"0.78rem", color:"#1565c0", textDecoration:"none", fontWeight:500 },
-  btnMain:   { width:"100%", padding:"13px", background:"linear-gradient(135deg,#1565c0 0%,#1e88e5 100%)", border:"none", borderRadius:"10px", fontSize:"0.95rem", fontWeight:700, letterSpacing:"0.06em", color:"white", cursor:"pointer", transition:"all .25s", boxShadow:"0 4px 15px rgba(21,101,192,.35)", fontFamily:"'Rajdhani',sans-serif", marginTop:"4px" },
+  forgot:    { fontSize:"clamp(0.68rem, 2vw, 0.78rem)", color:"#1565c0", textDecoration:"none", fontWeight:500 },
+  btnMain:   { width:"100%", padding:"clamp(10px, 2.5vw, 13px)", background:"linear-gradient(135deg,#1565c0 0%,#1e88e5 100%)", border:"none", borderRadius:"10px", fontSize:"clamp(0.8rem, 2.5vw, 0.95rem)", fontWeight:700, letterSpacing:"0.06em", color:"white", cursor:"pointer", transition:"all .25s", boxShadow:"0 4px 15px rgba(21,101,192,.35)", fontFamily:"'Rajdhani',sans-serif", marginTop:"4px" },
   row:       { display:"flex", alignItems:"center", justifyContent:"center", gap:"8px" },
   spin:      { animation:"spin .8s linear infinite" },
   divider:   { display:"flex", alignItems:"center", gap:"12px", margin:"20px 0" },
   line:      { flex:1, height:"1px", background:"#d0dbe8" },
-  or:        { fontSize:"0.75rem", color:"#9aabb8", whiteSpace:"nowrap", fontWeight:500 },
-  socials:   { display:"flex", gap:"10px" },
-  socialBtn: { flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:"7px", padding:"10px 8px", border:"1.5px solid #d0dbe8", borderRadius:"10px", background:"white", fontSize:"0.8rem", fontWeight:600, color:"#1a2740", cursor:"pointer", transition:"all .25s", fontFamily:"inherit" },
-  switch:    { textAlign:"center", marginTop:"20px", fontSize:"0.82rem", color:"#7a8aa0" },
+  or:        { fontSize:"clamp(0.65rem, 2vw, 0.75rem)", color:"#9aabb8", whiteSpace:"nowrap", fontWeight:500 },
+  socials:   { display:"flex", gap:"clamp(8px, 2vw, 10px)", flexWrap:"wrap" },
+  socialBtn: { flex:"1 1 auto", minWidth:"clamp(80px, 30vw, 110px)", display:"flex", alignItems:"center", justifyContent:"center", gap:"clamp(4px, 1vw, 7px)", padding:"clamp(8px, 2vw, 10px)", border:"1.5px solid #d0dbe8", borderRadius:"10px", background:"white", fontSize:"clamp(0.65rem, 2vw, 0.8rem)", fontWeight:600, color:"#1a2740", cursor:"pointer", transition:"all .25s", fontFamily:"inherit" },
+  switch:    { textAlign:"center", marginTop:"20px", fontSize:"clamp(0.7rem, 2.5vw, 0.82rem)", color:"#7a8aa0" },
   switchLink:{ color:"#1565c0", fontWeight:600, textDecoration:"none" },
 };
