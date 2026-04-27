@@ -51,11 +51,10 @@ GrowthOS = System that connects both
 
 ## 🔥 Core Features<br>
 1.  Practice Arena
-<br>
 Real-world challenge system where users build, solve, and execute
 → No passive learning, only action
-
-🧠 AI Roadmap Generator
+<br>
+2. AI Roadmap Generator
 
 Enter your goal → get a step-by-step execution roadmap
 → Removes confusion completely
