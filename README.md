@@ -54,7 +54,7 @@ GrowthOS = System that connects both
 Real-world challenge system where users build, solve, and execute
 → No passive learning, only action
 <br>
-2. AI Roadmap Generator
+ 2. AI Roadmap Generator
 
 Enter your goal → get a step-by-step execution roadmap
 → Removes confusion completely
