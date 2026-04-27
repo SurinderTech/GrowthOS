@@ -59,7 +59,7 @@ Real-world challenge system where users build, solve, and execute
 Enter your goal → get a step-by-step execution roadmap
 → Removes confusion completely
 
-📅 Daily Task Engine
+3. Daily Task Engine
 
 Breaks big goals into clear daily tasks
 → No decision fatigue
