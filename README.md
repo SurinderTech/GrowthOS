@@ -48,6 +48,32 @@ GrowthOS = System that connects both
 # What is GrowhtOs
 <img src="Screenshot_24-4-2026_192338_.jpeg" width="90%" /> </td> </tr> </table>
 ## ⚙️ Features of the system
+
+🔥 Core Features
+🧪 Practice Arena
+
+Real-world challenge system where users build, solve, and execute
+→ No passive learning, only action
+
+🧠 AI Roadmap Generator
+
+Enter your goal → get a step-by-step execution roadmap
+→ Removes confusion completely
+
+📅 Daily Task Engine
+
+Breaks big goals into clear daily tasks
+→ No decision fatigue
+
+🔥 Streak System
+
+Tracks consistency and builds momentum loops
+→ Discipline becomes addictive
+
+👀 Accountability Tracking
+
+Monitors progress like a real system
+→ Creates pressure similar to real-world environments
 <table> <tr> <td align="center" width="50%">
 🚀 AI Growth Engine
 
