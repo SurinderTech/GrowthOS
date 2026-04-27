@@ -50,31 +50,31 @@ GrowthOS = System that connects both
 ## ⚙️ Features of the system
 
 ## 🔥 Core Features<br>
-1.  Practice Arena<br>
+**1. Practice Arena**<br>
 Real-world challenge system where users build, solve, and execute
 → No passive learning, only action
 <br>
- 2. AI Roadmap Generator
+ **2. AI Roadmap Generator**
 
 Enter your goal → get a step-by-step execution roadmap
 → Removes confusion completely
 
-3. Daily Task Engine
+**3. Daily Task Engine**
 
 Breaks big goals into clear daily tasks
 → No decision fatigue
 
-🔥 Streak System
+**4. Streak System**
 
 Tracks consistency and builds momentum loops
 → Discipline becomes addictive
 
-👀 Accountability Tracking
+**6. Accountability Tracking**
 
 Monitors progress like a real system
 → Creates pressure similar to real-world environments
 <table> <tr> <td align="center" width="50%">
-🚀 AI Growth Engine
+**7. AI Growth Engine**
 
 Generates roadmap for your goals
 Breaks big vision into daily execution
