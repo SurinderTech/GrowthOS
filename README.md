@@ -49,7 +49,6 @@ GrowthOS = System that connects both
 <img src="Screenshot_24-4-2026_192338_.jpeg" width="90%" /> </td> </tr> </table>
 ## ⚙️ Features of the system
 
-## 🔥 Core Features<br>
 **1. Practice Arena**<br>
 Real-world challenge system where users build, solve, and execute
 → No passive learning, only action
