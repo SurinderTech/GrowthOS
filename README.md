@@ -73,10 +73,8 @@ Tracks consistency and builds momentum loops
 Monitors progress like a real system
 → Creates pressure similar to real-world environments
 <table> <tr> <td align="center" width="50%">
-**7. AI Growth Engine**
 
-Generates roadmap for your goals
-Breaks big vision into daily execution
+Landing page
 
 <img src="Screenshot (48).png" width="90%" /> </td> <td align="center" width="50%">
 ❄️Reality of Internet
