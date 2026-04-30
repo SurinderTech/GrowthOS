@@ -249,7 +249,7 @@ flowchart TD
 
 ```
 ----
-# You don’t just learn. You don’t just work. You operate like a company.
+# You don’t just learn. You don’t just work. You operate  a company.
 
 GrowthOS is an AI-powered execution system designed to eliminate distractions and turn goals into daily consistent action.
 
