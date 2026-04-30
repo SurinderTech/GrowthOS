@@ -68,13 +68,13 @@ When they are accountable in real-time
 <img src="Screenshot_24-4-2026_192338_.jpeg" width="90%" /> </td> </tr> </table>
 ## ⚙️ Features of the system
 
-🏟️ Practice Arena (The Heart of GrowthOS)
+### Practice Arena (The Heart of GrowthOS)
 
 Not a learning section. A real execution battlefield.
 
 Practice Arena is where users stop consuming and start performing.
 
-💻 For Coders / Developers
+ For Coders / Developers
 
 A full coding ecosystem inspired by platforms like LeetCode & GFG — but inside a growth-driven system:
 
@@ -99,7 +99,7 @@ Green = execution, Blank = excuses
 
 A structured exam simulation environment:
 
-📝 Exam Mode
+###  Exam Mode
 30 questions per test
 Real exam-like pressure
 Time-based solving
@@ -126,19 +126,21 @@ Revision cycles
 Overthinking
 Decision fatigue
 Procrastination
-🧪 Execution Lab
+###  Execution Lab
 Deep work sessions
 Focus mode (no distractions)
 Task completion tracking
 Real-time progress
-🔥 Streak + Consistency Engine
+
+
+### Streak + Consistency Engine 🔥
 Daily streak tracking
 Visual growth graph
 Momentum-based motivation
 
 Miss a day → break in system → visible loss
 
-🏆 Leaderboard System
+### Leaderboard System
 
 Multiple competitive layers:
 
@@ -149,7 +151,7 @@ Multiple competitive layers:
 
 👉 Turns growth into competition + visibility
 
-🤝 Challenge System (Social Competition Layer)
+### Challenge System (Social Competition Layer)
 
 Growth becomes competitive, not lonely
 
@@ -174,7 +176,7 @@ Personalized recommendations
 👉 System connects:
 Preparation → Opportunity → Action
 
-👀 Accountability Layer (Most Important)
+### Accountability Layer (Most Important) 👀
 Tracks every action
 Monitors daily performance
 Creates pressure like real environments
