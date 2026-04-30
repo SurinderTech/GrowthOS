@@ -2,6 +2,8 @@
 
 <p align="center">
   Your Digital Silicon Valley
+  This is not an app you open.
+This is an environment you live in.
 </p>
 
 <p align="center">
