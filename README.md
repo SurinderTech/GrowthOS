@@ -68,29 +68,133 @@ When they are accountable in real-time
 <img src="Screenshot_24-4-2026_192338_.jpeg" width="90%" /> </td> </tr> </table>
 ## ⚙️ Features of the system
 
-**1. Practice Arena**<br>
-Real-world challenge system where users build, solve, and execute
-→ No passive learning, only action
-<br>
- **2. AI Roadmap Generator**
+🏟️ Practice Arena (The Heart of GrowthOS)
 
-Enter your goal → get a step-by-step execution roadmap
-→ Removes confusion completely
+Not a learning section. A real execution battlefield.
 
-**3. Daily Task Engine**
+Practice Arena is where users stop consuming and start performing.
 
-Breaks big goals into clear daily tasks
-→ No decision fatigue
+💻 For Coders / Developers
 
-**4. Streak System**
+A full coding ecosystem inspired by platforms like LeetCode & GFG — but inside a growth-driven system:
 
-Tracks consistency and builds momentum loops
-→ Discipline becomes addictive
+🧠 Problem Library
+DSA (Easy → Hard)
+Real interview questions
+Company-specific sets
+⚡ Built-in Code Editor + Compiler
+Write code directly
+Run test cases
+Submit solutions
+Multi-language support (C++, Python, Java)
+📊 Submission System
+Pass/Fail results
+Performance insights
+Optimization suggestions (future AI)
+🟢 365 Days Activity Graph
+Like GitHub / LeetCode heatmap
+Tracks daily consistency
+Green = execution, Blank = excuses
+📚 For Students (JEE / NEET / UPSC / SSC / School / College)
 
-**6. Accountability Tracking**
+A structured exam simulation environment:
 
-Monitors progress like a real system
-→ Creates pressure similar to real-world environments
+📝 Exam Mode
+30 questions per test
+Real exam-like pressure
+Time-based solving
+🔢 Question Types
+MCQ (objective-based)
+Numerical (manual input)
+Subject-specific formats:
+Physics (numerical + MCQ)
+Chemistry (theory + calculation)
+Math (step-based solving)
+📅 Daily Action Plan (Execution Engine)
+
+You never think “what to do today”
+
+Auto-generated daily tasks
+Personalized per goal
+Includes:
+Practice problems
+Study targets
+Revision cycles
+
+👉 This removes:
+
+Overthinking
+Decision fatigue
+Procrastination
+🧪 Execution Lab
+Deep work sessions
+Focus mode (no distractions)
+Task completion tracking
+Real-time progress
+🔥 Streak + Consistency Engine
+Daily streak tracking
+Visual growth graph
+Momentum-based motivation
+
+Miss a day → break in system → visible loss
+
+🏆 Leaderboard System
+
+Multiple competitive layers:
+
+🌍 Global Leaderboard
+👥 Batch Leaderboard
+📅 Daily Rankings
+🎯 Skill-specific rankings
+
+👉 Turns growth into competition + visibility
+
+🤝 Challenge System (Social Competition Layer)
+
+Growth becomes competitive, not lonely
+
+Create challenges with friends/batch
+Compare:
+Tasks completed
+Accuracy
+Consistency
+Real-time comparison of performance
+
+👉 You don’t just grow… you compete to grow faster
+
+🔔 Live Opportunities Engine
+
+Growth meets real-world outcomes
+
+Job/internship alerts
+Exam notifications (SSC, UPSC, etc.)
+Skill-based opportunities
+Personalized recommendations
+
+👉 System connects:
+Preparation → Opportunity → Action
+
+👀 Accountability Layer (Most Important)
+Tracks every action
+Monitors daily performance
+Creates pressure like real environments
+
+Like Silicon Valley / competitive ecosystems:
+You are always observed, measured, pushed
+
+🧩 How Everything Connects (System Thinking)
+
+GrowthOS is not features — it’s a loop:
+
+Goal → AI Roadmap → Daily Tasks → Practice Arena → 
+Execution Lab → Tracking → Leaderboard → Feedback → Repeat
+
+👉 This creates:
+
+Consistency
+Pressure
+Progress
+Identity shift
 <table> <tr> <td align="center" width="50%">
 
 Landing page
