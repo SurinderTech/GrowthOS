@@ -1,7 +1,7 @@
 <h1 align="center">🚀 GrowthOS</h1>
 
 <p align="center">
-  Your Digital Silicon Valley
+  Your Digital Silicon Valley<br>
   This is not an app you open.
 This is an environment you live in.
 </p>
