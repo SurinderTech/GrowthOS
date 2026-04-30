@@ -33,6 +33,14 @@
 
 ### 💡 Core Idea:
 
+GrowthOS is a focused digital environment designed to eliminate distractions and build consistency.
+It transforms the internet from a place of consumption into a system of execution and growth.
+
+Instead of learning endlessly, users enter a system where:
+
+Actions are guided
+Progress is tracked
+Discipline becomes automatic
 Human = Vision
 AI = Execution Engine
 GrowthOS = System that connects both
