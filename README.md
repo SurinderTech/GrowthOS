@@ -92,7 +92,7 @@ Multi-language support:<br>
 C++<br>
 Python<br>
 Java<br>
-📊 Submission System<br>
+📊 **Submission System<br>**
 ✅ Pass / Fail results<br>
 📈 Performance insights<br>
 🤖 Optimization suggestions (AI – future scope)<br>
@@ -106,7 +106,7 @@ Legend:<br>
 ⚪ Blank → Excuses<br>
 🎓 For Students (All Streams)<br>
 
-Supports structured preparation for:<br>
+**Supports structured preparation for:<br>**
 
 JEE<br>
 NEET<br>
@@ -122,7 +122,7 @@ Time-based solving<br>
 MCQ (Objective)<br>
 Numerical (Manual input)
 
-Subject formats:
+**Subject formats:**
 
 Physics → Numerical + MCQ
 Chemistry → Theory + Calculation
@@ -134,7 +134,7 @@ You never think “What should I do today?”
 Auto-generated daily tasks
 Personalized based on goals
 
-Includes:
+**Includes:**
 
 Practice problems
 Study targets
@@ -143,7 +143,7 @@ Revision cycles
 Overthinking
 Decision fatigue
 Procrastination
-🧠 Execution Lab
+🧠 **Execution Lab**
 Deep work sessions
 Focus mode (zero distractions)
 Task completion tracking
