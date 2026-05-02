@@ -28,12 +28,12 @@ This is an environment you live in.
 
 ---
 
-## 🧠 What is GrowthOS?
+##  What is GrowthOS?
 
 > GrowthOS is not just an app.
 > It’s a **complete AI-powered system** designed to help you think, plan, execute, and grow like a startup.
 
-### 💡 Core Idea:
+###  Core Idea:
 
 GrowthOS is a focused digital environment designed to eliminate distractions and build consistency.
 It transforms the internet from a place of consumption into a system of execution and growth.
