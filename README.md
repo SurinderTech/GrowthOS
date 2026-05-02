@@ -80,18 +80,18 @@ Practice Arena is where users stop consuming and start performing.
 
 A full coding ecosystem inspired by platforms like LeetCode & GFG — but inside a growth-driven system:
 
-Problem Library
-DSA (Easy → Hard)
-Real interview questions
-Company-specific sets
-⚡ Built-in Code Editor + Compiler
-Write code directly in browser
-Run custom test cases
-Submit solutions instantly
-Multi-language support:
-C++
-Python
-Java
+**Problem Library**
+DSA (Easy → Hard)<br>
+Real interview questions Company-specific sets
+
+Built-in Code Editor + Compiler<br>
+Write code directly in browser<br>
+Run custom test cases<br>
+Submit solutions instantly<br>
+Multi-language support:<br>
+C++<br>
+Python<br>
+Java<br>
 📊 Submission System
 ✅ Pass / Fail results
 📈 Performance insights
