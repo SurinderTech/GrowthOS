@@ -83,7 +83,7 @@ A full coding ecosystem inspired by platforms like LeetCode & GFG — but inside
  **Problem Library**<br>
 DSA (Easy → Hard)
 Real interview questions
-Company-specific sets
+Company-specific sets<br>
 ⚡ Built-in Code Editor + Compiler
 Write code directly
 Run test cases
