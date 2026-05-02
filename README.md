@@ -80,7 +80,7 @@ Practice Arena is where users stop consuming and start performing.
 
 A full coding ecosystem inspired by platforms like LeetCode & GFG — but inside a growth-driven system:
 
-🧠 Problem Library
+ **Problem Library**<br>
 DSA (Easy → Hard)
 Real interview questions
 Company-specific sets
