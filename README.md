@@ -80,11 +80,11 @@ Practice Arena is where users stop consuming and start performing.
 
 A full coding ecosystem inspired by platforms like LeetCode & GFG — but inside a growth-driven system:
 
- Problem Library
+Problem Library
 DSA (Easy → Hard)
 Real interview questions
-Company-specific question sets
-💻 Built-in Code Editor + Compiler
+Company-specific sets
+⚡ Built-in Code Editor + Compiler
 Write code directly in browser
 Run custom test cases
 Submit solutions instantly
@@ -119,10 +119,10 @@ School & College
 Real exam-like pressure
 Time-based solving
 🔢 Question Types
-MCQs (Objective)
+MCQ (Objective)
 Numerical (Manual input)
 
-Subject-specific formats:
+Subject formats:
 
 Physics → Numerical + MCQ
 Chemistry → Theory + Calculation
@@ -133,11 +133,13 @@ You never think “What should I do today?”
 
 Auto-generated daily tasks
 Personalized based on goals
+
 Includes:
+
 Practice problems
 Study targets
 Revision cycles
-❌ This Eliminates:
+❌ This Eliminates
 Overthinking
 Decision fatigue
 Procrastination
@@ -160,56 +162,42 @@ Multiple competitive layers:
 🌍 Global Leaderboard
 👥 Batch Leaderboard
 📅 Daily Rankings
-🎯 Skill-specific Rankings
+🎯 Skill-based Rankings
+⚔️ Challenge System
 
-Growth becomes visible + competitive
+Growth becomes competitive, not lonely.
 
-⚔️ Challenge System (Social Layer)
-
-Growth is no longer lonely.
-
-Create challenges with friends/batch
+Create challenges with friends
 Compare:
 Tasks completed
 Accuracy
 Consistency
-Real-time performance comparison
+Real-time performance tracking
 🔔 Live Opportunities Engine
-
-Connects learning → real-world outcomes
-
 Job & internship alerts
 Exam notifications (SSC, UPSC, etc.)
 Skill-based opportunities
 Personalized recommendations
-👀 Accountability Layer (Core System)
+👀 Accountability Layer (Core)
 Tracks every action
 Monitors daily performance
 Creates real pressure
 
-Like top competitive ecosystems —
 You are always observed, measured, and pushed.
 
-🧩 System Thinking (How Everything Connects)
-
-GrowthOS is not features — it's a loop:
-
+🔁 System Loop
 Goal
-  → AI Roadmap
-    → Daily Tasks
-      → Practice Arena
-        → Execution Lab
-          → Tracking
-            → Leaderboard
-              → Feedback
-                → Repeat
-💡 Final Vision
+ → AI Roadmap
+ → Daily Tasks
+ → Practice Arena
+ → Execution Lab
+ → Tracking
+ → Leaderboard
+ → Feedback
+ → Repeat
+💡 Final Line
 
-GrowthOS = Discipline + System + Pressure + Execution
-
-Not motivation.
-Not theory.
-Only execution.
+GrowthOS = No motivation. Only execution.
 👉 This creates:
 
 Consistency
