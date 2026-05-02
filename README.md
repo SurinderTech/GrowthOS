@@ -92,34 +92,34 @@ Multi-language support:<br>
 C++<br>
 Python<br>
 Java<br>
-📊 Submission System
-✅ Pass / Fail results
-📈 Performance insights
-🤖 Optimization suggestions (AI – future scope)
-🟢 365 Days Activity Graph
-GitHub / LeetCode-style heatmap
-Tracks daily consistency
+📊 Submission System<br>
+✅ Pass / Fail results<br>
+📈 Performance insights<br>
+🤖 Optimization suggestions (AI – future scope)<br>
+🟢 365 Days Activity Graph<br>
+GitHub / LeetCode-style heatmap<br>
+Tracks daily consistency<br>
 
-Legend:
+Legend:<br>
 
-🟢 Green → Execution
-⚪ Blank → Excuses
-🎓 For Students (All Streams)
+🟢 Green → Execution<br>
+⚪ Blank → Excuses<br>
+🎓 For Students (All Streams)<br>
 
-Supports structured preparation for:
+Supports structured preparation for:<br>
 
-JEE
-NEET
-UPSC
-SSC
-School & College
-🧪 Exam Simulation Environment
-⏱ Exam Mode
-30 questions per test
-Real exam-like pressure
-Time-based solving
-🔢 Question Types
-MCQ (Objective)
+JEE<br>
+NEET<br>
+UPSC<br>
+SSC<br>
+School & College<br>
+🧪 Exam Simulation Environment<br>
+⏱ Exam Mode<br>
+30 questions per test<br>
+Real exam-like pressure<br>
+Time-based solving<br>
+🔢 Question Types<br>
+MCQ (Objective)<br>
 Numerical (Manual input)
 
 Subject formats:
