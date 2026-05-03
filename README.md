@@ -137,18 +137,42 @@ Personalized based on goals
 **Includes:**
 
 Practice problems
+
+
 Study targets
+
+
 Revision cycles
+
+
 ❌ This Eliminates
+
+
 Overthinking
+
+
 Decision fatigue
+
+
 Procrastination
+
+
 🧠 **Execution Lab**
 Deep work sessions
+
+
 Focus mode (zero distractions)
+
+
 Task completion tracking
+
+
 Real-time progress monitoring
-🔥 Streak + Consistency Engine
+
+
+ **Streak + Consistency Engine🔥**
+
+
 Daily streak tracking
 Visual growth graph
 Momentum-based motivation
