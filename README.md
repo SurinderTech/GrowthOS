@@ -202,7 +202,7 @@ Multiple competitive layers:
 ## Growth becomes competitive, not lonely.
 
 ## Create challenges with friends
-**Compare**:
+**Compare**:<brt>
 Tasks completed
 
 
@@ -245,7 +245,7 @@ Creates real pressure
 
 **You are always observed, measured, and pushed**
 
-🔁 System Loop
+🔁 **System Loop**
 Goal
  → AI Roadmap
  → Daily Tasks
