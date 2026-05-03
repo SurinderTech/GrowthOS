@@ -201,23 +201,49 @@ Multiple competitive layers:
 
 ## Growth becomes competitive, not lonely.
 
-Create challenges with friends
-Compare:
+## Create challenges with friends
+**Compare**:
 Tasks completed
+
+
 Accuracy
+
+
 Consistency
+
+
 Real-time performance tracking
+
+
 🔔 Live Opportunities Engine
+
+
 Job & internship alerts
+
+
 Exam notifications (SSC, UPSC, etc.)
+
+
 Skill-based opportunities
+
+
 Personalized recommendations
+
+
 👀 Accountability Layer (Core)
+
+
 Tracks every action
+
+
 Monitors daily performance
+
+
 Creates real pressure
 
-You are always observed, measured, and pushed.
+
+
+**You are always observed, measured, and pushed**
 
 🔁 System Loop
 Goal
