@@ -126,7 +126,7 @@ Numerical (Manual input)
 
 Physics → Numerical + MCQ
 Chemistry → Theory + Calculation
-Math → Step-based solving
+Math → Step-based solving<br>
 📅 Daily Action Plan (Execution Engine)
 
 You never think “What should I do today?”
