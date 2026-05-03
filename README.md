@@ -179,17 +179,27 @@ Momentum-based motivation
 
 Miss a day → Break in streak → Visible loss
 
-🏆 Leaderboard System
+ **Leaderboard System🏆**
 
 Multiple competitive layers:
 
 🌍 Global Leaderboard
+
+
 👥 Batch Leaderboard
+
+
 📅 Daily Rankings
+
+
 🎯 Skill-based Rankings
+
+
 ⚔️ Challenge System
 
-Growth becomes competitive, not lonely.
+
+
+## Growth becomes competitive, not lonely.
 
 Create challenges with friends
 Compare:
