@@ -230,7 +230,7 @@ Skill-based opportunities
 Personalized recommendations
 
 
-👀 Accountability Layer (Core)
+**👀 Accountability Layer (Core)**
 
 
 Tracks every action
