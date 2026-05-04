@@ -31,7 +31,7 @@ This is an environment you live in.
 ##  What is GrowthOS?
 
 > GrowthOS is not just an app.
-> It’s a **complete AI-powered system** designed to help you think, plan, execute, and grow like a startup.
+> It’s a **complete AI-powered system** designed to help you think, plan, execute, and grow like a startup..
 
 ###  Core Idea:
 
