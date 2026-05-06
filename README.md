@@ -145,7 +145,7 @@ Study targets
 Revision cycles
 
 
-❌ This Eliminates
+ This Eliminates
 
 
 Overthinking
