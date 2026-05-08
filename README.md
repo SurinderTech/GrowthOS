@@ -377,23 +377,18 @@ GrowthOS/
 ├── tsconfig.json
 ├── next.config.ts
 └── README.md
-```----
+```
+
+----
+
 
 
 ## 🛠️ Setup Instructions
 
 ### Frontend (Next.js)
 
-```bash
-# 1. Navigate to portfolio root
-cd portfolio
 
-# 2. Install dependencies
-npm install
 
-# 3. Create environment file
-cp .env.example .env.local
-# Add your Anthropic API key for the chatbot
 
 # 4. Run development server
 npm run dev
@@ -404,11 +399,9 @@ npm run dev
 
 ```bash
 # 1. Navigate to backend
-cd portfolio/backend
+# used  google Gemini key for the LLM usage
 
-# 2. Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+
 
 # 3. Install dependencies
 pip install -r requirements.txt
@@ -421,21 +414,11 @@ uvicorn main:app --reload --port 8000
 
 ## 🔑 Environment Variables
 
-Create `portfolio/.env.local`:
-
-```env
-# Anthropic API Key (for AI Chatbot)
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
 
 # Backend URL
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-### Getting your Anthropic API Key:
-1. Go to https://console.anthropic.com
-2. Sign up / Log in
-3. Navigate to API Keys → Create Key
-4. Copy and paste into `.env.local`
 
 ## 📡 API Endpoints
 
