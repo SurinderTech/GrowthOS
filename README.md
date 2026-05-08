@@ -377,9 +377,121 @@ GrowthOS/
 ├── tsconfig.json
 ├── next.config.ts
 └── README.md
+```----
+
+
+## 🛠️ Setup Instructions
+
+### Frontend (Next.js)
+
+```bash
+# 1. Navigate to portfolio root
+cd portfolio
+
+# 2. Install dependencies
+npm install
+
+# 3. Create environment file
+cp .env.example .env.local
+# Add your Anthropic API key for the chatbot
+
+# 4. Run development server
+npm run dev
+# → http://localhost:3000
 ```
 
-----
+### Backend (FastAPI)
+
+```bash
+# 1. Navigate to backend
+cd portfolio/backend
+
+# 2. Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Start the API server
+uvicorn main:app --reload --port 8000
+# → http://localhost:8000
+# → Swagger docs: http://localhost:8000/docs
+```
+
+## 🔑 Environment Variables
+
+Create `portfolio/.env.local`:
+
+```env
+# Anthropic API Key (for AI Chatbot)
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+# Backend URL
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+### Getting your Anthropic API Key:
+1. Go to https://console.anthropic.com
+2. Sign up / Log in
+3. Navigate to API Keys → Create Key
+4. Copy and paste into `.env.local`
+
+## 📡 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | Health check |
+| GET | `/services` | List all services |
+| POST | `/order` | Create new order |
+| GET | `/orders` | List all orders (admin) |
+| GET | `/projects` | List all projects |
+| POST | `/contact` | Submit contact form |
+
+### Example Order Request:
+```json
+POST /order
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "phone": "+91 9876543210",
+  "service": "AI Chatbot",
+  "requirements": "I need a WhatsApp bot for my restaurant..."
+}
+```
+
+## 🚢 Deployment
+
+### Frontend → Vercel
+```bash
+npm install -g vercel
+vercel --prod
+```
+
+### Backend → Railway / Render
+```bash
+# On Railway.app or Render.com
+# Point to backend/ directory
+# Start command: uvicorn main:app --host 0.0.0.0 --port $PORT
+```
+
+## 📱 Your Info 
+- **Email:** surinderkumar3182@gmail.com
+- **Phone/WhatsApp:** +91 97974 86509
+- **Location:** Punjab, India
+
+
+
+## 📦 Packages Used
+- `next` 14.2.3
+- `framer-motion` 11.2.10
+- `tailwindcss` 3.4.1
+- `lucide-react` 0.383.0
+- `fastapi` 0.111.0
+- `uvicorn` 0.30.1
+
+---------
+
 # You don’t just learn. You don’t just work. You operate  a company.
 
 GrowthOS is an AI-powered execution system designed to eliminate distractions and turn goals into daily consistent action.
