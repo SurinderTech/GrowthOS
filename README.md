@@ -314,6 +314,72 @@ flowchart TD
 
 ```
 ----
+## 📁 Project Structure
+
+```bash
+GrowthOS/
+├── app/
+│   ├── auth/
+│   ├── dashboard/
+│   │   ├── challenges/
+│   │   ├── community/
+│   │   ├── growth-plan/
+│   │   ├── leaderboard/
+│   │   ├── practice/
+│   │   └── settings/
+│   │
+│   ├── login/
+│   ├── onboarding/
+│   ├── pricing/
+│   ├── signup/
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+│
+├── Backend/
+│   ├── db/
+│   ├── models/
+│   ├── routers/
+│   │   ├── accountability.py
+│   │   ├── activity.py
+│   │   ├── auth.py
+│   │   ├── dashboard.py
+│   │   ├── growth_plan.py
+│   │   ├── missions.py
+│   │   ├── onboarding.py
+│   │   ├── practice.py
+│   │   ├── settings.py
+│   │   ├── smart_tasks.py
+│   │   └── streaks.py
+│   │
+│   ├── scheduler/
+│   ├── schemas/
+│   ├── services/
+│   │   ├── accountability_service.py
+│   │   ├── gemini_service.py
+│   │   ├── growth_plan_ai.py
+│   │   ├── practice_arena_service.py
+│   │   ├── question_generator.py
+│   │   ├── smart_task_service.py
+│   │   └── streak_service.py
+│   │
+│   ├── auth.py
+│   ├── config.py
+│   ├── main.py
+│   └── requirements.txt
+│
+├── components/
+├── context/
+├── lib/
+├── public/
+├── .env
+├── package.json
+├── tsconfig.json
+├── next.config.ts
+└── README.md
+```
+
+----
 # You don’t just learn. You don’t just work. You operate  a company.
 
 GrowthOS is an AI-powered execution system designed to eliminate distractions and turn goals into daily consistent action.
