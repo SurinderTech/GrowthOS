@@ -383,7 +383,7 @@ GrowthOS/
 
 
 
-## 🛠️ Setup Instructions
+
 
 ### Frontend (Next.js)
 
@@ -419,7 +419,7 @@ uvicorn main:app --reload --port 8000
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-
+---
 ## 📡 API Endpoints
 
 | Method | Endpoint | Description |
@@ -431,6 +431,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 | GET | `/projects` | List all projects |
 | POST | `/contact` | Submit contact form |
 
+-----
 ### Example Order Request:
 ```json
 POST /order
