@@ -70,7 +70,7 @@ When they are accountable in real-time
 <img src="Screenshot_24-4-2026_192338_.jpeg" width="90%" /> </td> </tr> </table>
 ## ⚙️ Features of the system
 
-## 1.Practice Arena (The Heart of GrowthOS)
+## 1. Practice Arena (The Heart of GrowthOS)
 
 Not a learning section. A real execution battlefield.
 
