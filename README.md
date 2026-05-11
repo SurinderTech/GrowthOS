@@ -157,7 +157,7 @@ Decision fatigue
 Procrastination
 
 
-🧠 **Execution Lab**
+## **2. Execution Lab**
 Deep work sessions
 
 
