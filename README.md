@@ -170,7 +170,7 @@ Task completion tracking
 Real-time progress monitoring
 
 
- **Streak + Consistency Engine🔥**
+## 3. **Streak + Consistency Engine🔥**
 
 
 Daily streak tracking
