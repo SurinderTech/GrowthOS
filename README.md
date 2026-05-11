@@ -179,7 +179,7 @@ Momentum-based motivation
 
 Miss a day → Break in streak → Visible loss
 
- **Leaderboard System🏆**
+## 4. **Leaderboard System🏆**
 
 Multiple competitive layers:
 
@@ -201,7 +201,7 @@ Multiple competitive layers:
 
 
 
-## 3. Create challenges with friends
+## 5. Create challenges with friends
 **Compare**:<brt>
 Tasks completed
 
