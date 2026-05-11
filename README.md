@@ -92,7 +92,7 @@ Multi-language support:<br>
 C++<br>
 Python<br>
 Java<br>
-📊 **Submission System<br>**
+ **---→Submission System<br>**
 ✅ Pass / Fail results<br>
 📈 Performance insights<br>
 🤖 Optimization suggestions (AI – future scope)<br>
