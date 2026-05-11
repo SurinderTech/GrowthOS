@@ -94,8 +94,8 @@ Python<br>
 Java<br>
  **---→Submission System<br>**
 ✅ Pass / Fail results<br>
-📈 Performance insights<br>
-🤖 Optimization suggestions (AI – future scope)<br>
+ Performance insights<br>
+ Optimization suggestions (AI – future scope)<br>
 🟢 365 Days Activity Graph<br>
 GitHub / LeetCode-style heatmap<br>
 Tracks daily consistency<br>
@@ -103,17 +103,17 @@ Tracks daily consistency<br>
 Legend:<br>
 
 🟢 Green → Execution<br>
-⚪ Blank → Excuses<br>
+ Blank → Excuses<br>
 🎓 For Students (All Streams)<br>
 
-**Supports structured preparation for:<br>**
+**---→Supports structured preparation for:<br>**
 
 JEE<br>
 NEET<br>
 UPSC<br>
 SSC<br>
 School & College<br>
-🧪 Exam Simulation Environment<br>
+ **---→Exam Simulation Environment**<br>
 ⏱ Exam Mode<br>
 30 questions per test<br>
 Real exam-like pressure<br>
@@ -122,7 +122,7 @@ Time-based solving<br>
 MCQ (Objective)<br>
 Numerical (Manual input)
 
-**Subject formats:**
+**---→Subject formats:**
 
 Physics → Numerical + MCQ
 Chemistry → Theory + Calculation
@@ -134,7 +134,7 @@ You never think “What should I do today?”
 Auto-generated daily tasks
 Personalized based on goals
 
-**Includes:**
+**---→Includes:**
 
 Practice problems
 
