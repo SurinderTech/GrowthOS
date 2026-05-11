@@ -199,9 +199,9 @@ Multiple competitive layers:
 
 
 
-## Growth becomes competitive, not lonely.
 
-## Create challenges with friends
+
+## 3. Create challenges with friends
 **Compare**:<brt>
 Tasks completed
 
