@@ -93,7 +93,7 @@ C++<br>
 Python<br>
 Java<br>
  **---→Submission System<br>**
-✅ Pass / Fail results<br>
+🟢 Pass / Fail results<br>
  Performance insights<br>
  Optimization suggestions (AI – future scope)<br>
 🟢 365 Days Activity Graph<br>
