@@ -215,7 +215,7 @@ Consistency
 Real-time performance tracking
 
 
-**🔔Live Opportunities Engine**
+## 6.**🔔Live Opportunities Engine**
 
 
 Job & internship alerts
