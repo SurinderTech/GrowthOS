@@ -431,6 +431,8 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 | GET | `/projects` | List all projects |
 | POST | `/contact` | Submit contact form |
 
+
+
 -----
 ### Example Order Request:
 ```json
