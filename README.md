@@ -417,11 +417,11 @@ uvicorn main:app --reload --port 8000
 
 # Backend URL
 NEXT_PUBLIC_API_URL=http://localhost:8000
-```
 
----
+
+
 ## 📡 API Endpoints
-
+```
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/` | Health check |
