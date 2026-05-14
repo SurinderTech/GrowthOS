@@ -479,8 +479,3 @@ vercel --prod
 
 # You don’t just learn. You don’t just work. You operate  a company.
 
-GrowthOS is an AI-powered execution system designed to eliminate distractions and turn goals into daily consistent action.
-
-It’s not another productivity app.
-It’s a behavioral operating system.
-
