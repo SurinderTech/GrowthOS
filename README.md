@@ -398,10 +398,10 @@ GrowthOS/
 | Frontend | Next.js 14, React, TypeScript, Tailwind CSS, Framer Motion |
 | Backend | FastAPI, Python |
 | AI Engine | Google Gemini API |
-| Database | MongoDB / PostgreSQL *(planned)* |
-| Authentication | JWT, OAuth *(future scope)* |
-| Real-Time Features | WebSockets, Socket.io *(planned)* |
-| Code Execution | Judge0 API / Docker Sandbox *(planned)* |
+| Database |  PostgreSQL  |
+| Authentication | JWT, OAuth  |
+| Real-Time Features | WebSockets, Socket.io  |
+| Code Execution | Judge0 API / Docker Sandbox * |
 | Styling | Tailwind CSS, Lucide Icons |
 | State Management | React Context API |
 | Deployment | Vercel, Railway, Render |
