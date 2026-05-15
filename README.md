@@ -241,7 +241,16 @@ Monitors daily performance
 
 Creates real pressure
 
+## 8. AI Engine
 
+GrowthOS uses AI for:
+
+- Personalized growth roadmaps
+- Smart task generation
+- Weakness detection
+- Consistency analysis
+- AI mentor feedback
+- Adaptive challenge difficulty
 
 **You are always observed, measured, and pushed**
 
@@ -255,6 +264,7 @@ Goal
  → Leaderboard
  → Feedback
  → Repeat
+ 
 💡 Final Line
 
 GrowthOS = No motivation. Only execution.
