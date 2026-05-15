@@ -408,7 +408,7 @@ GrowthOS/
 | Version Control | Git & GitHub |
 | Package Managers | npm, pip |
 | APIs | REST API |
-| Hosting | Vercel (Frontend), Railway/Render (Backend) |
+| Hosting | Vercel (Frontend)Render (Backend) |
 | Future Integrations | Redis, LangChain, Pinecone, Supabase |
 
 
