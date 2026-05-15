@@ -391,7 +391,25 @@ GrowthOS/
 
 ----
 
+## 🛠 Tech Stack
 
+| Category | Technologies |
+|----------|---------------|
+| Frontend | Next.js 14, React, TypeScript, Tailwind CSS, Framer Motion |
+| Backend | FastAPI, Python |
+| AI Engine | Google Gemini API |
+| Database | MongoDB / PostgreSQL *(planned)* |
+| Authentication | JWT, OAuth *(future scope)* |
+| Real-Time Features | WebSockets, Socket.io *(planned)* |
+| Code Execution | Judge0 API / Docker Sandbox *(planned)* |
+| Styling | Tailwind CSS, Lucide Icons |
+| State Management | React Context API |
+| Deployment | Vercel, Railway, Render |
+| Version Control | Git & GitHub |
+| Package Managers | npm, pip |
+| APIs | REST API |
+| Hosting | Vercel (Frontend), Railway/Render (Backend) |
+| Future Integrations | Redis, LangChain, Pinecone, Supabase |
 
 
 
