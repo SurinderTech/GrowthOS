@@ -3,7 +3,7 @@
 # MCQ → simple comparison
 # Short answer → Gemini evaluates correctness
 
-from config import supabase, gemini_model
+from Backend.config import supabase, gemini_model
 
 
 async def evaluate_answer(
