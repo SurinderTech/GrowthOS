@@ -5,7 +5,7 @@
 
 import json
 import uuid
-from config import supabase, gemini_model
+from Backend.config import supabase, gemini_model
 
 
 DIFFICULTY_MAP = {

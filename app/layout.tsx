@@ -1,10 +1,7 @@
-// app/layout.tsx
-
-import type { Metadata } from "next";
+// src/app/layout.tsx
 import { Geist, Geist_Mono } from "next/font/google";
-import { AuthProvider } from "@/context/AuthContext";
-import { Toaster } from "react-hot-toast";
-import Navbar from "@/components/Navbar";
+import { AppShell } from "@/components/layout/AppShell";
+import { NeuralGrid } from "@/components/ui/NeuralGrid";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,11 +14,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "GrowthOS – Your Digital Silicon Valley",
-  description: "The all-in-one operating system for ambitious businesses.",
-};
-
 export default function RootLayout({
   children,
 }: {
@@ -29,40 +21,23 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <title>GrowthOS – Your Digital Silicon Valley</title>
+        <meta name="description" content="The all-in-one operating system for ambitious businesses." />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        style={{ 
+          background: "#050709", 
+          color: "white",
+          overflowX: "hidden"
+        }}
       >
-        <AuthProvider>
-
-          {/* Global Navbar */}
-          <Navbar />
-
-          {/* Page Content */}
-          <main style={{ paddingTop: "72px" }}>
-            {children}
-          </main>
-
-          {/* Global Toast Notifications */}
-          <Toaster
-            position="top-center"
-            toastOptions={{
-              style: {
-                background: "#0d1f3c",
-                color: "#ffffff",
-                border: "1px solid rgba(255,255,255,0.12)",
-                borderRadius: "10px",
-                fontSize: "0.88rem",
-              },
-              success: {
-                iconTheme: { primary: "#2196f3", secondary: "#fff" },
-              },
-              error: {
-                iconTheme: { primary: "#ff6b00", secondary: "#fff" },
-              },
-            }}
-          />
-          
-        </AuthProvider>
+        {/* Neural Grid Background - Visible on ALL sections */}
+        <NeuralGrid />
+        
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
