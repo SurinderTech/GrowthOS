@@ -265,7 +265,7 @@ Goal
  → Feedback
  → Repeat
  
-💡 Final Line
+Final Line
 
 GrowthOS = No motivation. Only execution.
 👉 This creates:
