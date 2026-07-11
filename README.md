@@ -57,7 +57,7 @@ People grow faster when they are observed
 When they have deadlines
 When they are accountable in real-time
 
-👉 GrowthOS digitally recreates this environment.
+👉 GrowthOS digitally recreates this environment
 
 ---
 ## Problem solving:-
