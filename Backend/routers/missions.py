@@ -8,7 +8,8 @@
 from fastapi import APIRouter, HTTPException
 from datetime import date
 from Backend.models.schemas import Mission, MissionCompleteRequest, MissionControlResponse
-from Backend.config import supabase, gemini_model
+from Backend.config import supabase
+from Backend.services.gemini_service import _get_model
 import json
 import uuid
 
@@ -173,7 +174,8 @@ Return ONLY this exact JSON array. No markdown, no extra text:
     missions = []
 
     try:
-        response = gemini_model.generate_content(prompt)
+        model = _get_model()
+        response = model.generate_content(prompt)
         raw = response.text.strip()
         if raw.startswith("```"):
             raw = raw.split("```")[1]

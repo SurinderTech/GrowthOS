@@ -1,9 +1,10 @@
 # app/services/accountability_service.py
 # AI Accountability System
-# Gemini generates personalized motivational/warning messages
+# Mesh generates personalized motivational/warning messages
 # based on user's current state
 
-from Backend.config import supabase, gemini_model
+from Backend.config import supabase
+from Backend.services.gemini_service import _get_model
 from Backend.services.streak_service import get_streak
 from datetime import date
 
@@ -109,7 +110,8 @@ Reply ONLY with the message text. No JSON, no labels.
 """
 
     try:
-        response = gemini_model.generate_content(prompt)
+        model = _get_model()
+        response = model.generate_content(prompt)
         message = response.text.strip()
 
         msg_type = "warning" if completed_count == 0 else "motivational"
@@ -123,7 +125,7 @@ Reply ONLY with the message text. No JSON, no labels.
         }
 
     except Exception as e:
-        print(f"[Gemini ERROR] Accountability message failed: {e}")
+        print(f"[Mesh ERROR] Accountability message failed: {e}")
         return {
             "message": "You haven't started today's missions. Your batch is moving. Don't fall behind.",
             "type": "warning",

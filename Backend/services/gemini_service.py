@@ -1,32 +1,26 @@
 """
 services/gemini_service.py
-Gemini AI integration for GrowthOS.
+Shared Mesh AI integration for GrowthOS.
 Generates personalized growth plans, daily tasks, insights, and opportunity lists.
 """
 
-import os
 import json
-import google.generativeai as genai
-from typing import Optional
-from google.api_core.exceptions import ResourceExhausted
+from Backend.services.mesh_client import create_mesh_model
 
-# ── Configure Gemini ──────────────────────────────────────────────────────────
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-genai.configure(api_key=GEMINI_API_KEY)
-print("Available Gemini models:")
+# ── Configure Mesh ───────────────────────────────────────────────────────────
+print("Available Mesh model settings:")
 
 def print_models_safe():
     try:
-        for m in genai.list_models():
-            print(m.name)
+        print("Mesh model:", _get_model().model_name)
     except Exception as e:
-        print("Gemini not available in this region:", e)
+        print("Mesh not available:", e)
 
-MODEL_NAME = "gemini-flash-latest"   # Fast + free tier friendly. Change to "gemini-1.5-pro" for better quality
+MODEL_NAME = ""
 
 
 def _get_model():
-    return genai.GenerativeModel(MODEL_NAME)
+    return create_mesh_model()
 
 
 def _safe_json(text: str) -> dict:

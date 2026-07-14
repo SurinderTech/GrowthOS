@@ -1,9 +1,10 @@
 # app/services/evaluator.py
 # Answer evaluation service
 # MCQ → simple comparison
-# Short answer → Gemini evaluates correctness
+# Short answer → Mesh evaluates correctness
 
-from Backend.config import supabase, gemini_model
+from Backend.config import supabase
+from Backend.services.gemini_service import _get_model
 
 
 async def evaluate_answer(
@@ -47,9 +48,10 @@ async def _gemini_evaluate_text(
     user_answer: str,
 ) -> dict:
     """
-    Ask Gemini: is the user's answer correct?
+    Ask Mesh: is the user's answer correct?
     Returns { is_correct: bool, explanation: str }
     """
+    model = _get_model()
 
     if not user_answer or len(user_answer.strip()) < 10:
         return {
@@ -79,7 +81,7 @@ No markdown, no extra text.
 """
 
     try:
-        response = gemini_model.generate_content(prompt)
+        response = model.generate_content(prompt)
         raw = response.text.strip()
 
         # Strip markdown fences
@@ -97,7 +99,7 @@ No markdown, no extra text.
         }
 
     except Exception as e:
-        print(f"[Gemini ERROR] Evaluation failed: {e}")
+        print(f"[Mesh ERROR] Evaluation failed: {e}")
         # Fallback: give benefit of doubt if answer is long enough
         is_correct = len(user_answer.strip()) > 50
         return {

@@ -50,12 +50,8 @@ app.add_middleware(
 # Step 2: Add CORSMiddleware LAST (will run FIRST, handles OPTIONS preflight)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://growth-os-vfso.vercel.app",
-        "http://127.0.0.1:3000",
-        "http://192.168.1.68:3000",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],   # TEMPORARY FOR DEBUGGING
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

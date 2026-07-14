@@ -1,20 +1,16 @@
 """
 services/growth_plan_ai.py
-Gemini AI functions specifically for the Growth Plan system.
+Mesh AI functions specifically for the Growth Plan system.
 Generates personalized 4-phase execution roadmaps based on onboarding profile.
 Falls back to rich pre-built data if Gemini fails or times out.
 """
 
 import json
-import google.generativeai as genai
-import os
-
-genai.configure(api_key=os.getenv("GEMINI_API_KEY", ""))
-MODEL_NAME = "gemini-flash-latest"
+from Backend.services.gemini_service import _get_model as get_mesh_model
 
 
 def _get_model():
-    return genai.GenerativeModel(MODEL_NAME)
+    return get_mesh_model()
 
 
 def _safe_json_list(text: str) -> list:

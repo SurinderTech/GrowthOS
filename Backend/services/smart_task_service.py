@@ -1,19 +1,13 @@
 # services/smart_task_service.py
 # Generates 3 daily tasks: 2 hard + 1 easy, tailored per career/exam type
-# Plugs into your existing gemini_service pattern
+# Plugs into the shared Mesh-backed AI model
 
-import os
 import json
-import google.generativeai as genai
-from typing import Optional
-
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-genai.configure(api_key=GEMINI_API_KEY)
-MODEL_NAME = "gemini-flash-latest"
+from Backend.services.gemini_service import _get_model as get_mesh_model
 
 
 def _get_model():
-    return genai.GenerativeModel(MODEL_NAME)
+  return get_mesh_model()
 
 
 def _safe_list(text: str) -> list:

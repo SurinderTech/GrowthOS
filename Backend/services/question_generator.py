@@ -1,11 +1,12 @@
 # app/services/question_generator.py
-# Gemini AI question generator
+# Mesh AI question generator
 # Rule: Generate ONCE, store in Supabase forever, reuse always
-# Gemini is called ONLY when DB has fewer than 3 questions for a skill
+# Mesh is called ONLY when DB has fewer than 3 questions for a skill
 
 import json
 import uuid
-from Backend.config import supabase, gemini_model
+from Backend.config import supabase
+from Backend.services.gemini_service import _get_model
 
 
 DIFFICULTY_MAP = {
@@ -42,11 +43,11 @@ async def get_or_generate_questions(
         return _pick_difficulty_mix(existing.data, user_level, count)
 
     # ── Step 2: Not enough — call Gemini ──────────────────────────────────
-    print(f"[Gemini] Generating questions for: {profession} → {skill} ({user_level})")
+    print(f"[Mesh] Generating questions for: {profession} → {skill} ({user_level})")
     generated = await _generate_with_gemini(profession, skill, user_level, count=5)
 
     if not generated:
-        # Gemini failed — return whatever we have from DB as fallback
+        # Mesh failed — return whatever we have from DB as fallback
         return existing.data[:count] if existing.data else []
 
     # ── Step 3: Store generated questions in Supabase ─────────────────────
@@ -67,7 +68,7 @@ async def get_or_generate_questions(
         rows.append(row)
 
     supabase.table("questions").insert(rows).execute()
-    print(f"[Gemini] Stored {len(rows)} new questions for {skill}")
+    print(f"[Mesh] Stored {len(rows)} new questions for {skill}")
 
     return _pick_difficulty_mix(rows, user_level, count)
 
@@ -79,9 +80,10 @@ async def _generate_with_gemini(
     count: int = 5,
 ) -> list[dict]:
     """
-    Call Gemini with a structured prompt.
+    Call Mesh with a structured prompt.
     Returns parsed list of question dicts.
     """
+    model = _get_model()
     prompt = f"""
 You are a technical question generator for a learning platform.
 
@@ -122,10 +124,10 @@ Example format:
 ]
 """
     try:
-        response = gemini_model.generate_content(prompt)
+        response = model.generate_content(prompt)
         raw = response.text.strip()
 
-        # Strip markdown code fences if Gemini adds them
+        # Strip markdown code fences if Mesh adds them
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
@@ -138,7 +140,7 @@ Example format:
         return []
 
     except Exception as e:
-        print(f"[Gemini ERROR] Question generation failed: {e}")
+        print(f"[Mesh ERROR] Question generation failed: {e}")
         return []
 
 

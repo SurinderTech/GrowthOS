@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 from supabase import create_client
-import google.generativeai as genai
+from Backend.services.mesh_client import create_mesh_model
 
 # Explicitly load Backend/.env
 env_path = Path(__file__).parent / ".env"
@@ -15,5 +15,5 @@ print("SUPABASE_URL:", SUPABASE_URL)
 
 supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-gemini_model = genai.GenerativeModel("gemini-flash-latest")
+mesh_model = create_mesh_model()
+gemini_model = mesh_model
