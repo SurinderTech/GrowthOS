@@ -1,4 +1,4 @@
-<h1 align="center">🚀 GrowthOS</h1>
+<h1 align="center"> GrowthOS</h1>
 
 <p align="center">
   Your Digital Silicon Valley<br>
@@ -427,7 +427,7 @@ npm run dev
 
 ```bash
 # 1. Navigate to backend
-# used  google Gemini key for the LLM usage
+# used  Open Router API key for LLM usage 
 
 
 
