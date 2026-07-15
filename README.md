@@ -397,7 +397,7 @@ GrowthOS/
 |----------|---------------|
 | Frontend | Next.js 14, React, TypeScript, Tailwind CSS, Framer Motion |
 | Backend | FastAPI, Python |
-| AI Engine | Google Gemini API |
+| AI Engine | Open Routoer |
 | Database |  PostgreSQL  |
 | Authentication | JWT, OAuth  |
 | Real-Time Features | WebSockets, Socket.io  |
@@ -483,12 +483,12 @@ vercel --prod
 
 ### Backend → Railway / Render
 ```bash
-# On Railway.app or Render.com
+# Render.com
 # Point to backend/ directory
 # Start command: uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
-## 📱 Your Info 
+## 📱Info 
 - **Email:** surinderkumar3182@gmail.com
 - **Phone/WhatsApp:** +91 97974 86509
 - **Location:** Punjab, India
