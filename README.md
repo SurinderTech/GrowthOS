@@ -505,5 +505,5 @@ vercel --prod
 
 ---------
 
-# You don’t just learn. You don’t just work. You operate  a company.
+# You don’t just learn. You don’t just work. You operate  a system.
 
