@@ -61,11 +61,9 @@ function getToken() {
 
 const NAV_ITEMS = [
   { icon: <LayoutDashboard size={18} />, label: "Dashboard",     href: "/dashboard" },
-  { icon: <Target size={18} />,         label: "Growth Plan",   href: "/dashboard/growth-plan" },
   { icon: <Play size={18} />,           label: "Practice Arena",href: "/dashboard/practice" },
   { icon: <BarChart2 size={18} />,      label: "Leaderboard",   href: "/dashboard/leaderboard" },
   { icon: <Trophy size={18} />,         label: "Challenges",    href: "/dashboard/challenges" },
-  { icon: <BookOpen size={18} />,       label: "Skills",        href: "/dashboard/skills" },
   { icon: <Users size={18} />,          label: "Community",     href: "/dashboard/community" },
   { icon: <Settings size={18} />,       label: "Settings",      href: "/dashboard/settings", active: true },
 ];

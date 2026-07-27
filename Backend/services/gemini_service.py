@@ -1,26 +1,34 @@
 """
 services/gemini_service.py
-Shared Mesh AI integration for GrowthOS.
-Generates personalized growth plans, daily tasks, insights, and opportunity lists.
+Shared AI integration for GrowthOS, now running on OpenRouter.
+
+This module's prompts and output-parsing are left exactly as they were pre-
+migration — only the model client underneath changed (Mesh → OpenRouter via
+Backend/ai/legacy_adapter.py). See that module's docstring for why. New
+agent-based capabilities live under Backend/ai/agents/ behind the Orchestrator.
 """
 
 import json
-from Backend.services.mesh_client import create_mesh_model
+from Backend.ai.legacy_adapter import create_legacy_model
+from Backend.ai.model_router import TaskType
 
-# ── Configure Mesh ───────────────────────────────────────────────────────────
-print("Available Mesh model settings:")
+# ── Configure model client ───────────────────────────────────────────────────
+print("GrowthOS AI: routed through OpenRouter (see Backend/ai/model_router.py)")
 
 def print_models_safe():
     try:
-        print("Mesh model:", _get_model().model_name)
+        print("Active model:", _get_model().model_name)
     except Exception as e:
-        print("Mesh not available:", e)
+        print("Model client not available:", e)
 
 MODEL_NAME = ""
 
 
 def _get_model():
-    return create_mesh_model()
+    # Most of these prompts ask for structured JSON back, so JSON is the
+    # right default TaskType here. Swap per-call in the future if a specific
+    # function benefits from a different task type (e.g. TaskType.CREATIVE).
+    return create_legacy_model(TaskType.JSON)
 
 
 def _safe_json(text: str) -> dict:

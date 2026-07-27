@@ -1,31 +1,40 @@
 "use client";
 // app/dashboard/page.tsx
-// GrowthOS — All data live from backend. No hardcoded user data shown.
+// GrowthOS — Command Center with AI Agents Cycling Orchestration & Orbit AI Core.
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import Image from "next/image";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Sparkles, CheckCircle2, Circle, ChevronRight, RefreshCw,
   Zap, Target, BookOpen, Trophy, Users, Rocket, GitBranch,
-  Brain, TrendingUp, Clock, Star, ArrowRight, Bot, LayoutDashboard,
+  Brain, TrendingUp, Clock, Star, Bot, LayoutDashboard,
   Settings, LogOut, Bell, Search, Flame, Shield, Activity,
-  Play, X, BarChart2, Cpu,
+  Play, X, BarChart2, Cpu, Mic, Send, Volume2, MessageSquare, FileText,
 } from "lucide-react";
 import LoadingScreen from "./LoadingScreen";
-import CareerGraph from "./CareerGraph";
+import {
+  ResumeAgentPanel,
+  InterviewAgentPanel,
+  ProjectAgentPanel,
+  NetworkingAgentPanel,
+  LearningAgentPanel,
+  OpportunityAgentPanel,
+  RoadmapAgentPanel,
+} from "./AgentPanels";
+import { useAuth } from "@/context/AuthContext";
 import {
   getDashboard,
   getGrowthPlan,
   getSkills,
   getOpportunities,
   getAIInsight,
-  getCareerGraph,
   getPracticeStreak,
-  type GrowthPlan,
+  getBatchActivity,
   type Skill,
   type Opportunity,
   type StreakStatus,
+  type BatchActivityItem,
 } from "@/lib/dashboard-api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -53,86 +62,18 @@ interface SmartTask {
   ai_feedback?: string;
 }
 
-interface BatchActivity {
+interface NovaMessage {
   id: string;
-  user: string;
-  avatar: string;
-  action: string;
-  time: string;
-  type: "mission_completed" | "practice_started" | "practice_completed" | "streak_achieved" | "rank_change";
+  role: "user" | "nova";
+  text: string;
 }
-
-// ── Execution Lab Tab IDs ─────────────────────────────────────────────────────
-type LabTab = "path" | "modules" | "projects" | "mentor" | "earn";
-
-const LAB_TABS: { id: LabTab; icon: string; label: string }[] = [
-  { id: "path",     icon: "🧠", label: "Skills Path" },
-  { id: "modules",  icon: "📚", label: "Modules"     },
-  { id: "projects", icon: "⚡", label: "Build"       },
-  { id: "mentor",   icon: "🤖", label: "AI Mentor"   },
-  { id: "earn",     icon: "💼", label: "Earn"        },
-];
-
-// ── Batch Activity — kept as-is ───────────────────────────────────────────────
-const MOCK_BATCH_ACTIVITY: BatchActivity[] = [
-  { id: "a1", user: "Rahul",  avatar: "R", action: "solved today's coding challenge",     time: "2m ago",  type: "practice_completed" },
-  { id: "a2", user: "Aisha",  avatar: "A", action: "moved to Rank #3 on the leaderboard", time: "8m ago",  type: "rank_change" },
-  { id: "a3", user: "Dev",    avatar: "D", action: "started a practice session",           time: "15m ago", type: "practice_started" },
-  { id: "a4", user: "Riya",   avatar: "R", action: "completed 3 missions today",           time: "22m ago", type: "mission_completed" },
-  { id: "a5", user: "Arjun",  avatar: "A", action: "achieved a 7-day streak",              time: "31m ago", type: "streak_achieved" },
-  { id: "a6", user: "Priya",  avatar: "P", action: "submitted the weekly challenge",       time: "45m ago", type: "mission_completed" },
-];
-
-// ── Fallback empty plan ───────────────────────────────────────────────────────
-const EMPTY_PLAN: GrowthPlan = {
-  id: "", title: "Your Growth Plan",
-  summary: "Click Generate Roadmap to build your personalized plan.",
-  generated_at: new Date().toISOString(),
-  months: [
-    { month: 1, label: "Month 1", theme: "Foundation", progress: 0, milestones: [] },
-    { month: 2, label: "Month 2", theme: "Building",   progress: 0, milestones: [] },
-    { month: 3, label: "Month 3", theme: "Launch",     progress: 0, milestones: [] },
-  ],
-};
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
 function Skeleton({ w = "100%", h = "13px", r = "6px" }: { w?: string; h?: string; r?: string }) {
   return <div style={{ width: w, height: h, borderRadius: r, background: "rgba(255,255,255,0.06)", animation: "pulse 1.6s ease-in-out infinite" }} />;
 }
 
-// ── Deadline Timer ────────────────────────────────────────────────────────────
-function useDeadlineTimer() {
-  const [timeLeft, setTimeLeft] = useState("");
-  useEffect(() => {
-    const tick = () => {
-      const now = new Date();
-      // Get current time in India Standard Time
-      const istDate = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-      const istEnd = new Date(istDate);
-      istEnd.setHours(23, 59, 59, 0);
-
-      const diff = istEnd.getTime() - istDate.getTime();
-      if (diff <= 0) { setTimeLeft("00:00:00"); return; }
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const sec = Math.floor((diff % 60000) / 1000);
-      setTimeLeft(`${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`);
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
-  return timeLeft;
-}
-
-function getGreeting() {
-  const h = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })).getHours();
-  if (h < 12) return "Good Morning";
-  if (h < 17) return "Good Afternoon";
-  return "Good Evening";
-}
-
-const activityConfig = {
+const activityConfig: Record<string, { color: string; icon: string }> = {
   practice_completed: { color: "#22c55e", icon: "✓" },
   rank_change:        { color: "#f59e0b", icon: "↑" },
   practice_started:   { color: "#3b82f6", icon: "▶" },
@@ -143,369 +84,523 @@ const activityConfig = {
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 function getToken() { return typeof window !== "undefined" ? localStorage.getItem("access_token") || "" : ""; }
 
-// ── Execution Lab Panel ───────────────────────────────────────────────────────
-function ExecutionLabPanel({ skill, onClose }: { skill: Skill; onClose: () => void }) {
-  const [activeTab, setActiveTab] = useState<LabTab>("path");
-  const [mentorMsg, setMentorMsg] = useState("");
-  const [mentorLoading, setMentorLoading] = useState(false);
-  const [mentorReply, setMentorReply] = useState("");
-  const [completedModules, setCompletedModules] = useState<Set<number>>(new Set());
+// ── AI OPERATING SYSTEM CONTEXT-AWARE GREETING & QUOTE ENGINE ───────────────
+interface DynamicLiveGreetingProps {
+  userName: string;
+  streak?: number;
+  completedMissions?: number;
+  totalMissions?: number;
+  completedTasks?: number;
+  totalTasks?: number;
+  opportunityCount?: number;
+}
 
-  const learnPath = (skill as any).learn_path || ["Start with fundamentals", "Practice daily problems", "Build a real project"];
-  const platform  = (skill as any).platform || "Online Resources";
-  const resourceUrl = (skill as any).resource_url || "#";
+type TimeRangeKey =
+  | "early_riser"     // 4 AM - 6 AM
+  | "morning"         // 6 AM - 11 AM
+  | "midday"          // 11 AM - 1 PM
+  | "afternoon"       // 1 PM - 5 PM
+  | "evening"         // 5 PM - 8 PM
+  | "evening_focus"   // 8 PM - 11 PM
+  | "night_owl"       // 11 PM - 2 AM
+  | "midnight_oil";   // 2 AM - 4 AM
 
-  const modules = learnPath.map((step: string, i: number) => ({
-    id: i, title: `Module ${i+1}`, desc: step,
-    tasks: ["Watch intro video", "Complete 3 exercises", "Mini quiz"],
-    duration: `${20 + i*10}min`,
-  }));
+function DynamicLiveGreeting({
+  userName,
+  streak = 0,
+  completedMissions = 0,
+  totalMissions = 0,
+  completedTasks = 0,
+  totalTasks = 0,
+  opportunityCount = 0,
+}: DynamicLiveGreetingProps) {
+  const [currentTimeKey, setCurrentTimeKey] = useState<TimeRangeKey>("morning");
+  const [refreshSeed, setRefreshSeed] = useState(0);
 
-  const projects = [
-    { title: `${skill.name} Starter Project`, desc: "Build a basic working implementation to solidify fundamentals.", difficulty: "Beginner", time: "2-3 hrs" },
-    { title: `${skill.name} Real-World App`,   desc: "Build something you'd put in your portfolio. Connects to real APIs or data.", difficulty: "Intermediate", time: "1-2 days" },
-    { title: `${skill.name} Challenge`,        desc: "A complex build that stretches your current ability. Ship it on GitHub.", difficulty: "Advanced", time: "3-5 days" },
-  ];
+  // Re-calculate real-time hour from browser local clock continuously (every 5 seconds)
+  useEffect(() => {
+    const updateRealTimeKey = () => {
+      const h = new Date().getHours();
+      if (h >= 4 && h < 6) setCurrentTimeKey("early_riser");
+      else if (h >= 6 && h < 11) setCurrentTimeKey("morning");
+      else if (h >= 11 && h < 13) setCurrentTimeKey("midday");
+      else if (h >= 13 && h < 17) setCurrentTimeKey("afternoon");
+      else if (h >= 17 && h < 20) setCurrentTimeKey("evening");
+      else if (h >= 20 && h < 23) setCurrentTimeKey("evening_focus");
+      else if (h >= 23 || h < 2) setCurrentTimeKey("night_owl");
+      else setCurrentTimeKey("midnight_oil");
+    };
+    updateRealTimeKey();
+    const interval = setInterval(updateRealTimeKey, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
-  const earnIdeas = [
-    { type: "Freelance", icon: "💼", title: `${skill.name} Freelance Gigs`,    desc: `Offer ${skill.name} services on Upwork/Fiverr. Entry rate ₹500–₹2000/hr`, url: "https://www.upwork.com" },
-    { type: "Product",   icon: "📦", title: "Build & Sell a Template",          desc: "Create a starter template or boilerplate and sell on Gumroad.",              url: "https://gumroad.com" },
-    { type: "Startup",   icon: "🚀", title: "Startup Idea with This Skill",     desc: `What micro-SaaS or tool can you build using ${skill.name} in 2 weeks?`,     url: "#" },
-  ];
+  const hasMilestone = (streak >= 3) || (totalMissions > 0 && completedMissions === totalMissions);
+  const activeKey: TimeRangeKey | "milestone" = hasMilestone ? "milestone" : currentTimeKey;
 
-  const askMentor = async () => {
-    if (!mentorMsg.trim()) return;
-    setMentorLoading(true);
-    try {
-      const res = await fetch(`${API}/dashboard/ask-ai`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ message: `About skill "${skill.name}": ${mentorMsg}` }),
-      });
-      const data = await res.json();
-      setMentorReply(data.reply || "Keep pushing — every question you ask is progress.");
-    } catch {
-      setMentorReply("Mentor temporarily offline. Try: focus on one small task today related to this skill.");
-    } finally {
-      setMentorLoading(false);
+  // Capitalize first letter of user's name
+  const name = useMemo(() => {
+    const clean = (userName || "Surinder").trim();
+    if (!clean) return "Surinder";
+    return clean.charAt(0).toUpperCase() + clean.slice(1);
+  }, [userName]);
+
+  const pendingMissions = Math.max(0, totalMissions - completedMissions);
+  const pendingTasks = Math.max(0, totalTasks - completedTasks);
+
+  // Session rotation seed to prevent repeating the exact same sentence on refresh
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const prev = parseInt(sessionStorage.getItem("growthos_greet_seed") || "0", 10);
+      const next = (prev + 1) % 100;
+      sessionStorage.setItem("growthos_greet_seed", next.toString());
+      setRefreshSeed(next);
     }
+  }, []);
+
+  const isWeekend = useMemo(() => {
+    const day = new Date().getDay();
+    return day === 0 || day === 6;
+  }, []);
+
+  // AI OS Dynamic Greetings & Quotes Matrix
+  const greetingConfig = useMemo(() => {
+    const pick = (arr: string[], offset = 0) => arr[(refreshSeed + offset) % arr.length];
+
+    const getContextualQuote = (defaultQuotes: string[], timeQuote: string) => {
+      if (totalMissions > 0 && completedMissions === totalMissions) {
+        return `Excellent work, ${name}. All ${totalMissions} daily objectives are complete. Orbit is in background optimization mode.`;
+      }
+      if (pendingMissions > 0) {
+        return `You have ${pendingMissions} mission${pendingMissions > 1 ? "s" : ""} waiting, ${name}. Shall we begin?`;
+      }
+      if (opportunityCount > 0) {
+        return `I found ${opportunityCount} new opportunities for ${name} while you were offline. Execution window is ready.`;
+      }
+      if (streak >= 7) {
+        return `${streak}-day streak maintained. ${name}, consistency is becoming your competitive advantage.`;
+      }
+      if (isWeekend) {
+        return `Great systems never take weekends off. Opportunity monitoring remained active for ${name}.`;
+      }
+      return pick(defaultQuotes, 1) || timeQuote;
+    };
+
+    return {
+      early_riser: {
+        badge: "🌄 Early Riser",
+        line1: pick([
+          `Early start today, ${name}.`,
+          `Dawn execution protocol active, ${name}.`,
+          `Early start today, ${name}. Your competitors are probably still sleeping.`,
+          `Systems initialized early for ${name}.`,
+        ], 0),
+        line2: getContextualQuote([
+          "Small wins compound into extraordinary results.",
+          "Your competitors are probably still sleeping. Let's build leverage.",
+          "Early morning clarity unlocked. Mission control is synchronized.",
+        ], "Small wins compound into extraordinary results."),
+        gradient: "linear-gradient(135deg, #f43f5e 0%, #fbbf24 100%)",
+        color: "#fbbf24",
+        bgGlow: "rgba(244, 63, 94, 0.12)",
+        borderColor: "rgba(244, 63, 94, 0.28)",
+      },
+
+      morning: {
+        badge: "🌅 Morning Briefing",
+        line1: pick([
+          `Good morning, ${name}.`,
+          `Systems online. Good morning, ${name}.`,
+          `Good morning, ${name}. Let's build something meaningful today.`,
+          `Today's focus is already prepared for ${name}.`,
+        ], 0),
+        line2: getContextualQuote([
+          "Today's focus is already prepared. Mission control is ready.",
+          "Small wins compound into extraordinary results.",
+          "Opportunity monitoring remained active while you were away.",
+        ], "Today's focus is already prepared. Let's make it count."),
+        gradient: "linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)",
+        color: "#fbbf24",
+        bgGlow: "rgba(245, 158, 11, 0.12)",
+        borderColor: "rgba(245, 158, 11, 0.28)",
+      },
+
+      midday: {
+        badge: "⚡ Midday Momentum",
+        line1: pick([
+          `Hope your day is gaining momentum, ${name}.`,
+          `Midday checkpoint active for ${name}.`,
+          `Execution window is at peak capacity, ${name}.`,
+          `Systems synchronized for peak performance, ${name}.`,
+        ], 0),
+        line2: getContextualQuote([
+          "Execution beats planning every single time.",
+          "Midday momentum active. Your AI handled the heavy lifting.",
+          "Keep pushing forward — consistency compounds continuously.",
+        ], "Hope your day is gaining momentum."),
+        gradient: "linear-gradient(135deg, #00f2fe 0%, #38bdf8 100%)",
+        color: "#00f2fe",
+        bgGlow: "rgba(0, 242, 254, 0.12)",
+        borderColor: "rgba(0, 242, 254, 0.28)",
+      },
+
+      afternoon: {
+        badge: "☀️ Afternoon Execution",
+        line1: pick([
+          `Good afternoon, ${name}.`,
+          `Your AI already prepared today's execution plan, ${name}.`,
+          `Ready for another sprint, ${name}?`,
+          `Execution window active for ${name}.`,
+        ], 0),
+        line2: getContextualQuote([
+          "Your AI already prepared today's execution plan. You just need to execute.",
+          "Execution beats planning every single time.",
+          "Everything is synchronized and waiting for you.",
+        ], "Your AI already prepared today's execution plan."),
+        gradient: "linear-gradient(135deg, #38bdf8 0%, #22d3ee 100%)",
+        color: "#38bdf8",
+        bgGlow: "rgba(56, 189, 248, 0.12)",
+        borderColor: "rgba(56, 189, 248, 0.28)",
+      },
+
+      evening: {
+        badge: "🌇 Evening Wrap-Up",
+        line1: pick([
+          `Good evening, ${name}.`,
+          `Let's wrap up today's priorities, ${name}.`,
+          `Evening sync protocol initialized for ${name}.`,
+          `Today's mission targets in final stage, ${name}.`,
+        ], 0),
+        line2: getContextualQuote([
+          "Finish one meaningful thing before today ends.",
+          "You made progress today. Let's finish strong.",
+          "Reflecting on today's milestones before nightly rest.",
+        ], "Finish one meaningful thing before today ends."),
+        gradient: "linear-gradient(135deg, #c084fc 0%, #818cf8 100%)",
+        color: "#c084fc",
+        bgGlow: "rgba(192, 132, 252, 0.12)",
+        borderColor: "rgba(192, 132, 252, 0.28)",
+      },
+
+      evening_focus: {
+        badge: "🌌 Evening Focus Mode",
+        line1: pick([
+          `Evening focus mode active for ${name}.`,
+          `Distractions clear, ${name}. Deep work window open.`,
+          `Good evening, ${name}. Ready for a quiet focus sprint?`,
+          `Nightly execution window initialized for ${name}.`,
+        ], 0),
+        line2: getContextualQuote([
+          "Deep work happens when the world gets quiet.",
+          "Finish one meaningful thing before today ends.",
+          "Orbit is standing by while distractions clear out.",
+        ], "Deep work happens when the world gets quiet."),
+        gradient: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
+        color: "#a78bfa",
+        bgGlow: "rgba(139, 92, 246, 0.12)",
+        borderColor: "rgba(139, 92, 246, 0.28)",
+      },
+
+      night_owl: {
+        badge: "🌙 Night Owl",
+        line1: pick([
+          `Still awake, night owl ${name}?`,
+          `Perfect time for deep work while distractions are low, ${name}.`,
+          `Late night focus phase active, ${name}.`,
+          `Orbit is standing by for ${name}.`,
+        ], 0),
+        line2: getContextualQuote([
+          "Perfect time for deep work while distractions are low.",
+          "Deep work happens when the world gets quiet.",
+          "Your AI never stopped working. Orbit is standing by.",
+        ], "Perfect time for deep work while distractions are low."),
+        gradient: "linear-gradient(135deg, #06b6d4 0%, #a855f7 100%)",
+        color: "#22d3ee",
+        bgGlow: "rgba(6, 182, 212, 0.12)",
+        borderColor: "rgba(6, 182, 212, 0.28)",
+      },
+
+      midnight_oil: {
+        badge: "🌌 Midnight Oil",
+        line1: pick([
+          `Burning the midnight oil, ${name}?`,
+          `I'll keep everything organized while you stay focused, ${name}.`,
+          `Silent hours active for ${name}. Uninterrupted flow state.`,
+          `Your AI never stops monitoring for ${name}.`,
+        ], 0),
+        line2: getContextualQuote([
+          "I'll keep everything organized while you stay focused.",
+          "Deep work happens when the world gets quiet.",
+          "Opportunity monitoring remained active while the world sleeps.",
+        ], "I'll keep everything organized while you stay focused."),
+        gradient: "linear-gradient(135deg, #6366f1 0%, #3b82f6 100%)",
+        color: "#818cf8",
+        bgGlow: "rgba(99, 102, 241, 0.12)",
+        borderColor: "rgba(99, 102, 241, 0.28)",
+      },
+
+      milestone: {
+        badge: "🏆 Milestone Achieved",
+        line1: pick([
+          `Congratulations, ${name}!`,
+          `Milestone reached for ${name}. Systems synchronized.`,
+          `Today's mission starts now, ${name}.`,
+          `Goal threshold unlocked for ${name}.`,
+        ], 0),
+        line2: streak > 0 
+          ? `${streak}-day streak maintained, ${name}. Consistency is becoming your competitive advantage.`
+          : `You're one step closer to your goal, ${name}. Let me keep monitoring your next target.`,
+        gradient: "linear-gradient(135deg, #10b981 0%, #f59e0b 100%)",
+        color: "#10b981",
+        bgGlow: "rgba(16, 185, 129, 0.15)",
+        borderColor: "rgba(16, 185, 129, 0.35)",
+      },
+    };
+  }, [name, pendingMissions, pendingTasks, opportunityCount, streak, isWeekend, refreshSeed, completedMissions, totalMissions]);
+
+  const current = greetingConfig[activeKey];
+
+  const [typedLine1, setTypedLine1] = useState("");
+  const [typedLine2, setTypedLine2] = useState("");
+  const [cursorVisible, setCursorVisible] = useState(true);
+
+  useEffect(() => {
+    let t1Timer: any;
+    let t2Timer: any;
+    setTypedLine1("");
+    setTypedLine2("");
+
+    let i = 0;
+    const full1 = current.line1;
+    const full2 = current.line2;
+
+    const typeLine1 = () => {
+      if (i < full1.length) {
+        setTypedLine1(full1.slice(0, i + 1));
+        i++;
+        t1Timer = setTimeout(typeLine1, 28);
+      } else {
+        let j = 0;
+        const typeLine2 = () => {
+          if (j < full2.length) {
+            setTypedLine2(full2.slice(0, j + 1));
+            j++;
+            t2Timer = setTimeout(typeLine2, 16);
+          }
+        };
+        typeLine2();
+      }
+    };
+
+    t1Timer = setTimeout(typeLine1, 50);
+
+    return () => {
+      clearTimeout(t1Timer);
+      clearTimeout(t2Timer);
+    };
+  }, [activeKey, current.line1, current.line2]);
+
+  useEffect(() => {
+    const blink = setInterval(() => setCursorVisible(v => !v), 500);
+    return () => clearInterval(blink);
+  }, []);
+
+  // Helper to render user name in a distinct highlight color (pure white + text glow)
+  const renderHighlightedText = (text: string, targetName: string, highlightColor: string = "#ffffff") => {
+    if (!text || !targetName) return text;
+    const idx = text.toLowerCase().indexOf(targetName.toLowerCase());
+    if (idx === -1) return text;
+
+    const before = text.slice(0, idx);
+    const matched = text.slice(idx, idx + targetName.length);
+    const after = text.slice(idx + targetName.length);
+
+    return (
+      <>
+        {before}
+        <span
+          style={{
+            color: highlightColor,
+            fontWeight: 900,
+            textShadow: `0 0 16px ${highlightColor}, 0 0 8px rgba(255,255,255,0.95)`,
+            padding: "0 2px",
+          }}
+        >
+          {matched}
+        </span>
+        {after}
+      </>
+    );
   };
 
   return (
-    <div style={lab.overlay} onClick={onClose}>
-      <div style={lab.panel} onClick={e => e.stopPropagation()}>
-
-        {/* Header */}
-        <div style={lab.header}>
-          <div style={lab.headerLeft}>
-            <span style={{ fontSize: "1.8rem" }}>{skill.emoji}</span>
-            <div>
-              <div style={lab.labTitle}>⚡ Execution Lab — {skill.name}</div>
-              <div style={lab.labSub}>{skill.why_relevant}</div>
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            {resourceUrl !== "#" && (
-              <a href={resourceUrl} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
-                <button style={lab.startBtn}>Start on {platform} →</button>
-              </a>
-            )}
-            <button style={lab.closeBtn} onClick={onClose}>✕</button>
-          </div>
-        </div>
-
-        {/* Tab bar */}
-        <div style={lab.tabRow}>
-          {LAB_TABS.map(t => (
-            <button key={t.id} onClick={() => setActiveTab(t.id)}
-              style={{ ...lab.tab, ...(activeTab === t.id ? lab.tabActive : {}) }}>
-              <span>{t.icon}</span><span>{t.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Tab content */}
-        <div style={lab.content}>
-
-          {/* ── SKILLS PATH ── */}
-          {activeTab === "path" && (
-            <div style={lab.section}>
-              <div style={lab.sectionTitle}>🧠 Your Skills Path for {skill.name}</div>
-              <div style={lab.sectionSub}>Follow this sequence to go from {skill.level} → Advanced</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "16px" }}>
-                {learnPath.map((step: string, i: number) => (
-                  <div key={i} style={lab.pathItem}>
-                    <div style={{ ...lab.pathNum, background: i === 0 ? "rgba(99,102,241,0.2)" : "rgba(255,255,255,0.04)", border: `1px solid ${i === 0 ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.08)"}`, color: i === 0 ? "#818cf8" : "#475569" }}>
-                      {i+1}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: "0.88rem", fontWeight: 500, color: "white" }}>{step}</div>
-                      {i === 0 && <div style={{ fontSize: "0.7rem", color: "#6366f1", marginTop: "2px" }}>← Start here</div>}
-                    </div>
-                    {i === 0 && resourceUrl !== "#" && (
-                      <a href={resourceUrl} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
-                        <button style={lab.goBtn}>Go →</button>
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div style={lab.progressCard}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                  <span style={{ fontSize: "0.78rem", color: "#64748b" }}>Current Level</span>
-                  <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#6366f1" }}>{skill.level}</span>
-                </div>
-                <div style={lab.progressBar}>
-                  <div style={{ ...lab.progressFill, width: skill.level === "Beginner" ? "25%" : skill.level === "Intermediate" ? "55%" : skill.level === "Advanced" ? "80%" : "5%" }} />
-                </div>
-                <div style={{ fontSize: "0.7rem", color: "#334155", marginTop: "6px" }}>
-                  Relevance score: <strong style={{ color: "#f59e0b" }}>{skill.relevance_score}%</strong> for your goal
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── MODULES ── */}
-          {activeTab === "modules" && (
-            <div style={lab.section}>
-              <div style={lab.sectionTitle}>📚 Micro Modules</div>
-              <div style={lab.sectionSub}>Small focused sessions. Complete one module = one step forward.</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "16px" }}>
-                {modules.map((mod: any) => (
-                  <div key={mod.id} style={{ ...lab.moduleCard, ...(completedModules.has(mod.id) ? lab.moduleCardDone : {}) }}>
-                    <div style={lab.moduleHeader}>
-                      <div>
-                        <div style={{ fontSize: "0.88rem", fontWeight: 700, color: completedModules.has(mod.id) ? "#22c55e" : "white" }}>
-                          {completedModules.has(mod.id) ? "✓ " : ""}{mod.title}: {mod.desc}
-                        </div>
-                        <div style={{ fontSize: "0.7rem", color: "#475569", marginTop: "2px" }}>⏱ {mod.duration}</div>
-                      </div>
-                      <button
-                        style={{ ...lab.moduleBtn, ...(completedModules.has(mod.id) ? lab.moduleBtnDone : {}) }}
-                        onClick={() => setCompletedModules(prev => { const s = new Set(prev); s.has(mod.id) ? s.delete(mod.id) : s.add(mod.id); return s; })}>
-                        {completedModules.has(mod.id) ? "Done ✓" : "Start"}
-                      </button>
-                    </div>
-                    <div style={lab.taskList}>
-                      {mod.tasks.map((task: any, ti: number) => (
-                        <div key={ti} style={lab.taskChip}>→ {task}</div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── BUILD PROJECTS ── */}
-          {activeTab === "projects" && (
-            <div style={lab.section}>
-              <div style={lab.sectionTitle}>⚡ Real-World Builds</div>
-              <div style={lab.sectionSub}>The fastest way to learn is to build something real. Ship it on GitHub.</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "16px" }}>
-                {projects.map((proj, i) => (
-                  <div key={i} style={lab.projectCard}>
-                    <div style={lab.projectHeader}>
-                      <div>
-                        <div style={{ fontSize: "0.92rem", fontWeight: 700, color: "white" }}>{proj.title}</div>
-                        <div style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "4px", lineHeight: 1.5 }}>{proj.desc}</div>
-                      </div>
-                    </div>
-                    <div style={lab.projectMeta}>
-                      <span style={{ ...lab.diffBadge, background: i === 0 ? "rgba(34,197,94,0.12)" : i === 1 ? "rgba(245,158,11,0.1)" : "rgba(239,68,68,0.1)", color: i === 0 ? "#22c55e" : i === 1 ? "#f59e0b" : "#ef4444" }}>
-                        {proj.difficulty}
-                      </span>
-                      <span style={lab.timeBadge}>⏱ {proj.time}</span>
-                      <button style={lab.buildBtn} onClick={() => window.open("https://github.com", "_blank")}>
-                        Build on GitHub →
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── AI MENTOR ── */}
-          {activeTab === "mentor" && (
-            <div style={lab.section}>
-              <div style={lab.sectionTitle}>🤖 AI Mentor</div>
-              <div style={lab.sectionSub}>Ask anything about {skill.name}. Get context-specific guidance.</div>
-              <div style={{ marginTop: "16px" }}>
-                {mentorReply && (
-                  <div style={lab.mentorReply}>
-                    <div style={{ fontSize: "0.75rem", color: "#6366f1", fontWeight: 700, marginBottom: "6px" }}>AI Mentor</div>
-                    <div style={{ fontSize: "0.85rem", color: "#94a3b8", lineHeight: 1.65 }}>{mentorReply}</div>
-                  </div>
-                )}
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <input
-                    value={mentorMsg}
-                    onChange={e => setMentorMsg(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && askMentor()}
-                    placeholder={`Ask about ${skill.name}...`}
-                    style={lab.mentorInput}
-                  />
-                  <button style={{ ...lab.mentorSendBtn, opacity: mentorLoading ? 0.6 : 1 }}
-                    onClick={askMentor} disabled={mentorLoading}>
-                    {mentorLoading ? "..." : "Ask"}
-                  </button>
-                </div>
-                <div style={{ marginTop: "14px" }}>
-                  <div style={{ fontSize: "0.72rem", color: "#334155", marginBottom: "8px" }}>Quick questions:</div>
-                  <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "6px" }}>
-                    {[
-                      `How do I get started with ${skill.name}?`,
-                      `What projects should I build first?`,
-                      `How long to become job-ready in ${skill.name}?`,
-                      `What are the most common mistakes beginners make?`,
-                    ].map((q, i) => (
-                      <button key={i} style={lab.quickQ} onClick={() => setMentorMsg(q)}>{q}</button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── EARN ── */}
-          {activeTab === "earn" && (
-            <div style={lab.section}>
-              <div style={lab.sectionTitle}>💼 Earn With {skill.name}</div>
-              <div style={lab.sectionSub}>Freelance gigs, startup ideas, and income paths using this skill.</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "16px" }}>
-                {earnIdeas.map((idea, i) => (
-                  <div key={i} style={lab.earnCard}>
-                    <div style={lab.earnIcon}>{idea.icon}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                        <span style={{ fontSize: "0.88rem", fontWeight: 700, color: "white" }}>{idea.title}</span>
-                        <span style={lab.earnType}>{idea.type}</span>
-                      </div>
-                      <div style={{ fontSize: "0.78rem", color: "#64748b", lineHeight: 1.5 }}>{idea.desc}</div>
-                    </div>
-                    {idea.url !== "#" && (
-                      <a href={idea.url} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
-                        <button style={lab.earnBtn}>Go →</button>
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div style={lab.earnNote}>
-                💡 Most {skill.name} freelancers start earning within 30–60 days of building their first 2 projects.
-              </div>
-            </div>
-          )}
-        </div>
+    <div
+      style={{
+        padding: "20px 22px",
+        borderRadius: "18px",
+        background: current.bgGlow,
+        border: `1px solid ${current.borderColor}`,
+        boxShadow: `0 12px 36px ${current.bgGlow}`,
+        backdropFilter: "blur(12px)",
+        transition: "all 0.4s ease",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+        <span style={{ fontSize: "0.74rem", fontWeight: 700, color: current.color, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          {current.badge}
+        </span>
+        <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: current.color, animation: "livePulse 1.5s infinite" }} />
       </div>
+
+      <h1
+        style={{
+          fontFamily: "'Rajdhani', sans-serif",
+          fontSize: "1.9rem",
+          fontWeight: 800,
+          color: current.color,
+          textShadow: `0 0 24px ${current.color}88, 0 0 10px ${current.color}44`,
+          margin: "0 0 6px 0",
+          lineHeight: 1.25,
+        }}
+      >
+        {renderHighlightedText(typedLine1, name, "#ffffff")}
+        {typedLine1.length < current.line1.length && (
+          <span style={{ opacity: cursorVisible ? 1 : 0, color: current.color, marginLeft: "2px" }}>|</span>
+        )}
+      </h1>
+
+      <p style={{ fontSize: "0.92rem", color: "#e2e8f0", margin: 0, lineHeight: 1.55, fontWeight: 500, opacity: 0.95 }}>
+        {renderHighlightedText(typedLine2, name, "#38bdf8")}
+        {typedLine1.length >= current.line1.length && typedLine2.length < current.line2.length && (
+          <span style={{ opacity: cursorVisible ? 1 : 0, color: current.color, marginLeft: "2px" }}>|</span>
+        )}
+      </p>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ── MAIN DASHBOARD COMPONENT ──────────────────────────────────────────────────
+
 export default function DashboardPage() {
+  const router = useRouter();
+  const { user } = useAuth();
+
   const [showLoader, setShowLoader] = useState(true);
   const [loaded, setLoaded]         = useState(false);
-
-  // Real user data
   const [userName, setUserName]     = useState("");
-  const [plan, setPlan]             = useState<GrowthPlan | null>(null);
+
+  const displayName = userName || user?.full_name || (user?.email ? user.email.split("@")[0] : "");
+  const avatar = displayName ? displayName.slice(0, 2).toUpperCase() : "GO";
+
   const [smartTasks, setSmartTasks]         = useState<SmartTask[]>([]);
-  const [smartTasksLoading, setSTLoading]   = useState(true);
   const [expandedTask, setExpandedTask]     = useState<string | null>(null);
-  const [taskAnswer, setTaskAnswer]         = useState<Record<string,string>>({});
+  const [taskAnswer, setTaskAnswer]         = useState<Record<string, string>>({});
+  const [taskFeedback, setTaskFeedback]     = useState<Record<string, string>>({});
   const [submittingTask, setSubmittingTask] = useState<string | null>(null);
-  const [taskFeedback, setTaskFeedback]     = useState<Record<string,string>>({});
-  const [skills, setSkills]         = useState<Skill[]>([]);
+
+  const [skills, setSkills]               = useState<Skill[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
-  const [insight, setInsight]       = useState("");
-  const [streakData, setStreakData]  = useState<StreakStatus | null>(null);
-  const [missions, setMissions]     = useState<Mission[]>([]);
+  const [insight, setInsight]             = useState("");
+  const [streakData, setStreakData]        = useState<StreakStatus | null>(null);
+  const [missions, setMissions]           = useState<Mission[]>([]);
+  const [batchActivity, setBatchActivity] = useState<BatchActivityItem[]>([]);
+  const [activityError, setActivityError] = useState(false);
 
   // Loading flags
-  const [dashLoading, setDashLoading]     = useState(true);
-  const [skillsLoading, setSkillsLoading] = useState(true);
-  const [insightLoading, setInsightLoading] = useState(true);
+  const [dashLoading, setDashLoading]         = useState(true);
+  const [skillsLoading, setSkillsLoading]     = useState(true);
+  const [insightLoading, setInsightLoading]   = useState(true);
   const [missionsLoading, setMissionsLoading] = useState(true);
-  const [streakLoading, setStreakLoading] = useState(true);
-  const [oppsLoading, setOppsLoading]     = useState(true);
+  const [streakLoading, setStreakLoading]     = useState(true);
+  const [oppsLoading, setOppsLoading]         = useState(true);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [smartTasksLoading, setSTLoading]   = useState(true);
 
-  // Execution Lab
-  const [activeLabSkill, setActiveLabSkill] = useState<Skill | null>(null);
+  // Agent workspace panel state
+  const [activeAgentPanel, setActiveAgentPanel] = useState<
+    "learning" | "opportunity" | "roadmap" | "resume" | "interview" | "project" | "productivity" | null
+  >(null);
 
-  // Roadmap / UI
-  const [regenerating, setRegenerating] = useState(false);
-  const [graphNodes, setGraphNodes]     = useState<any[]>([]);
-  const [graphEdges, setGraphEdges]     = useState<any[]>([]);
-  const [activeMonth, setActiveMonth]   = useState(0);
-  const [roadmapState, setRoadmapState] = useState<"empty"|"loading"|"ready">("empty");
-  const [loadingStep, setLoadingStep]   = useState(0);
+  // Nova companion
+  const [novaMessages, setNovaMessages] = useState<NovaMessage[]>([]);
+  const [novaCard, setNovaCard]         = useState<{ text: string; primary: string; onPrimary: () => void } | null>(null);
+  const [novaInput, setNovaInput]       = useState("");
+  const [novaLoading, setNovaLoading]   = useState(false);
+  const [isSpeaking, setIsSpeaking]     = useState(false);
+  const [isListening, setIsListening]   = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const [micSupported, setMicSupported]     = useState(false);
+  const novaGreetedRef = useRef(false);
+  const recognitionRef = useRef<any>(null);
+  const novaScrollRef  = useRef<HTMLDivElement>(null);
 
-  // Toast
-  const [showToast, setShowToast]     = useState(false);
-  const [toastMsg, setToastMsg]       = useState("");
-  const toastTimer = useRef<NodeJS.Timeout | null>(null);
+  const missionsRef = useRef<HTMLDivElement>(null);
+  const activityRef = useRef<HTMLDivElement>(null);
 
-  const batchActivity = MOCK_BATCH_ACTIVITY;
   const timeLeft = useDeadlineTimer();
 
-  // ── Fetch all dashboard data ────────────────────────────────────────────────
+  const currentStreak = streakData?.current_streak ?? 0;
+  const completedMissions = missions.filter(m => m.completed).length;
+
+  // Orbit Voice & live orbital movement state (position translation only)
+  const [orbitAngle, setOrbitAngle] = useState(0);
+  const [isOrbitHovered, setIsOrbitHovered] = useState(false);
+  const [hoveredAgent, setHoveredAgent] = useState<string | null>(null);
+
   useEffect(() => {
-    // Dashboard meta
+    let animId: number;
+    let lastTime = performance.now();
+
+    const animate = (now: number) => {
+      const delta = (now - lastTime) / 1000;
+      lastTime = now;
+      if (!isOrbitHovered) {
+        setOrbitAngle(prev => (prev + delta * 0.08) % (2 * Math.PI));
+      }
+      animId = requestAnimationFrame(animate);
+    };
+
+    animId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animId);
+  }, [isOrbitHovered]);
+
+  useEffect(() => {
     getDashboard()
       .then(d => { if (d?.user_name) setUserName(d.user_name); })
       .catch(() => {})
       .finally(() => setDashLoading(false));
 
-    // Smart Tasks
-    fetch(`${API}/api/tasks/today`, {
-      headers: { Authorization: `Bearer ${getToken()}` }
-    })
+    fetch(`${API}/api/tasks/today`, { headers: { Authorization: `Bearer ${getToken()}` } })
       .then(r => r.json())
       .then(d => { if (Array.isArray(d)) setSmartTasks(d); })
       .catch(() => {})
       .finally(() => setSTLoading(false));
 
-    // Skills
-    getSkills()
-      .then(d => { if (d?.length) setSkills(d); })
-      .catch(() => {})
-      .finally(() => setSkillsLoading(false));
-
-    // Opportunities
-    getOpportunities()
-      .then(d => { if (d?.length) setOpportunities(d); })
-      .catch(() => {})
-      .finally(() => setOppsLoading(false));
-
-    // AI Insight
-    getAIInsight()
-      .then(d => { if (d?.insight) setInsight(d.insight); })
-      .catch(() => {})
-      .finally(() => setInsightLoading(false));
-
-    // Growth plan
-    getGrowthPlan()
-      .then(d => { if (d?.months) setPlan(d); })
-      .catch(() => {});
-
-    // Streak
-    getPracticeStreak()
-      .then(d => setStreakData(d))
-      .catch(() => {})
-      .finally(() => setStreakLoading(false));
-
-    // Missions
+    getSkills().then(d => { if (d?.length) setSkills(d); }).catch(() => {}).finally(() => setSkillsLoading(false));
+    getOpportunities().then(d => { if (d?.length) setOpportunities(d); }).catch(() => {}).finally(() => setOppsLoading(false));
+    getAIInsight().then(d => { if (d?.insight) setInsight(d.insight); }).catch(() => {}).finally(() => setInsightLoading(false));
+    getPracticeStreak().then(d => setStreakData(d)).catch(() => {}).finally(() => setStreakLoading(false));
     fetchMissions();
+
+    if (typeof window !== "undefined") {
+      setVoiceSupported("speechSynthesis" in window);
+      setMicSupported(!!((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition));
+    }
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) { setActivityLoading(false); return; }
+    setActivityLoading(true);
+    getBatchActivity(user.id, 8)
+      .then(d => setBatchActivity(d || []))
+      .catch(() => setActivityError(true))
+      .finally(() => setActivityLoading(false));
+  }, [user?.id]);
 
   async function fetchMissions() {
     setMissionsLoading(true);
     try {
-      const res = await fetch(`${API}/missions/today`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
+      const res = await fetch(`${API}/missions/today`, { headers: { Authorization: `Bearer ${getToken()}` } });
       if (res.ok) {
         const data = await res.json();
         if (data.missions?.length) setMissions(data.missions);
@@ -513,21 +608,6 @@ export default function DashboardPage() {
     } catch {}
     finally { setMissionsLoading(false); }
   }
-
-  // ── Accountability toast ───────────────────────────────────────────────────
-  useEffect(() => {
-    if (!loaded || missionsLoading) return;
-    const done = missions.filter(m => m.completed).length;
-    if (done === 0 && missions.length > 0) {
-      toastTimer.current = setTimeout(() => {
-        setToastMsg("You haven't started today's missions yet. Your batch is progressing. Finish before midnight to keep your streak.");
-        setShowToast(true);
-      }, 5000);
-    }
-    return () => {
-      if (toastTimer.current) clearTimeout(toastTimer.current);
-    };
-  }, [loaded, missions, missionsLoading]);
 
   const handleLoaderDone = useCallback(() => {
     setShowLoader(false);
@@ -539,10 +619,12 @@ export default function DashboardPage() {
     if (!task) return;
     setSmartTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t));
     const endpoint = task.completed ? "uncomplete" : "complete";
-    await fetch(`${API}/api/tasks/${taskId}/${endpoint}`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${getToken()}` },
-    }).catch(() => {});
+    await fetch(`${API}/api/tasks/${taskId}/${endpoint}`, { method: "POST", headers: { Authorization: `Bearer ${getToken()}` } }).catch(() => {});
+  };
+
+  const toggleMission = (id: string) => {
+    setMissions(prev => prev.map(m => m.id === id ? { ...m, completed: !m.completed } : m));
+    fetch(`${API}/missions/${id}/toggle`, { method: "POST", headers: { Authorization: `Bearer ${getToken()}` } }).catch(() => {});
   };
 
   const submitTaskAnswer = async (taskId: string) => {
@@ -556,85 +638,186 @@ export default function DashboardPage() {
         body: JSON.stringify({ task_id: taskId, user_answer: answer }),
       });
       const data = await res.json();
-      setTaskFeedback(prev => ({ ...prev, [taskId]: data.ai_feedback }));
-      setSmartTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: true } : t));
-    } catch {}
-    finally { setSubmittingTask(null); }
-  };
-
-  const toggleMission = async (id: string) => {
-    const m = missions.find(x => x.id === id);
-    if (!m) return;
-    setMissions(prev => prev.map(x => x.id === id ? { ...x, completed: !x.completed } : x));
-    try {
-      await fetch(`${API}/missions/complete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ mission_id: id }),
-      });
+      setTaskFeedback(prev => ({ ...prev, [taskId]: data.feedback }));
+      if (data.status === "completed") {
+        setSmartTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: true } : t));
+      }
     } catch {
-      setMissions(prev => prev.map(x => x.id === id ? { ...x, completed: m.completed } : x));
+      setTaskFeedback(prev => ({ ...prev, [taskId]: "Answer saved. Keep up the momentum!" }));
+    } finally {
+      setSubmittingTask(null);
     }
   };
 
-  const handleRegenerate = async () => {
-    setRegenerating(true);
-    try {
-      const { regeneratePlan } = await import("@/lib/dashboard-api");
-      const newPlan = await regeneratePlan();
-      if (newPlan?.months) setPlan(newPlan);
-    } catch {} finally { setRegenerating(false); }
+  // Voice output
+  const speak = (text: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.0;
+    u.pitch = 1.0;
+    u.onstart = () => setIsSpeaking(true);
+    u.onend = () => setIsSpeaking(false);
+    u.onerror = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(u);
   };
 
-  // Computed
-  const currentPlan       = plan || EMPTY_PLAN;
-  const completedMissions = missions.filter(m => m.completed).length;
-  const totalMilestones   = currentPlan.months.flatMap(m => m.milestones).length;
-  const doneMilestones    = currentPlan.months.flatMap(m => m.milestones).filter(m => m.completed).length;
-  const overallProgress   = totalMilestones > 0 ? Math.round((doneMilestones / totalMilestones) * 100) : 0;
-  const currentStreak     = streakData?.current_streak ?? 0;
-  const avatar            = userName ? userName[0].toUpperCase() : "?";
+  const startListening = () => {
+    if (typeof window === "undefined") return;
+    const SpeechClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechClass) return;
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+    const r = new SpeechClass();
+    r.continuous = false;
+    r.interimResults = false;
+    r.lang = "en-US";
+    r.onstart = () => setIsListening(true);
+    r.onresult = (e: any) => {
+      const text = e.results[0][0].transcript;
+      setNovaInput(text);
+      setIsListening(false);
+      sendNovaMessage(text);
+    };
+    r.onerror = () => setIsListening(false);
+    r.onend = () => setIsListening(false);
+    recognitionRef.current = r;
+    r.start();
+  };
+
+  const handleOrbClick = () => {
+    if (isSpeaking) {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+    const sample = `Hello ${displayName || "there"}. I am Nova, your AI Core orchestrator. All 7 AI agents are actively synced. How can I accelerate your goals today?`;
+    speak(sample);
+  };
+
+  const sendNovaMessage = async (overrideText?: string) => {
+    const text = (overrideText || novaInput).trim();
+    if (!text || novaLoading) return;
+    const userMsg: NovaMessage = { id: `u-${Date.now()}`, role: "user", text };
+    setNovaMessages(prev => [...prev, userMsg]);
+    if (!overrideText) setNovaInput("");
+    setNovaLoading(true);
+
+    try {
+      const reply = await askAI(text);
+      setNovaMessages(prev => [...prev, { id: `n-${Date.now()}`, role: "nova", text: reply }]);
+      speak(reply);
+    } catch {
+      setNovaMessages(prev => [...prev, { id: `n-${Date.now()}`, role: "nova", text: "I couldn't reach the server just now — try again in a moment." }]);
+    } finally {
+      setNovaLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    novaScrollRef.current?.scrollTo({ top: novaScrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [novaMessages]);
+
+  useEffect(() => {
+    if (novaGreetedRef.current) return;
+    if (streakLoading || missionsLoading || smartTasksLoading) return;
+    novaGreetedRef.current = true;
+
+    if (streakData && currentStreak > 0 && !streakData.practiced_today) {
+      setNovaCard({
+        text: `I noticed your ${currentStreak}-day streak will end today. It only needs one problem. Shall I open today's challenge?`,
+        primary: "Yes, let's go",
+        onPrimary: () => { setNovaCard(null); router.push("/dashboard/practice"); },
+      });
+    } else {
+      setNovaCard({
+        text: `Everything's on track right now. I'll keep monitoring your goals quietly in the background.`,
+        primary: "Got it",
+        onPrimary: () => setNovaCard(null),
+      });
+    }
+  }, [streakLoading, missionsLoading, smartTasksLoading]);
 
   if (showLoader) return <LoadingScreen onDone={handleLoaderDone} />;
+
+  // ── AI AGENTS LIST (All 7 Agents wired to dedicated Workspace Modals) ───────
+  const AGENTS: {
+    id: "learning" | "opportunity" | "roadmap" | "resume" | "interview" | "project" | "productivity";
+    label: string;
+    icon: any;
+    color: string;
+    status: string;
+    desc: string;
+  }[] = [
+    {
+      id: "learning", label: "Learning Agent", icon: Brain, color: "#22d3ee",
+      status: skillsLoading ? "Curating…" : skills[0] ? `${skills[0].name} · ${skills[0].level}` : "Skills Path Active",
+      desc: "Curated learning paths, micro-modules & AI mentor guidance",
+    },
+    {
+      id: "opportunity", label: "Opportunity Agent", icon: Rocket, color: "#f59e0b",
+      status: oppsLoading ? "Scanning…" : `${opportunities.length} live match${opportunities.length === 1 ? "" : "es"}`,
+      desc: "AI market scanner for top matched roles, gigs & projects",
+    },
+    {
+      id: "roadmap", label: "Roadmap Agent", icon: GitBranch, color: "#818cf8",
+      status: "AI Growth Roadmap",
+      desc: "Personalized multi-phase growth roadmap & milestone execution tracker",
+    },
+    {
+      id: "resume", label: "Resume Agent", icon: FileText, color: "#38bdf8",
+      status: "ATS Score & Feedback",
+      desc: "ATS-style resume analyzer, score tracking & actionable feedback",
+    },
+    {
+      id: "interview", label: "Interview Agent", icon: Mic, color: "#f472b6",
+      status: "AI Mock Interviews",
+      desc: "Role-specific practice interview questions & instant AI scoring",
+    },
+    {
+      id: "project", label: "Project Agent", icon: Zap, color: "#a855f7",
+      status: "Build Tracker",
+      desc: "Track ideas, in-progress builds, and shipped portfolio projects",
+    },
+    {
+      id: "productivity", label: "Productivity Agent", icon: Target, color: "#f97316",
+      status: "Daily Focus Tracker",
+      desc: "Smart daily task queue, habit streaks & focus time management",
+    },
+  ];
 
   return (
     <div style={s.root}>
       <div style={s.bg} /><div style={s.bgGrid} /><div style={s.bgGlow1} /><div style={s.bgGlow2} />
+      <Particles />
 
-      {/* Execution Lab Modal */}
-      {activeLabSkill && (
-        <ExecutionLabPanel skill={activeLabSkill} onClose={() => setActiveLabSkill(null)} />
-      )}
-
-      {/* Toast */}
-      {showToast && (
-        <div style={s.toast}>
-          <div style={s.toastLeft}>
-            <div style={s.toastIcon}><Brain size={16} style={{ color: "#6366f1" }} /></div>
-            <div>
-              <div style={s.toastTitle}>AI Mentor Alert</div>
-              <div style={s.toastMsg}>{toastMsg}</div>
-            </div>
-          </div>
-          <button style={s.toastClose} onClick={() => setShowToast(false)}><X size={14} /></button>
-        </div>
-      )}
+      {/* Render AI Agent Workspace Modals */}
+      {activeAgentPanel === "learning" && <LearningAgentPanel onClose={() => setActiveAgentPanel(null)} />}
+      {activeAgentPanel === "opportunity" && <OpportunityAgentPanel onClose={() => setActiveAgentPanel(null)} />}
+      {activeAgentPanel === "roadmap" && <RoadmapAgentPanel onClose={() => setActiveAgentPanel(null)} />}
+      {activeAgentPanel === "resume" && <ResumeAgentPanel onClose={() => setActiveAgentPanel(null)} />}
+      {activeAgentPanel === "interview" && <InterviewAgentPanel onClose={() => setActiveAgentPanel(null)} />}
+      {activeAgentPanel === "project" && <ProjectAgentPanel onClose={() => setActiveAgentPanel(null)} />}
+      {activeAgentPanel === "productivity" && <RoadmapAgentPanel onClose={() => setActiveAgentPanel(null)} />}
 
       {/* Sidebar */}
       <aside style={s.sidebar}>
-        {/* GrowthOS Logo - Commented Out */}
-        {/* <div style={s.sidebarLogo}>
-          <Image src="/images/GrowthOs.png" alt="GrowthOS" width={32} height={32} style={{ borderRadius: "50%" }} />
-          <span style={s.sidebarLogoText}>GrowthOS</span>
-        </div> */}
+        <div style={s.sidebarLogo}>
+          <div style={s.sidebarLogoMark}>G</div>
+          <div>
+            <div style={s.sidebarLogoText}>GrowthOS</div>
+            <div style={s.sidebarLogoSub}>AI Operating System</div>
+          </div>
+        </div>
         <nav style={s.nav}>
           {[
-            { icon: <LayoutDashboard size={18}/>, label: "Dashboard",      href: "/dashboard",            active: true },
-            { icon: <Target size={18}/>,          label: "Growth Plan",    href: "/dashboard/growth-plan" },
+            { icon: <LayoutDashboard size={18}/>, label: "Home",           href: "/dashboard",            active: true },
             { icon: <Play size={18}/>,            label: "Practice Arena", href: "/dashboard/practice"    },
             { icon: <BarChart2 size={18}/>,       label: "Leaderboard",    href: "/dashboard/leaderboard" },
             { icon: <Trophy size={18}/>,          label: "Challenges",     href: "/dashboard/challenges"  },
-            { icon: <BookOpen size={18}/>,        label: "Skills",         href: "/dashboard/skills"      },
             { icon: <Users size={18}/>,           label: "Community",      href: "/dashboard/community"   },
             { icon: <Settings size={18}/>,        label: "Settings",       href: "/dashboard/settings"    },
           ].map(item => (
@@ -648,16 +831,32 @@ export default function DashboardPage() {
           ))}
         </nav>
         <div style={s.sidebarFooter}>
-          <div style={s.sidebarUser}>
-            <div style={s.avatarSmall}>{avatar}</div>
-            <div>
-              <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "#e2e8f0" }}>
-                {dashLoading ? <Skeleton w="70px" h="11px" /> : userName || "User"}
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={s.avatarSmall}>{avatar}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "white", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {dashLoading ? <Skeleton w="70px" h="11px" /> : displayName || "Surinder"}
+                  </div>
+                  <span style={{ fontSize: "0.62rem", fontWeight: 700, padding: "1px 6px", borderRadius: "6px", background: "linear-gradient(135deg, #6366f1, #818cf8)", color: "white" }}>
+                    Pro
+                  </span>
+                </div>
+                <div style={{ fontSize: "0.68rem", color: "#64748b" }}>Level 12</div>
               </div>
-              <div style={{ fontSize: "0.7rem", color: "#475569" }}>Pro Plan</div>
+            </div>
+            {/* XP Progress Bar */}
+            <div>
+              <div style={{ width: "100%", height: "4px", background: "rgba(255,255,255,0.08)", borderRadius: "2px", overflow: "hidden" }}>
+                <div style={{ width: "60%", height: "100%", background: "linear-gradient(90deg, #6366f1, #38bdf8)", borderRadius: "2px", boxShadow: "0 0 8px #38bdf8" }} />
+              </div>
+              <div style={{ fontSize: "0.64rem", color: "#475569", marginTop: "4px", display: "flex", justifyContent: "space-between" }}>
+                <span>4,820 / 8,000 XP</span>
+                <span style={{ color: "#38bdf8" }}>60%</span>
+              </div>
             </div>
           </div>
-          <button style={s.logoutBtn}><LogOut size={15} /></button>
         </div>
       </aside>
 
@@ -671,210 +870,426 @@ export default function DashboardPage() {
             <input placeholder="Search anything..." style={s.searchInput} />
           </div>
           <div style={s.topbarRight}>
-            <button style={s.iconBtn}><Bell size={18} /></button>
+            <div style={s.statusPill}><div style={s.statusDot}/><span>All agents synced</span></div>
+            <div style={s.clock}>{timeLeft.clock}</div>
+            <button style={s.iconBtn}><Bell size={17} /></button>
             <div style={s.avatarMed}>{avatar}</div>
           </div>
         </div>
 
-        {/* ══ MISSION CONTROL ══════════════════════════════════════════════ */}
-        <section style={s.missionControlWrap}>
-          <div style={s.missionLeft}>
-            <div style={s.mcTag}><Shield size={11} style={{ color: "#6366f1" }} /><span>Mission Control · AI Briefing</span></div>
-            <h1 style={s.mcTitle}>
-              {getGreeting()},{" "}
-              <span style={s.mcName}>{dashLoading ? "..." : (userName || "there")}.</span>
-            </h1>
-            <h1 style={{ ...s.mcTitle, fontSize: "1.1rem", marginTop: "12px", color: "#94a3b8", fontWeight: 500 }}>
-              GrowthOS turns real-life growth into a multiplayer game.
-            </h1>
-            <h1 style={{ ...s.mcTitle, fontSize: "1.1rem", marginTop: "4px", marginBottom: "16px", color: "#94a3b8", fontWeight: 500 }}>
-              GrowthOS ranks execution, not just performance.
-            </h1>
-            <p style={s.mcSubtitle}>Your mission for today is ready. Execute before midnight.</p>
-
-            <div style={s.missionList}>
-              {missionsLoading ? (
-                [1,2,3].map(i => (
-                  <div key={i} style={{ ...s.missionItem, cursor: "default" }}>
-                    <div style={s.missionNum}>{i}</div>
-                    <div style={{ flex:1, display:"flex", flexDirection:"column", gap:"5px" }}>
-                      <Skeleton w="80%"/><Skeleton w="50%" h="10px"/>
-                    </div>
-                  </div>
-                ))
-              ) : missions.length === 0 ? (
-                <div style={s.emptyState}>
-                  No missions yet.{" "}
-                  <span style={{ color:"#818cf8", cursor:"pointer" }} onClick={fetchMissions}>Refresh</span>
-                </div>
-              ) : missions.map((m, i) => (
-                <div key={m.id} onClick={() => toggleMission(m.id)}
-                  style={{ ...s.missionItem, ...(m.completed ? s.missionItemDone : {}) }}>
-                  <div style={s.missionNum}>{i+1}</div>
-                  <div style={{ flex:1 }}>
-                    <div style={{ ...s.missionTitle, ...(m.completed ? { textDecoration:"line-through", opacity:0.45 } : {}) }}>{m.title}</div>
-                  </div>
-                  <div style={s.missionCheck}>
-                    {m.completed ? <CheckCircle2 size={18} style={{ color:"#22c55e" }} /> : <Circle size={18} style={{ color:"#334155" }} />}
-                  </div>
-                </div>
-              ))}
+        {/* ══ COMMAND CENTER HERO ══════════════════════════════════════════ */}
+        <section style={s.heroWrap}>
+          <div style={s.heroLeft}>
+            <div style={s.heroGreetTag}>
+              <Shield size={11} style={{ color: "#6366f1" }} />
+              <span>Mission Control · AI Briefing</span>
             </div>
 
-            {missions.length > 0 && (
-              <div style={s.mcProgressWrap}>
-                <div style={s.mcProgressBar}>
-                  <div style={{ ...s.mcProgressFill, width:`${(completedMissions/missions.length)*100}%` }} />
-                </div>
-                <span style={s.mcProgressLabel}>{completedMissions}/{missions.length} missions complete</span>
+            {/* DYNAMIC LIVE GREETINGS WITH TYPEWRITER ANIMATION */}
+            <DynamicLiveGreeting
+              userName={displayName || "Surinder"}
+              streak={currentStreak}
+              completedMissions={missions.filter(m => m.completed).length}
+              totalMissions={missions.length}
+              completedTasks={smartTasks.filter(t => t.completed).length}
+              totalTasks={smartTasks.length}
+              opportunityCount={opportunities.length}
+            />
+
+            <div style={s.heroStatRow}>
+              <div style={s.heroStat}>
+                <Clock size={12} style={{ color: "#ef4444" }} />
+                <span style={s.heroStatVal}>{timeLeft.countdown}</span>
+                <span style={s.heroStatLabel}>left today</span>
               </div>
-            )}
+              <div style={s.heroStat}>
+                <Flame size={12} style={{ color: "#f97316" }} />
+                <span style={s.heroStatVal}>{streakLoading ? "…" : currentStreak}</span>
+                <span style={s.heroStatLabel}>day streak</span>
+              </div>
+              <div style={s.heroStat}>
+                <TrendingUp size={12} style={{ color: "#22c55e" }} />
+                <span style={s.heroStatVal}>7/7</span>
+                <span style={s.heroStatLabel}>agents active</span>
+              </div>
+            </div>
           </div>
 
-          <div style={s.missionRight}>
-            <div style={s.mcStatCard}>
-              <div style={s.mcStatLabel}><Clock size={12} style={{ color:"#ef4444" }} /><span>Deadline</span></div>
-              <div style={s.mcTimer}>{timeLeft}</div>
-              <div style={s.mcTimerSub}>Resets at 11:59 PM</div>
-            </div>
-            <div style={s.mcStatCard}>
-              <div style={s.mcStatLabel}><Flame size={12} style={{ color:"#f97316" }} /><span>Current Streak</span></div>
-              <div style={{ ...s.mcTimer, color:"#f97316" }}>{streakLoading ? "..." : currentStreak}</div>
-              <div style={s.mcTimerSub}>
-                {streakData?.practiced_today ? "✓ practiced today" : "days in a row"}
+          {/* Nova companion panel */}
+          <div style={s.novaPanel}>
+            <div style={s.novaHeader}>
+              <div style={s.novaAvatar}>
+                <svg viewBox="0 0 40 40" width="24" height="24">
+                  <ellipse cx="14" cy="21" rx="2" ry="2.6" fill="#bfe4ff" />
+                  <ellipse cx="26" cy="21" rx="2" ry="2.6" fill="#bfe4ff" />
+                </svg>
               </div>
-            </div>
-            <div style={s.mcStatCard}>
-              <div style={s.mcStatLabel}><TrendingUp size={12} style={{ color:"#22c55e" }} /><span>Overall Progress</span></div>
-              <div style={{ ...s.mcTimer, color:"#22c55e" }}>{overallProgress}%</div>
-              <div style={s.mcTimerSub}>roadmap complete</div>
-            </div>
-            <Link href="/dashboard/leaderboard" style={{ textDecoration:"none" }}>
-              <div style={s.mcQuickLink}>
-                <BarChart2 size={13} style={{ color:"#6366f1" }} /><span>View Leaderboard</span>
-                <ChevronRight size={13} style={{ marginLeft:"auto", color:"#334155" }} />
+              <div>
+                <div style={s.novaName}>Nova</div>
+                <div style={s.novaSub}>{isListening ? "Listening…" : isSpeaking ? "Speaking…" : "Your AI Core Companion"}</div>
               </div>
-            </Link>
-            <Link href="/dashboard/challenges" style={{ textDecoration:"none" }}>
-              <div style={s.mcQuickLink}>
-                <Trophy size={13} style={{ color:"#f59e0b" }} /><span>Weekly Challenge</span>
-                <ChevronRight size={13} style={{ marginLeft:"auto", color:"#334155" }} />
-              </div>
-            </Link>
-          </div>
-        </section>
-
-        {/* ══ GROWTH PATH TIMELINE ═════════════════════════════════════════ */}
-        <section style={s.section}>
-          <div style={s.card}>
-            <div style={s.cardHeader}>
-              <div style={s.cardTitleWrap}>
-                <div style={s.cardIcon}><GitBranch size={18} style={{ color:"#6366f1" }} /></div>
-                <div>
-                  <h2 style={s.cardTitle}>Growth Path Timeline</h2>
-                  <p style={s.cardSub}>AI-generated 3-month roadmap — {currentPlan.summary}</p>
-                </div>
-              </div>
-              {roadmapState === "ready" && (
-                <button onClick={handleRegenerate} style={s.regenBtn} disabled={regenerating}>
-                  <RefreshCw size={14} style={{ animation: regenerating ? "spin .8s linear infinite" : "none" }} />
-                  {regenerating ? "Regenerating..." : "Regenerate with AI"}
+              {micSupported && (
+                <button
+                  onClick={startListening}
+                  style={{ ...s.novaMicBtn, ...(isListening ? { background: "rgba(239,68,68,0.18)", borderColor: "rgba(239,68,68,0.4)", color: "#ef4444" } : {}) }}
+                  title="Talk to Nova"
+                >
+                  <Mic size={14} />
                 </button>
               )}
             </div>
 
-            {roadmapState === "empty" && (
-              <div style={rs.emptyWrap}>
-                <div style={rs.emptyOrb}>
-                  <div style={rs.emptyOrbRing1}/><div style={rs.emptyOrbRing2}/>
-                  <div style={rs.emptyOrbCenter}><GitBranch size={26} style={{ color:"#6366f1" }} /></div>
-                </div>
-                <h3 style={rs.emptyTitle}>Your Growth Roadmap</h3>
-                <p style={rs.emptyDesc}>Generate a personalized roadmap<br/>based on your goals and skills.</p>
-                <button style={rs.generateBtn} onClick={async () => {
-                  setRoadmapState("loading");
-                  try {
-                    setLoadingStep(1);
-                    const [graph, planData] = await Promise.all([
-                      getCareerGraph(true).catch(() => ({ nodes:[{ id:"careers", label:"Careers", type:"root" }], edges:[] })),
-                      getGrowthPlan().catch(() => null),
-                    ]);
-                    setLoadingStep(2);
-                    if (graph) { setGraphNodes(graph.nodes||[]); setGraphEdges(graph.edges||[]); }
-                    if (planData) setPlan(planData);
-                    setLoadingStep(3);
-                    setTimeout(() => setRoadmapState("ready"), 800);
-                  } catch (err:any) { alert(err.message || "Something went wrong."); setRoadmapState("empty"); }
-                }}>
-                  <Sparkles size={15} /> Generate Roadmap
-                </button>
-              </div>
-            )}
-
-            {roadmapState === "loading" && (
-              <div style={rs.loadingWrap}>
-                <div style={rs.loadingEngineTag}><Zap size={13} style={{ color:"#f59e0b" }} /><span>GrowthOS AI Engine</span></div>
-                <div style={rs.loadingOrb}>
-                  <div style={rs.loadingRing1}/><div style={rs.loadingRing2}/><div style={rs.loadingRing3}/>
-                  <div style={rs.loadingOrbCore}><Brain size={28} style={{ color:"#6366f1" }} /></div>
-                </div>
-                <div style={rs.loadingSteps}>
-                  {[
-                    { icon:<Target size={14}/>, label:"Analyzing your goals...", color:"#6366f1" },
-                    { icon:<TrendingUp size={14}/>, label:"Studying market demand...", color:"#3b82f6" },
-                    { icon:<GitBranch size={14}/>, label:"Designing your roadmap...", color:"#22c55e" },
-                  ].map((step, i) => {
-                    const isActive = loadingStep === i+1, isDone = loadingStep > i+1;
-                    return (
-                      <div key={i} style={{ ...rs.loadingStep, opacity:isActive||isDone?1:0.25, transform:isActive?"translateX(6px)":"none", transition:"all 0.5s ease" }}>
-                        <div style={{ ...rs.loadingStepIcon, background:isDone?"rgba(34,197,94,0.15)":isActive?"rgba(99,102,241,0.15)":"rgba(255,255,255,0.04)", border:isDone?"1px solid rgba(34,197,94,0.4)":isActive?"1px solid rgba(99,102,241,0.4)":"1px solid rgba(255,255,255,0.06)", color:isDone?"#22c55e":isActive?step.color:"#475569" }}>
-                          {isDone ? <CheckCircle2 size={14}/> : step.icon}
-                        </div>
-                        <span style={{ ...rs.loadingStepLabel, color:isDone?"#22c55e":isActive?"white":"#334155" }}>{step.label}</span>
-                        {isActive && <div style={rs.loadingDots}><span style={{ ...rs.dot, animationDelay:"0s" }}/><span style={{ ...rs.dot, animationDelay:"0.2s" }}/><span style={{ ...rs.dot, animationDelay:"0.4s" }}/></div>}
-                      </div>
-                    );
-                  })}
+            {novaCard && (
+              <div style={s.novaCard}>
+                <div style={s.novaCardText}>{novaCard.text}</div>
+                <div style={{ display: "flex", gap: "8px", marginTop: "10px" }}>
+                  <button style={s.novaPrimaryBtn} onClick={() => { speak(novaCard.text); novaCard.onPrimary(); }}>{novaCard.primary}</button>
+                  <button style={s.novaGhostBtn} onClick={() => setNovaCard(null)}>Maybe later</button>
                 </div>
               </div>
             )}
 
-            {roadmapState === "ready" && (
-              <>
-                <div style={s.monthTabs}>
-                  {currentPlan.months.map((m, i) => (
-                    <button key={m.month} onClick={() => setActiveMonth(i)} style={{ ...s.monthTab, ...(activeMonth===i?s.monthTabActive:{}) }}>
-                      <span style={s.monthTabNum}>Month {m.month}</span>
-                      <span style={s.monthTabTheme}>{m.theme}</span>
-                      <div style={s.monthTabProg}><div style={{ ...s.monthTabProgFill, width:`${m.progress}%`, background:activeMonth===i?"#6366f1":"#334155" }}/></div>
-                      <span style={{ fontSize:"0.7rem", color:activeMonth===i?"#6366f1":"#475569" }}>{m.progress}%</span>
-                    </button>
+            <div ref={novaScrollRef} style={s.novaChat}>
+              {novaMessages.length === 0 && !novaCard && (
+                <div style={s.novaEmpty}>Ask Nova anything about your goals, skills, or AI agent orchestration.</div>
+              )}
+              {novaMessages.map(m => (
+                <div key={m.id} style={{ ...s.novaBubble, ...(m.role === "user" ? s.novaBubbleUser : s.novaBubbleNova) }}>
+                  {m.text}
+                </div>
+              ))}
+              {novaLoading && <div style={{ ...s.novaBubble, ...s.novaBubbleNova, opacity: 0.6 }}>Thinking…</div>}
+            </div>
+
+            <div style={s.novaInputRow}>
+              <input
+                value={novaInput}
+                onChange={e => setNovaInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && sendNovaMessage()}
+                placeholder="Ask Nova anything..."
+                style={s.novaInput}
+              />
+              <button style={s.novaSendBtn} onClick={() => sendNovaMessage()} disabled={novaLoading}>
+                <Send size={14} />
+              </button>
+            </div>
+
+            <div style={s.novaActivityHeader}>
+              <span>AI Activity</span><span style={s.novaActivityLive}>Live Feed</span>
+            </div>
+            <div style={s.novaActivityList}>
+              {activityLoading ? (
+                [1,2,3].map(i => <Skeleton key={i} h="30px" />)
+              ) : activityError || batchActivity.length === 0 ? (
+                <div style={s.novaEmpty}>No cohort activity yet — invite a friend to see live updates here.</div>
+              ) : batchActivity.slice(0, 5).map(item => {
+                const cfg = activityConfig[item.activity_type] ?? { color: "#475569", icon: "•" };
+                return (
+                  <div key={item.id} style={s.novaActivityItem}>
+                    <div style={{ ...s.novaActivityIcon, background: `${cfg.color}22`, color: cfg.color }}>{item.avatar}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={s.novaActivityText}><strong style={{ color: "white" }}>{item.user_name}</strong> {item.activity_text}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* ══ ORBIT VOICE — CENTRAL AI VOICE CORE ══════════════════════════════ */}
+        <section style={s.section}>
+          <div style={{ ...s.card, padding: "32px 28px", position: "relative", overflow: "hidden", background: "rgba(6, 11, 26, 0.8)", borderColor: "rgba(0, 242, 254, 0.3)", boxShadow: "0 20px 50px rgba(0,0,0,0.6), inset 0 0 30px rgba(0, 242, 254, 0.08)" }}>
+            <div style={s.cardHeader}>
+              <div style={s.cardTitleWrap}>
+                <div style={{ ...s.cardIcon, background: "rgba(0, 242, 254, 0.15)", border: "1px solid rgba(0, 242, 254, 0.4)", boxShadow: "0 0 16px rgba(0, 242, 254, 0.3)" }}>
+                  <Mic size={20} style={{ color: "#00f2fe" }} />
+                </div>
+                <div>
+                  <h2 style={{ ...s.cardTitle, background: "linear-gradient(135deg, #ffffff 0%, #00f2fe 50%, #3b82f6 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                    🌐 Orbit Voice — Central AI Voice Core
+                  </h2>
+                  <p style={s.cardSub}>Holographic AI Assistant (Orbit). Click hologram pedestal or mic to speak in real-time.</p>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "0.72rem", color: "#00f2fe", background: "rgba(0, 242, 254, 0.12)", padding: "5px 14px", borderRadius: "16px", border: "1px solid rgba(0, 242, 254, 0.35)", fontWeight: 700, letterSpacing: "0.03em", boxShadow: "0 0 12px rgba(0, 242, 254, 0.2)" }}>
+                  {isSpeaking ? "● Speaking" : isListening ? "● Listening" : "● Orbit Voice Active"}
+                </span>
+              </div>
+            </div>
+
+            {/* Holographic Projection Environment Box */}
+            <div style={{ position: "relative", width: "100%", height: "320px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+              {/* Background Ambient Radial Glow */}
+              <div style={{ position: "absolute", width: "420px", height: "320px", background: "radial-gradient(circle at 50% 60%, rgba(0, 242, 254, 0.14) 0%, rgba(3, 19, 43, 0) 70%)", pointerEvents: "none" }} />
+
+              {/* Interactive Hologram Container */}
+              <div
+                onClick={handleOrbClick}
+                style={{
+                  position: "relative",
+                  width: "260px",
+                  height: "260px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justify: "flex-end",
+                  cursor: "pointer",
+                }}
+                aria-label="Talk to Orbit Voice AI Assistant"
+              >
+                {/* 1. Floating Speech Bubble ("Hello!" matching reference image) */}
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "15px",
+                    left: "-50px",
+                    zIndex: 10,
+                    background: "rgba(5, 20, 46, 0.92)",
+                    border: "1.5px solid #00f2fe",
+                    borderRadius: "14px",
+                    padding: "8px 16px",
+                    boxShadow: "0 0 22px rgba(0, 242, 254, 0.5), inset 0 0 12px rgba(0, 242, 254, 0.2)",
+                    backdropFilter: "blur(12px)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    animation: "orbitFloat 4.8s ease-in-out infinite alternate",
+                  }}
+                >
+                  <span style={{ fontSize: "0.95rem", fontWeight: 800, color: "#ffffff", letterSpacing: "0.02em", fontFamily: "'Rajdhani', sans-serif" }}>
+                    {isSpeaking ? "Speaking..." : isListening ? "Listening..." : "Hello!"}
+                  </span>
+                  {/* Pointer arrow pointing right toward head */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      right: "-8px",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      width: 0,
+                      height: 0,
+                      borderTop: "6px solid transparent",
+                      borderBottom: "6px solid transparent",
+                      borderLeft: "8px solid #00f2fe",
+                    }}
+                  />
+                </div>
+
+                {/* 2. Vertical Hologram Projection Light Rays & Particles Cone */}
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "40px",
+                    width: "170px",
+                    height: "155px",
+                    background: "linear-gradient(to top, rgba(0, 242, 254, 0.38) 0%, rgba(0, 242, 254, 0.12) 65%, rgba(0, 242, 254, 0) 100%)",
+                    clipPath: "polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)",
+                    pointerEvents: "none",
+                    zIndex: 2,
+                  }}
+                />
+
+                {/* Upward Hologram Projection Beams (SVG Streaks) */}
+                <svg
+                  style={{
+                    position: "absolute",
+                    bottom: "40px",
+                    width: "180px",
+                    height: "150px",
+                    pointerEvents: "none",
+                    zIndex: 3,
+                  }}
+                  viewBox="0 0 180 150"
+                >
+                  <line x1="38" y1="150" x2="60" y2="10" stroke="#00f2fe" strokeWidth="1.5" strokeOpacity="0.6" strokeDasharray="6 4" />
+                  <line x1="68" y1="150" x2="78" y2="5" stroke="#00f2fe" strokeWidth="2" strokeOpacity="0.85" />
+                  <line x1="90" y1="150" x2="90" y2="0" stroke="#ffffff" strokeWidth="2.5" strokeOpacity="0.95" filter="url(#eyeGlow)" />
+                  <line x1="112" y1="150" x2="102" y2="5" stroke="#00f2fe" strokeWidth="2" strokeOpacity="0.85" />
+                  <line x1="142" y1="150" x2="120" y2="10" stroke="#00f2fe" strokeWidth="1.5" strokeOpacity="0.6" strokeDasharray="6 4" />
+
+                  {/* Upward Floating Particles in Projection Beam */}
+                  {[0, 1, 2, 3, 4, 5, 6].map(i => (
+                    <circle key={i} r={1.8 + (i % 2) * 0.8} fill="#ffffff" filter="url(#eyeGlow)">
+                      <animateMotion
+                        path={`M ${32 + i * 20},145 L ${48 + i * 14},15`}
+                        dur={`${2.2 + i * 0.35}s`}
+                        begin={`${i * 0.28}s`}
+                        repeatCount="indefinite"
+                      />
+                    </circle>
                   ))}
+                </svg>
+
+                {/* 3. Floating Orbit Robot Head (Holographic Visor & Face) */}
+                <div
+                  style={{
+                    position: "relative",
+                    zIndex: 5,
+                    marginBottom: "46px",
+                    animation: "humanBreathe 4.8s cubic-bezier(0.4, 0, 0.2, 1) infinite",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {/* Outer Visor Glowing Sphere Head */}
+                  <div
+                    style={{
+                      position: "relative",
+                      width: "110px",
+                      height: "110px",
+                      borderRadius: "50%",
+                      background: "radial-gradient(circle at 35% 30%, #082847 0%, #031327 70%, #020917 100%)",
+                      border: "2.5px solid #00f2fe",
+                      boxShadow: "0 0 45px rgba(0, 242, 254, 0.8), inset 0 0 30px rgba(0, 242, 254, 0.4)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {/* Outer Visor Ring Outline (matching image) */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        inset: "-7px",
+                        borderRadius: "50%",
+                        border: "1.8px solid #00f2fe",
+                        borderBottomColor: "transparent",
+                        boxShadow: "0 0 18px rgba(0, 242, 254, 0.6)",
+                        animation: "coreSwirl 16s linear infinite",
+                      }}
+                    />
+
+                    {/* Orbit SVG Face (Eyebrows, Blinking Eyes, Smiling Mouth, 3 Chin Dots) */}
+                    <svg viewBox="0 0 100 100" style={{ width: "86px", height: "86px", position: "relative", zIndex: 2, overflow: "visible" }}>
+                      {/* Eyebrows / Expression Arches */}
+                      <path d="M 23 30 Q 33 24 42 30" fill="none" stroke="#00f2fe" strokeWidth="2.2" strokeLinecap="round" opacity="0.95" />
+                      <path d="M 58 30 Q 67 24 77 30" fill="none" stroke="#00f2fe" strokeWidth="2.2" strokeLinecap="round" opacity="0.95" />
+
+                      {/* Left Eye & Eyelid (Blinking) */}
+                      <g style={{ transformOrigin: "33px 40px", animation: "novaBlink 4s ease-in-out infinite" }}>
+                        <ellipse cx="33" cy="40" rx="9" ry="7" fill="#031327" stroke="#00f2fe" strokeWidth="2" filter="url(#eyeGlow)" />
+                        <ellipse cx="33" cy="40" rx="5" ry="5" fill="#00f2fe" />
+                        <circle cx="34.8" cy="38.2" r="1.8" fill="#ffffff" />
+                      </g>
+
+                      {/* Right Eye & Eyelid (Blinking) */}
+                      <g style={{ transformOrigin: "67px 40px", animation: "novaBlink 4s ease-in-out infinite" }}>
+                        <ellipse cx="67" cy="40" rx="9" ry="7" fill="#031327" stroke="#00f2fe" strokeWidth="2" filter="url(#eyeGlow)" />
+                        <ellipse cx="67" cy="40" rx="5" ry="5" fill="#00f2fe" />
+                        <circle cx="68.8" cy="38.2" r="1.8" fill="#ffffff" />
+                      </g>
+
+                      {/* Orbit Smiling Mouth / Talking Mouth */}
+                      {!isSpeaking ? (
+                        <path d="M 34 65 Q 50 76 66 65" fill="none" stroke="#00f2fe" strokeWidth="2.8" strokeLinecap="round" filter="url(#eyeGlow)" />
+                      ) : (
+                        <g style={{ transformOrigin: "50px 66px", animation: "mouthTalk 0.4s ease-in-out infinite alternate" }}>
+                          <path d="M 34 64 Q 50 77 66 64 Q 50 57 34 64" fill="rgba(0, 242, 254, 0.35)" stroke="#00f2fe" strokeWidth="2.8" strokeLinecap="round" filter="url(#eyeGlow)" />
+                        </g>
+                      )}
+
+                      {/* 3 Illuminated Status Dots at Base of Visor Head (Matching Image) */}
+                      <circle cx="43" cy="85" r="1.8" fill="#00f2fe" filter="url(#eyeGlow)" />
+                      <circle cx="50" cy="85" r="2.0" fill="#ffffff" filter="url(#eyeGlow)" />
+                      <circle cx="57" cy="85" r="1.8" fill="#00f2fe" filter="url(#eyeGlow)" />
+                    </svg>
+
+                    {isSpeaking && (
+                      <div style={{ position: "absolute", bottom: "12px", display: "flex", alignItems: "center", gap: "3px", zIndex: 3 }}>
+                        {[0, 1, 2, 3, 4].map(i => <span key={i} style={{ width: "3px", height: "14px", borderRadius: "2px", background: "#00f2fe", boxShadow: "0 0 8px #00f2fe", animation: `waveBounce 0.6s ease-in-out ${i * 0.1}s infinite` }} />)}
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div style={{ height:"600px", marginTop:20 }}>
-                  <CareerGraph nodes={graphNodes} edges={graphEdges} />
+
+                {/* 4. Glowing 3D Hologram Base Pedestal Platform (Matching Image) */}
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "0px",
+                    width: "190px",
+                    height: "44px",
+                    borderRadius: "50%",
+                    background: "radial-gradient(ellipse at center, #00f2fe 0%, #0284c7 40%, #031838 85%)",
+                    border: "2px solid #00f2fe",
+                    boxShadow: "0 0 40px rgba(0, 242, 254, 0.85), 0 10px 25px rgba(0, 0, 0, 0.7), inset 0 0 24px rgba(255, 255, 255, 0.55)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 4,
+                  }}
+                >
+                  {/* Pedestal Top Illuminated Surface Ring */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: "4px",
+                      borderRadius: "50%",
+                      border: "1px solid rgba(255, 255, 255, 0.65)",
+                      background: "radial-gradient(ellipse at center, rgba(0,242,254,0.45) 0%, rgba(2,132,199,0.18) 70%)",
+                    }}
+                  />
+
+                  {/* Letter / Logo inscribed in Pedestal surface (Matching 'B' logo in image) */}
+                  <span
+                    style={{
+                      fontFamily: "'Rajdhani', sans-serif",
+                      fontSize: "1.2rem",
+                      fontWeight: 900,
+                      color: "#ffffff",
+                      letterSpacing: "0.06em",
+                      textShadow: "0 0 14px #00f2fe",
+                      position: "relative",
+                      zIndex: 2,
+                    }}
+                  >
+                    GrowthOS
+                  </span>
+
+                  {/* Front Light Slit on Pedestal Cylinder Base (Matching image) */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: "4px",
+                      width: "50px",
+                      height: "3.5px",
+                      borderRadius: "2px",
+                      background: "#00f2fe",
+                      boxShadow: "0 0 12px #00f2fe",
+                    }}
+                  />
                 </div>
-              </>
-            )}
+              </div>
+
+              <div style={{ textAlign: "center", marginTop: "12px" }}>
+                <div style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: "1.2rem", fontWeight: 800, color: "white", letterSpacing: "0.06em", textShadow: "0 0 20px rgba(0,242,254,0.6)" }}>
+                  Orbit Voice Core
+                </div>
+                <div style={{ fontSize: "0.76rem", color: "#00f2fe", fontWeight: 700, marginTop: "2px", textShadow: "0 0 12px rgba(0,242,254,0.5)" }}>
+                  {isSpeaking ? "Speaking… Click hologram to interrupt" : "Click hologram pedestal or mic to speak in real-time"}
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
         {/* ══ AI INSIGHT + TODAY'S ACTION PLAN ═════════════════════════════ */}
         <section style={s.twoCol}>
-
-          {/* AI Insight */}
-          <div style={{ ...s.card, flex:1 }}>
+          <div style={{ ...s.card, flex: 1 }}>
             <div style={s.cardHeader}>
               <div style={s.cardTitleWrap}>
-                <div style={{ ...s.cardIcon, background:"rgba(99,102,241,0.15)" }}><Bot size={18} style={{ color:"#6366f1" }} /></div>
-                <div><h2 style={s.cardTitle}>AI Growth Insight</h2><p style={s.cardSub}>Personalized by Gemini AI</p></div>
+                <div style={{ ...s.cardIcon, background: "rgba(99,102,241,0.15)" }}><Bot size={18} style={{ color: "#6366f1" }} /></div>
+                <div><h2 style={s.cardTitle}>AI Growth Insight</h2><p style={s.cardSub}>Personalized for your goals</p></div>
               </div>
             </div>
             <div style={s.insightBody}>
-              <div style={s.insightAvatar}><Sparkles size={16} style={{ color:"#6366f1" }} /></div>
+              <div style={s.insightAvatar}><Sparkles size={16} style={{ color: "#6366f1" }} /></div>
               <div style={s.insightBubble}>
                 {insightLoading ? (
-                  <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                     <Skeleton/><Skeleton w="85%"/><Skeleton w="70%"/>
                   </div>
                 ) : (
@@ -884,22 +1299,9 @@ export default function DashboardPage() {
                 )}
               </div>
             </div>
-            <div style={s.insightMetrics}>
-              {[
-                { label:"Learning Velocity", value:"High",   color:"#22c55e" },
-                { label:"Focus Score",       value:"8.2/10", color:"#3b82f6" },
-                { label:"Goal Alignment",    value:"94%",    color:"#f59e0b" },
-              ].map(m => (
-                <div key={m.label} style={s.metricPill}>
-                  <span style={{ fontSize:"0.68rem", color:"#64748b" }}>{m.label}</span>
-                  <span style={{ fontSize:"0.82rem", fontWeight:700, color:m.color }}>{m.value}</span>
-                </div>
-              ))}
-            </div>
           </div>
 
-          {/* Today's Action Plan — SmartTask system fully intact */}
-          <div style={{ ...s.card, flex:1 }}>
+          <div style={{ ...s.card, flex: 1 }} ref={missionsRef}>
             <div style={s.cardHeader}>
               <div style={s.cardTitleWrap}>
                 <div style={{ ...s.cardIcon, background: "rgba(34,197,94,0.1)" }}>
@@ -910,7 +1312,7 @@ export default function DashboardPage() {
                   <p style={s.cardSub}>
                     {smartTasksLoading
                       ? "Generating your tasks..."
-                      : `${smartTasks.filter(t => t.completed).length} of ${smartTasks.length} completed · 2 hard + 1 easy`}
+                      : `${smartTasks.filter(t => t.completed).length} of ${smartTasks.length} completed`}
                   </p>
                 </div>
               </div>
@@ -920,17 +1322,9 @@ export default function DashboardPage() {
                   onClick={async () => {
                     setSTLoading(true);
                     try {
-                      const res = await fetch(`${API}/api/tasks/regenerate`, {
-                        method: "POST",
-                        headers: { Authorization: `Bearer ${getToken()}` },
-                      });
+                      const res = await fetch(`${API}/api/tasks/regenerate`, { method: "POST", headers: { Authorization: `Bearer ${getToken()}` } });
                       const data = await res.json();
-                      if (Array.isArray(data)) {
-                        setSmartTasks(data);
-                        setTaskFeedback({});
-                        setTaskAnswer({});
-                        setExpandedTask(null);
-                      }
+                      if (Array.isArray(data)) { setSmartTasks(data); setTaskFeedback({}); setTaskAnswer({}); setExpandedTask(null); }
                     } catch {}
                     finally { setSTLoading(false); }
                   }}
@@ -940,342 +1334,627 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Progress ring */}
-            <div style={s.taskProgress}>
-              <svg width="52" height="52" viewBox="0 0 52 52">
-                <circle cx="26" cy="26" r="22" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4" />
-                <circle cx="26" cy="26" r="22" fill="none" stroke="#22c55e" strokeWidth="4"
-                  strokeDasharray={`${smartTasks.length ? (smartTasks.filter(t => t.completed).length / smartTasks.length) * 138 : 0} 138`}
-                  strokeLinecap="round" transform="rotate(-90 26 26)" />
-              </svg>
-              <div style={s.taskProgressText}>
-                <span style={{ fontSize: "1rem", fontWeight: 700, color: "#22c55e" }}>
-                  {smartTasks.filter(t => t.completed).length}
-                </span>
-                <span style={{ fontSize: "0.65rem", color: "#475569" }}>done</span>
-              </div>
-            </div>
-
-            {/* Smart Task List */}
-            <div style={s.taskList}>
+            <div style={s.taskListWrap}>
               {smartTasksLoading ? (
-                [1, 2, 3].map(i => (
-                  <div key={i} style={{ ...st.taskCard, cursor: "default" }}>
-                    <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
-                      <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "rgba(255,255,255,0.05)", flexShrink: 0 }} />
-                      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
-                        <div style={{ width: "75%", height: "13px", borderRadius: "4px", background: "rgba(255,255,255,0.06)" }} />
-                        <div style={{ width: "45%", height: "10px", borderRadius: "4px", background: "rgba(255,255,255,0.04)" }} />
-                      </div>
-                    </div>
-                  </div>
-                ))
+                [1, 2].map(i => <Skeleton key={i} h="38px" />)
               ) : smartTasks.length === 0 ? (
-                <div style={s.emptyState}>
-                  No tasks yet -{" "}
-                  <span style={{ color: "#818cf8", cursor: "pointer" }}
-                    onClick={async () => {
-                      setSTLoading(true);
-                      const res = await fetch(`${API}/api/tasks/today`, { headers: { Authorization: `Bearer ${getToken()}` } });
-                      const d = await res.json();
-                      if (Array.isArray(d)) setSmartTasks(d);
-                      setSTLoading(false);
-                    }}>
-                    Generate now
-                  </span>
-                </div>
-              ) : smartTasks.map(task => {
-                const isExpanded = expandedTask === task.id;
-                const feedback = taskFeedback[task.id];
-                return (
-                  <div key={task.id} style={{ ...st.taskCard, ...(task.completed ? st.taskCardDone : {}), ...(isExpanded ? st.taskCardExpanded : {}) }}>
-
-                    {/* Task header row */}
-                    <div style={st.taskHeader} onClick={() => {
-                      if (!task.completed) setExpandedTask(isExpanded ? null : task.id);
-                      else toggleSmartTask(task.id);
-                    }}>
-                      <div style={st.checkWrap} onClick={e => { e.stopPropagation(); toggleSmartTask(task.id); }}>
-                        {task.completed
-                          ? <CheckCircle2 size={20} style={{ color: "#22c55e" }} />
-                          : <Circle size={20} style={{ color: "#334155" }} />}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={st.taskMeta}>
-                          <span style={{ ...st.diffBadge, ...(task.difficulty === "hard" ? st.diffHard : st.diffEasy) }}>
-                            {task.difficulty === "hard" ? "⚡ Hard" : "✓ Easy"}
-                          </span>
-                          <span style={st.skillTag}>{task.skill_tag}</span>
-                          <span style={st.xpBadge}>+{task.xp_reward} XP</span>
-                          <span style={st.timeBadge}>
-                            <Clock size={9} style={{ color: "#475569" }} />
-                            {task.estimated_minutes}m
-                          </span>
-                        </div>
-                        <div style={{ ...st.taskTitle, ...(task.completed ? { textDecoration: "line-through", opacity: 0.4 } : {}) }}>
-                          {task.title}
-                        </div>
-                      </div>
-                      {!task.completed && (
-                        <div style={{ color: "#334155", fontSize: "0.7rem" }}>
-                          {isExpanded ? "▲" : "▼"}
-                        </div>
-                      )}
+                <div style={s.emptyState}>No tasks today — check back soon!</div>
+              ) : smartTasks.slice(0, 3).map(task => (
+                <div key={task.id} style={{ ...st.taskCard, ...(task.completed ? st.taskCardDone : {}) }} onClick={() => toggleSmartTask(task.id)}>
+                  <div style={st.taskHeader}>
+                    <div style={st.checkWrap}>
+                      {task.completed ? <CheckCircle2 size={18} style={{ color: "#22c55e" }} /> : <Circle size={18} style={{ color: "#334155" }} />}
                     </div>
-
-                    {/* Expanded question + answer panel */}
-                    {isExpanded && !task.completed && (
-                      <div style={st.expandedBody}>
-                        <div style={st.questionBox}>
-                          <div style={st.questionLabel}>📋 YOUR CHALLENGE</div>
-                          <div style={st.questionText}>{task.question}</div>
-                          {task.resource_url && (
-                            <a href={task.resource_url} target="_blank" rel="noreferrer" style={st.resourceLink}>
-                              🔗 Open Resource →
-                            </a>
-                          )}
-                        </div>
-                        <div style={st.answerWrap}>
-                          <div style={st.answerLabel}>
-                            {task.category === "Coding" ? "✍ Write your solution" : "✍ Write your answer"}
-                          </div>
-                          <textarea
-                            style={st.answerTextarea}
-                            placeholder={
-                              task.category === "Coding"
-                                ? "Paste or type your code here..."
-                                : task.category === "Exam Prep"
-                                ? "Write your answer with working / steps..."
-                                : "Write your response here..."
-                            }
-                            value={taskAnswer[task.id] || ""}
-                            onChange={e => setTaskAnswer(prev => ({ ...prev, [task.id]: e.target.value }))}
-                            rows={5}
-                          />
-                          <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
-                            <button
-                              style={{ ...st.submitBtn, opacity: submittingTask === task.id ? 0.6 : 1 }}
-                              disabled={!taskAnswer[task.id]?.trim() || submittingTask === task.id}
-                              onClick={() => submitTaskAnswer(task.id)}
-                            >
-                              {submittingTask === task.id ? "⏳ Reviewing..." : "✅ Submit for AI Review"}
-                            </button>
-                            <button style={st.skipBtn} onClick={() => toggleSmartTask(task.id)}>
-                              Mark Done
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* AI Feedback after submission */}
-                    {feedback && (
-                      <div style={st.feedbackBox}>
-                        <div style={st.feedbackLabel}>🤖 AI Feedback</div>
-                        <div style={st.feedbackText}>{feedback}</div>
-                      </div>
-                    )}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ ...st.taskTitle, ...(task.completed ? { textDecoration: "line-through", opacity: 0.4 } : {}) }}>{task.title}</div>
+                    </div>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
 
-            {/* Practice Arena banner */}
-            <Link href="/dashboard/practice" style={{ textDecoration:"none" }}>
+            <Link href="/dashboard/practice" style={{ textDecoration: "none" }}>
               <div style={pa.banner}>
                 <div style={pa.bannerLeft}>
-                  <span style={{ fontSize:"1.3rem" }}>🔥</span>
+                  <span style={{ fontSize: "1.3rem" }}>🔥</span>
                   <div>
                     <div style={pa.bannerTitle}>Practice Arena</div>
                     <div style={pa.bannerSub}>
-                      Streak:{" "}
-                      <strong style={{ color:"#f97316" }}>
-                        {streakLoading ? "..." : `${currentStreak} days`}
-                      </strong>
-                      {streakData?.practiced_today && <span style={{ color:"#22c55e", marginLeft:"6px" }}>✓ Done today</span>}
+                      Streak: <strong style={{ color: "#f97316" }}>{streakLoading ? "..." : `${currentStreak} days`}</strong>
                     </div>
                   </div>
                 </div>
                 <div style={pa.bannerRight}>
                   <span style={pa.aiBadge}>AI-generated</span>
-                  <span style={{ fontSize:"0.82rem", color:"#f97316", fontWeight:700 }}>Start →</span>
+                  <span style={{ fontSize: "0.82rem", color: "#f97316", fontWeight: 700 }}>Start →</span>
                 </div>
               </div>
             </Link>
           </div>
         </section>
 
-        {/* ══ EXECUTION LAB + OPPORTUNITIES ════════════════════════════════ */}
-        <section style={s.twoCol}>
+        {/* ══ AI AGENTS ORCHESTRATION — VISION OS / JARVIS CONSTELLATION ═════ */}
+        <section style={s.section}>
+          <style>{`
+            @keyframes humanBreathe {
+              0% {
+                transform: scale(1) translateY(0px);
+                box-shadow: 0 0 45px rgba(0, 242, 254, 0.65), 0 0 90px rgba(59, 130, 246, 0.4);
+              }
+              45% {
+                transform: scale(1.045) translateY(-3px);
+                box-shadow: 0 0 75px rgba(0, 242, 254, 0.85), 0 0 130px rgba(59, 130, 246, 0.6);
+              }
+              55% {
+                transform: scale(1.045) translateY(-3px);
+                box-shadow: 0 0 75px rgba(0, 242, 254, 0.85), 0 0 130px rgba(59, 130, 246, 0.6);
+              }
+              100% {
+                transform: scale(1) translateY(0px);
+                box-shadow: 0 0 45px rgba(0, 242, 254, 0.65), 0 0 90px rgba(59, 130, 246, 0.4);
+              }
+            }
 
-          {/* Execution Lab — replaces Explore Skills */}
-          <div style={{ ...s.card, flex:1 }}>
+            @keyframes novaBlink {
+              0%, 92%, 97%, 100% {
+                transform: scaleY(1);
+              }
+              94.5% {
+                transform: scaleY(0.08);
+              }
+            }
+
+            @keyframes coreSwirl {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+
+            @keyframes coreSwirlRev {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(-360deg); }
+            }
+
+            @keyframes waveBounce {
+              0%, 100% { transform: scaleY(0.4); }
+              50% { transform: scaleY(1.3); }
+            }
+
+            @keyframes mouthTalk {
+              0%, 100% { transform: scaleY(1); }
+              50% { transform: scaleY(1.4); }
+            }
+
+            @keyframes orbitFloat {
+              0% { transform: translateY(0px); }
+              50% { transform: translateY(-7px); }
+              100% { transform: translateY(0px); }
+            }
+          `}</style>
+          <div style={{ ...s.card, padding: "32px", position: "relative", overflow: "hidden", background: "rgba(6, 10, 24, 0.8)", borderColor: "rgba(0, 242, 254, 0.3)", boxShadow: "0 20px 50px rgba(0,0,0,0.6), inset 0 0 30px rgba(0, 242, 254, 0.08)" }}>
             <div style={s.cardHeader}>
               <div style={s.cardTitleWrap}>
-                <div style={{ ...s.cardIcon, background:"rgba(99,102,241,0.12)" }}><Cpu size={18} style={{ color:"#6366f1" }} /></div>
+                <div style={{ ...s.cardIcon, background: "rgba(0, 242, 254, 0.15)", border: "1px solid rgba(0, 242, 254, 0.4)", boxShadow: "0 0 16px rgba(0, 242, 254, 0.3)" }}>
+                  <Activity size={20} style={{ color: "#00f2fe" }} />
+                </div>
                 <div>
-                  <h2 style={s.cardTitle}>⚡ Execution Lab</h2>
-                  <p style={s.cardSub}>Click any skill to enter your personal execution space</p>
+                  <h2 style={{ ...s.cardTitle, background: "linear-gradient(135deg, #ffffff 0%, #00f2fe 50%, #3b82f6 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                    ⚡ AI Agents Orchestration Matrix
+                  </h2>
+                  <p style={s.cardSub}>Orbit Voice orchestrating 7 specialized agents via electric laser rays. Hover any agent to inspect energy beams & relationships.</p>
                 </div>
               </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "0.72rem", color: "#00f2fe", background: "rgba(0, 242, 254, 0.12)", padding: "4px 14px", borderRadius: "16px", border: "1px solid rgba(0, 242, 254, 0.35)", fontWeight: 700, letterSpacing: "0.03em", boxShadow: "0 0 12px rgba(0, 242, 254, 0.2)" }}>
+                  ● Laser Network Synchronized
+                </span>
+              </div>
             </div>
-            <div style={s.skillGrid}>
-              {skillsLoading ? (
-                [1,2,3,4].map(i => (
-                  <div key={i} style={{ ...s.skillCard, cursor:"default" }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:"8px" }}>
-                      <div style={{ width:"32px", height:"32px", borderRadius:"6px", background:"rgba(255,255,255,0.05)" }}/>
-                      <Skeleton w="40px" h="10px"/>
-                    </div>
-                    <Skeleton w="65%" h="13px"/><br/>
-                    <Skeleton w="45%" h="10px"/>
-                  </div>
-                ))
-              ) : skills.length === 0 ? (
-                <div style={{ gridColumn:"span 2", display:"flex", flexDirection:"column", alignItems:"center", gap:"12px", padding:"24px", background:"rgba(99,102,241,0.04)", border:"1px solid rgba(99,102,241,0.1)", borderRadius:"12px" }}>
-                  <div style={{ fontSize:"0.85rem", color:"#475569", textAlign:"center" }}>
-                    Your skills are being personalized based on your profile.
-                  </div>
-                  <button
-                    style={{ display:"flex", alignItems:"center", gap:"6px", padding:"8px 18px", background:"rgba(99,102,241,0.12)", border:"1px solid rgba(99,102,241,0.3)", borderRadius:"8px", color:"#818cf8", fontSize:"0.8rem", fontWeight:700, cursor:"pointer" }}
-                    onClick={async () => {
-                      setSkillsLoading(true);
-                      try {
-                        const d = await getSkills();
-                        if (d?.length) setSkills(d);
-                      } catch {}
-                      finally { setSkillsLoading(false); }
-                    }}>
-                    <RefreshCw size={13}/> Retry
-                  </button>
-                </div>
-              ) : skills.map(skill => (
-                <button key={skill.id} style={s.skillCard} onClick={() => setActiveLabSkill(skill)}
-                  onMouseEnter={e => { const el = e.currentTarget; el.style.borderColor = "rgba(99,102,241,0.4)"; el.style.background = "rgba(99,102,241,0.06)"; }}
-                  onMouseLeave={e => { const el = e.currentTarget; el.style.borderColor = "rgba(255,255,255,0.06)"; el.style.background = "rgba(255,255,255,0.02)"; }}>
-                  <div style={s.skillCardTop}>
-                    <span style={s.skillEmoji}>{skill.emoji}</span>
-                    <div style={s.skillRelevance}><Star size={10} style={{ color:"#f59e0b" }}/><span>{skill.relevance_score}%</span></div>
-                  </div>
-                  <div style={s.skillName}>{skill.name}</div>
-                  <div style={s.skillLevel}>{skill.level}</div>
-                  <div style={s.skillBar}>
-                    <div style={{ ...s.skillBarFill, width:skill.level==="Beginner"?"25%":skill.level==="Intermediate"?"55%":skill.level==="Advanced"?"80%":"5%" }}/>
-                  </div>
-                  <div style={s.skillWhy}>{skill.why_relevant}</div>
-                  {/* Execution Lab entry point */}
-                  <div style={labCard.footer}>
-                    <div style={labCard.tabs}>
-                      {["🧠","📚","⚡","🤖","💼"].map((icon, i) => (
-                        <span key={i} style={labCard.tabIcon}>{icon}</span>
-                      ))}
-                    </div>
-                    <div style={labCard.enterBtn}
-                      onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(99,102,241,0.25)"; (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(99,102,241,0.5)"; (e.currentTarget as HTMLDivElement).style.color = "#a5b4fc"; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = "rgba(99,102,241,0.1)"; (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(99,102,241,0.2)"; (e.currentTarget as HTMLDivElement).style.color = "#6366f1"; }}>
-                      ⚡ Enter Lab →
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
 
-          {/* Opportunities — unchanged */}
-          <div style={{ ...s.card, flex:1 }}>
-            <div style={s.cardHeader}>
-              <div style={s.cardTitleWrap}>
-                <div style={{ ...s.cardIcon, background:"rgba(245,158,11,0.1)" }}><Rocket size={18} style={{ color:"#f59e0b" }} /></div>
-                <div><h2 style={s.cardTitle}>Opportunities</h2><p style={s.cardSub}>Handpicked by AI for your profile</p></div>
-              </div>
-            </div>
-            <div style={s.oppList}>
-              {oppsLoading ? (
-                [1,2,3].map(i => (
-                  <div key={i} style={{ ...s.oppCard, cursor:"default" }}>
-                    <div style={{ width:"36px", height:"36px", borderRadius:"8px", background:"rgba(255,255,255,0.05)", flexShrink:0 }}/>
-                    <div style={{ flex:1, display:"flex", flexDirection:"column", gap:"6px" }}><Skeleton w="60%"/><Skeleton w="85%" h="10px"/></div>
-                  </div>
-                ))
-              ) : opportunities.length === 0 ? (
-                <div style={s.emptyState}>Opportunities are being generated for you.</div>
-              ) : opportunities.map(opp => (
-                <div key={opp.id} style={s.oppCard}>
-                  <div style={s.oppEmoji}>{opp.emoji}</div>
-                  <div style={s.oppBody}>
-                    <div style={s.oppTitle}>{opp.title}</div>
-                    <div style={s.oppDesc}>{opp.description}</div>
-                    <div style={s.oppMeta}>
-                      <span style={{ ...s.urgencyBadge, ...(opp.urgency==="now"?s.urgencyNow:opp.urgency==="this_week"?s.urgencyWeek:s.urgencyMonth) }}>
-                        {opp.urgency==="now"?"⚡ Act Now":opp.urgency==="this_week"?"📅 This Week":"📆 This Month"}
-                      </span>
+            <div
+              style={{ position: "relative", width: "100%", height: "650px", display: "flex", alignItems: "center", justifyContent: "center" }}
+              onMouseLeave={() => setHoveredAgent(null)}
+            >
+              {/* SVG Laser Ray Beams, Glowing Orbital Curves & Pulse Animations */}
+              <svg
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  pointerEvents: "none",
+                  zIndex: 1,
+                }}
+                viewBox="0 0 1100 650"
+              >
+                <defs>
+                  <filter id="laserGlow" x="-40%" y="-40%" width="180%" height="180%">
+                    <feGaussianBlur stdDeviation="6" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
+                  <filter id="eyeGlow" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
+                  <linearGradient id="novaLaserGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#00f2fe" stopOpacity="1" />
+                    <stop offset="50%" stopColor="#38bdf8" stopOpacity="0.85" />
+                    <stop offset="100%" stopColor="#6366f1" stopOpacity="1" />
+                  </linearGradient>
+                </defs>
+
+                {/* Soft Outer Orbital Ellipse Curves */}
+                <ellipse cx="550" cy="325" rx="460" ry="260" fill="none" stroke="rgba(0, 242, 254, 0.15)" strokeWidth="1.5" />
+                <ellipse cx="550" cy="325" rx="380" ry="210" fill="none" stroke="rgba(59, 130, 246, 0.15)" strokeWidth="1.2" />
+
+                {/* High-Tech Dual Laser Rays connecting Orbit Voice (550, 325) to 7 Agent Nodes */}
+                {[
+                  { id: "learning", color: "#38bdf8", x: 550 + Math.round(410 * Math.cos(-Math.PI / 2)), y: 325 + Math.round(260 * Math.sin(-Math.PI / 2)) },
+                  { id: "opportunity", color: "#fbbf24", x: 550 + Math.round(425 * Math.cos(-Math.PI / 2 + (2 * Math.PI / 7))), y: 325 + Math.round(260 * Math.sin(-Math.PI / 2 + (2 * Math.PI / 7))) },
+                  { id: "interview", color: "#38bdf8", x: 550 + Math.round(440 * Math.cos(-Math.PI / 2 + (4 * Math.PI / 7))), y: 325 + Math.round(260 * Math.sin(-Math.PI / 2 + (4 * Math.PI / 7))) },
+                  { id: "networking", color: "#a855f7", x: 550 + Math.round(420 * Math.cos(-Math.PI / 2 + (6 * Math.PI / 7))), y: 325 + Math.round(270 * Math.sin(-Math.PI / 2 + (6 * Math.PI / 7))) },
+                  { id: "project", color: "#10b981", x: 550 + Math.round(420 * Math.cos(-Math.PI / 2 + (8 * Math.PI / 7))), y: 325 + Math.round(270 * Math.sin(-Math.PI / 2 + (8 * Math.PI / 7))) },
+                  { id: "roadmap", color: "#f97316", x: 550 + Math.round(440 * Math.cos(-Math.PI / 2 + (10 * Math.PI / 7))), y: 325 + Math.round(260 * Math.sin(-Math.PI / 2 + (10 * Math.PI / 7))) },
+                  { id: "resume", color: "#06b6d4", x: 550 + Math.round(425 * Math.cos(-Math.PI / 2 + (12 * Math.PI / 7))), y: 325 + Math.round(260 * Math.sin(-Math.PI / 2 + (12 * Math.PI / 7))) },
+                ].map(node => {
+                  const isHovered = hoveredAgent === node.id;
+                  const isAnyHovered = hoveredAgent !== null;
+                  const opacity = isHovered ? 1 : isAnyHovered ? 0.12 : 0.45;
+
+                  return (
+                    <g key={node.id}>
+                      {/* Outer Blurred Laser Glow Ray */}
+                      <line
+                        x1="550"
+                        y1="325"
+                        x2={node.x}
+                        y2={node.y}
+                        stroke={node.color}
+                        strokeOpacity={opacity}
+                        strokeWidth={isHovered ? 6 : 3}
+                        filter="url(#laserGlow)"
+                        style={{ transition: "stroke-opacity 0.3s ease, stroke-width 0.3s ease" }}
+                      />
+
+                      {/* Inner Crisp White-Hot Core Laser Ray */}
+                      <line
+                        x1="550"
+                        y1="325"
+                        x2={node.x}
+                        y2={node.y}
+                        stroke="#ffffff"
+                        strokeOpacity={isHovered ? 1 : isAnyHovered ? 0.2 : 0.7}
+                        strokeWidth={isHovered ? 2 : 1}
+                        strokeDasharray="8 4"
+                        style={{ transition: "stroke-opacity 0.3s ease" }}
+                      />
+
+                      {/* Target Connection Ring at Node End */}
+                      <circle
+                        cx={node.x}
+                        cy={node.y}
+                        r="6"
+                        fill="#050b1e"
+                        stroke={node.color}
+                        strokeWidth="2"
+                        filter="url(#laserGlow)"
+                      />
+
+                      {/* Laser Energy Particle traveling back & forth along Ray */}
+                      <circle r={isHovered ? "5.5" : "3.5"} fill={node.color} filter="url(#laserGlow)">
+                        <animateMotion
+                          path={`M ${node.x},${node.y} L 550,325 L ${node.x},${node.y}`}
+                          dur={isHovered ? "2s" : "5s"}
+                          repeatCount="indefinite"
+                        />
+                      </circle>
+                    </g>
+                  );
+                })}
+
+                {/* Simulated Laser Pulse Workflow */}
+                <circle r="5" fill="#00f2fe" filter="url(#laserGlow)">
+                  <animateMotion
+                    path="M 882,163 L 550,325 L 218,163 L 550,325 L 979,383 L 550,325 L 121,383"
+                    dur="10s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+              </svg>
+
+              {/* 7 FIXED CONSTELLATION CLEAN GLASS AGENT NODES (Expanded Orbit Space) */}
+              {[
+                {
+                  id: "learning", label: "Learning Agent", icon: Brain, color: "#38bdf8",
+                  sub: "Roadmap • Week 3", progress: 62,
+                  angleDeg: -90, radiusX: 410, radiusY: 260,
+                },
+                {
+                  id: "opportunity", label: "Opportunity Agent", icon: Rocket, color: "#fbbf24",
+                  bullets: ["• 8 new opportunities", "• 3 need your action"],
+                  angleDeg: -38.5, radiusX: 425, radiusY: 260,
+                },
+                {
+                  id: "interview", label: "Interview Agent", icon: Mic, color: "#38bdf8",
+                  bullets: ["• 2 mock interviews", "• Next: Tomorrow"],
+                  angleDeg: 12.8, radiusX: 440, radiusY: 260,
+                },
+                {
+                  id: "roadmap", label: "Roadmap Agent", icon: GitBranch, color: "#818cf8",
+                  bullets: ["• Phase 2 Active", "• 3 milestones set"],
+                  angleDeg: 64.2, radiusX: 420, radiusY: 270,
+                },
+                {
+                  id: "project", label: "Project Agent", icon: Zap, color: "#10b981",
+                  bullets: ["• 3 active projects", "• 2 updates pending"],
+                  angleDeg: 115.7, radiusX: 420, radiusY: 270,
+                },
+                {
+                  id: "productivity", label: "Productivity Agent", icon: Target, color: "#f97316",
+                  bullets: ["• Today's Focus", "• 3 tasks remaining"],
+                  angleDeg: 167.1, radiusX: 440, radiusY: 260,
+                },
+                {
+                  id: "resume", label: "Resume Agent", icon: FileText, color: "#06b6d4",
+                  bullets: ["• ATS Score 91", "• Optimize Now"],
+                  angleDeg: 218.5, radiusX: 425, radiusY: 260,
+                },
+              ].map((agent) => {
+                const rad = (agent.angleDeg * Math.PI) / 180;
+                const x = Math.round(agent.radiusX * Math.cos(rad));
+                const y = Math.round(agent.radiusY * Math.sin(rad));
+                const Icon = agent.icon;
+
+                const isHovered = hoveredAgent === agent.id;
+                const isAnyHovered = hoveredAgent !== null;
+                const opacity = isHovered ? 1 : isAnyHovered ? 0.25 : 0.95;
+
+                return (
+                  <div
+                    key={agent.id}
+                    onMouseEnter={() => setHoveredAgent(agent.id)}
+                    onMouseLeave={() => setHoveredAgent(null)}
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      left: "50%",
+                      transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
+                      rotate: "0deg",
+                      transformOrigin: "center center",
+                      zIndex: isHovered ? 25 : 10,
+                      opacity,
+                      transition: "opacity 0.3s ease, filter 0.3s ease",
+                      filter: isAnyHovered && !isHovered ? "grayscale(0.3)" : "none",
+                      pointerEvents: "auto",
+                    }}
+                  >
+                    {/* Unified Clean Premium Glass Node Card */}
+                    <div
+                      onClick={() => setActiveAgentPanel(agent.id as any)}
+                      style={{
+                        background: isHovered ? "rgba(10, 18, 42, 0.96)" : "rgba(8, 14, 32, 0.92)",
+                        border: isHovered ? `1.5px solid ${agent.color}` : `1px solid ${agent.color}55`,
+                        boxShadow: isHovered
+                          ? `0 16px 40px rgba(0,0,0,0.8), 0 0 35px ${agent.color}66, inset 0 0 20px ${agent.color}25`
+                          : `0 10px 28px rgba(0,0,0,0.55), inset 0 0 14px ${agent.color}18`,
+                        backdropFilter: "blur(18px)",
+                        borderRadius: "16px",
+                        padding: "12px 16px",
+                        cursor: "pointer",
+                        writingMode: "horizontal-tb",
+                        minWidth: "180px",
+                        maxWidth: "220px",
+                        transition: "all 0.3s ease",
+                      }}
+                    >
+                      {/* Clean Icon + Title Header */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+                        <div
+                          style={{
+                            width: "36px",
+                            height: "36px",
+                            borderRadius: "10px",
+                            background: `radial-gradient(circle at 30% 30%, ${agent.color}33, ${agent.color}11)`,
+                            border: `1px solid ${agent.color}66`,
+                            boxShadow: `0 0 14px ${agent.color}44`,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Icon size={19} style={{ color: agent.color }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: "0.86rem", fontWeight: 700, color: agent.color, whiteSpace: "nowrap" }}>
+                            {agent.label}
+                          </div>
+                          {agent.sub && (
+                            <div style={{ fontSize: "0.68rem", color: "#94a3b8", marginTop: "1px" }}>
+                              {agent.sub}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {agent.progress !== undefined && (
+                        <div style={{ width: "100%", height: "4px", background: "rgba(255,255,255,0.1)", borderRadius: "2px", margin: "6px 0", overflow: "hidden" }}>
+                          <div style={{ width: `${agent.progress}%`, height: "100%", background: agent.color, borderRadius: "2px" }} />
+                        </div>
+                      )}
+                      {agent.bullets && agent.bullets.map((b, idx) => (
+                        <div key={idx} style={{ fontSize: "0.7rem", color: "#cbd5e1", marginTop: "2px", lineHeight: 1.35 }}>
+                          {b}
+                        </div>
+                      ))}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "8px", paddingTop: "6px", borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+                        <span style={{ fontSize: "0.65rem", color: "#64748b", fontWeight: 600 }}>Active Agent</span>
+                        <span style={{ fontSize: "0.72rem", fontWeight: 700, color: agent.color }}>Workspace →</span>
+                      </div>
                     </div>
                   </div>
-                  <button style={s.oppBtn}>{opp.action_label} <ChevronRight size={12}/></button>
-                </div>
-              ))}
+                );
+              })}
+
+              {/* Central Nova AI Core (Electric Cyan/Blue Sphere with Human-Like Breathing, Eyes, Nose & Mouth) */}
+              {(() => {
+                const hoveredNode = [
+                  { id: "learning", angleDeg: -90 },
+                  { id: "opportunity", angleDeg: -38.5 },
+                  { id: "interview", angleDeg: 12.8 },
+                  { id: "roadmap", angleDeg: 64.2 },
+                  { id: "project", angleDeg: 115.7 },
+                  { id: "productivity", angleDeg: 167.1 },
+                  { id: "resume", angleDeg: 218.5 },
+                ].find(n => n.id === hoveredAgent);
+
+                const tiltAngle = hoveredNode ? hoveredNode.angleDeg / 6 : 0;
+
+                return (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      left: "50%",
+                      transform: `translate(-50%, -50%) rotate(${tiltAngle}deg)`,
+                      transition: "transform 0.5s ease",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      zIndex: 15,
+                    }}
+                  >
+                    {/* Electric Cyan & Blue Nova Core Sphere (124px x 124px) */}
+                    <button
+                      style={{
+                        position: "relative",
+                        width: "124px",
+                        height: "124px",
+                        borderRadius: "50%",
+                        border: "none",
+                        cursor: "pointer",
+                        background: "radial-gradient(circle at 35% 30%, #00f2fe 0%, #0284c7 40%, #3b82f6 75%, #050b1e 100%)",
+                        boxShadow: "0 0 50px rgba(0, 242, 254, 0.7), 0 0 100px rgba(59, 130, 246, 0.45), 0 0 140px rgba(99, 102, 241, 0.3)",
+                        animation: "humanBreathe 4.8s cubic-bezier(0.4, 0, 0.2, 1) infinite",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                      onClick={handleOrbClick}
+                      aria-label="Nova AI Core - Electric Digital Consciousness"
+                    >
+                      {/* Multi-Layered Glowing Swirl Halos (Electric Cyan & Blue) */}
+                      <div style={{ position: "absolute", inset: "-18px", borderRadius: "50%", border: "2px solid #00f2fe", borderTopColor: "#38bdf8", borderLeftColor: "transparent", boxShadow: "0 0 25px #00f2fe", animation: "coreSwirl 12s linear infinite" }} />
+                      <div style={{ position: "absolute", inset: "-32px", borderRadius: "50%", border: "1.5px solid #3b82f6", borderBottomColor: "#00f2fe", borderRightColor: "transparent", boxShadow: "0 0 35px #3b82f6", animation: "coreSwirlRev 20s linear infinite" }} />
+                      <div style={{ position: "absolute", inset: 0, borderRadius: "50%", boxShadow: "inset 0 0 45px rgba(255, 255, 255, 0.45)" }} />
+
+                      {/* Human-Like AI Face (Blinking Eyes, Nose & Mouth) */}
+                      <svg viewBox="0 0 100 100" style={{ width: "72px", height: "72px", position: "relative", zIndex: 2, overflow: "visible" }}>
+                        {/* Eyebrows / Expression Ridges */}
+                        <path d="M 23 31 Q 33 27 42 31" fill="none" stroke="#00f2fe" strokeWidth="1.8" strokeLinecap="round" opacity="0.85" />
+                        <path d="M 58 31 Q 67 27 77 31" fill="none" stroke="#00f2fe" strokeWidth="1.8" strokeLinecap="round" opacity="0.85" />
+
+                        {/* Left Eye & Eyelid (Blinking) */}
+                        <g style={{ transformOrigin: "33px 41px", animation: "novaBlink 4s ease-in-out infinite" }}>
+                          <ellipse cx="33" cy="41" rx="8" ry="6" fill="#031327" stroke="#00f2fe" strokeWidth="1.5" filter="url(#eyeGlow)" />
+                          <ellipse cx="33" cy="41" rx="4.5" ry="4.5" fill="#00f2fe" />
+                          <circle cx="34.5" cy="39.5" r="1.5" fill="#ffffff" />
+                        </g>
+
+                        {/* Right Eye & Eyelid (Blinking) */}
+                        <g style={{ transformOrigin: "67px 41px", animation: "novaBlink 4s ease-in-out infinite" }}>
+                          <ellipse cx="67" cy="41" rx="8" ry="6" fill="#031327" stroke="#00f2fe" strokeWidth="1.5" filter="url(#eyeGlow)" />
+                          <ellipse cx="67" cy="41" rx="4.5" ry="4.5" fill="#00f2fe" />
+                          <circle cx="68.5" cy="39.5" r="1.5" fill="#ffffff" />
+                        </g>
+
+                        {/* Futuristic Human Nose Bridge & Tip */}
+                        <path d="M 50 43 L 50 52 Q 50 55 46 55" fill="none" stroke="#00f2fe" strokeWidth="1.4" strokeLinecap="round" opacity="0.8" />
+                        <circle cx="46" cy="55" r="1" fill="#00f2fe" opacity="0.9" />
+                        <circle cx="54" cy="55" r="1" fill="#00f2fe" opacity="0.9" />
+
+                        {/* Human Lips & Mouth */}
+                        {!isSpeaking ? (
+                          <g>
+                            <path d="M 43 65 Q 50 63 57 65" fill="none" stroke="#38bdf8" strokeWidth="1.2" strokeLinecap="round" opacity="0.75" />
+                            <path d="M 37 67 Q 50 74 63 67" fill="none" stroke="#00f2fe" strokeWidth="2.2" strokeLinecap="round" filter="url(#eyeGlow)" />
+                          </g>
+                        ) : (
+                          <g style={{ transformOrigin: "50px 67px", animation: "mouthTalk 0.4s ease-in-out infinite alternate" }}>
+                            <path d="M 37 65 Q 50 76 63 65 Q 50 60 37 65" fill="rgba(0, 242, 254, 0.3)" stroke="#00f2fe" strokeWidth="2.2" strokeLinecap="round" filter="url(#eyeGlow)" />
+                          </g>
+                        )}
+                      </svg>
+
+                      {isSpeaking && (
+                        <div style={{ position: "absolute", bottom: "14px", display: "flex", alignItems: "center", gap: "3px", zIndex: 3 }}>
+                          {[0, 1, 2, 3, 4].map(i => <span key={i} style={{ width: "3px", height: "14px", borderRadius: "2px", background: "#00f2fe", boxShadow: "0 0 8px #00f2fe", animation: `waveBounce 0.6s ease-in-out ${i * 0.1}s infinite` }} />)}
+                        </div>
+                      )}
+                    </button>
+
+                    <div style={{ textAlign: "center", marginTop: "12px" }}>
+                      <div style={{ fontFamily: "'Rajdhani', sans-serif", fontSize: "1.15rem", fontWeight: 800, color: "white", letterSpacing: "0.06em", textShadow: "0 0 20px rgba(0,242,254,0.6)" }}>
+                        Nova AI Core
+                      </div>
+                      <div style={{ fontSize: "0.72rem", color: "#00f2fe", fontWeight: 700, marginTop: "2px", textShadow: "0 0 12px rgba(0,242,254,0.5)" }}>
+                        Electric AI Brain • Orchestrating Agents
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </section>
 
-        {/* ══ BATCH ACTIVITY FEED — untouched ══════════════════════════════ */}
-        <section style={s.section}>
+        {/* ══ BATCH ACTIVITY FEED ══════════════════════════════════════════ */}
+        <section style={s.section} ref={activityRef}>
           <div style={s.card}>
             <div style={s.cardHeader}>
               <div style={s.cardTitleWrap}>
-                <div style={{ ...s.cardIcon, background:"rgba(99,102,241,0.1)" }}><Activity size={18} style={{ color:"#6366f1" }} /></div>
+                <div style={{ ...s.cardIcon, background: "rgba(99,102,241,0.1)" }}><Activity size={18} style={{ color: "#6366f1" }} /></div>
                 <div><h2 style={s.cardTitle}>Batch Activity Feed</h2><p style={s.cardSub}>Live updates from your cohort</p></div>
               </div>
               <div style={s.livePill}><div style={s.liveDot}/><span>Live</span></div>
             </div>
             <div style={feed.grid}>
-              {batchActivity.map(item => {
-                const cfg = activityConfig[item.type] ?? { color:"#475569", icon:"•" };
+              {activityLoading ? (
+                [1,2,3,4].map(i => <Skeleton key={i} h="52px" />)
+              ) : activityError || batchActivity.length === 0 ? (
+                <div style={s.emptyState}>No cohort activity yet. Once your batch starts practicing, you'll see it here in real time.</div>
+              ) : batchActivity.map(item => {
+                const cfg = activityConfig[item.activity_type] ?? { color: "#475569", icon: "•" };
                 return (
                   <div key={item.id} style={feed.item}>
-                    <div style={{ ...feed.avatar, background:`${cfg.color}22`, border:`1px solid ${cfg.color}44`, color:cfg.color }}>{item.avatar}</div>
-                    <div style={feed.body}><span style={feed.userName}>{item.user}</span><span style={feed.action}> {item.action}</span></div>
-                    <div style={{ display:"flex", alignItems:"center", gap:"8px", flexShrink:0 }}>
-                      <span style={{ ...feed.typeBadge, color:cfg.color, background:`${cfg.color}15` }}>{cfg.icon}</span>
-                      <span style={feed.time}>{item.time}</span>
+                    <div style={{ ...feed.avatar, background: `${cfg.color}22`, border: `1px solid ${cfg.color}44`, color: cfg.color }}>{item.avatar}</div>
+                    <div style={feed.body}><span style={feed.userName}>{item.user_name}</span><span style={feed.action}> {item.activity_text}</span></div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+                      <span style={{ ...feed.typeBadge, color: cfg.color, background: `${cfg.color}15` }}>{cfg.icon}</span>
+                      <span style={feed.time}>{new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                     </div>
                   </div>
                 );
               })}
             </div>
             <div style={feed.footer}>
-              <Link href="/dashboard/leaderboard" style={{ textDecoration:"none" }}>
+              <Link href="/dashboard/leaderboard" style={{ textDecoration: "none" }}>
                 <button style={feed.footerBtn}>View Full Leaderboard <ChevronRight size={13}/></button>
               </Link>
-              <Link href="/dashboard/challenges" style={{ textDecoration:"none" }}>
+              <Link href="/dashboard/challenges" style={{ textDecoration: "none" }}>
                 <button style={feed.footerBtn}>Weekly Challenge <Trophy size={13}/></button>
               </Link>
             </div>
           </div>
         </section>
 
-        <div style={{ height:"40px" }}/>
+        <div style={s.footerNote}>
+          <div style={s.footerDot}/><span>All 7 AI Agents Synchronized</span><span style={{ opacity: 0.3 }}>·</span><span>GrowthOS AI Operating System</span>
+        </div>
+
+        <div style={{ height: "30px" }}/>
       </main>
 
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:.8} }
         @keyframes orbPulse { 0%,100%{transform:scale(0.96);opacity:0.6} 50%{transform:scale(1.04);opacity:1} }
         @keyframes orbSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
         @keyframes orbRevSpin { from{transform:rotate(0deg)} to{transform:rotate(-360deg)} }
         @keyframes dotBounce { 0%,80%,100%{transform:translateY(0);opacity:0.4} 40%{transform:translateY(-5px);opacity:1} }
-        @keyframes toastIn { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
         @keyframes livePulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-        @keyframes labSlideIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes breathe { 0%,100%{ transform:scale(1); filter:brightness(1); } 50%{ transform:scale(1.05); filter:brightness(1.15); } }
+        @keyframes coreSwirl { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes coreSwirlRev { from{transform:rotate(360deg)} to{transform:rotate(0deg)} }
+        @keyframes waveBounce { 0%,100%{ transform:scaleY(0.3); } 50%{ transform:scaleY(1); } }
+        @keyframes floatParticle { 0%{ transform:translateY(0) translateX(0); opacity:0; } 10%{opacity:0.7;} 90%{opacity:0.4;} 100%{ transform:translateY(-120px) translateX(20px); opacity:0; } }
+
+        @keyframes straightCycling {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+
+        .straight-cycling-container {
+          overflow: hidden;
+          position: relative;
+          width: 100%;
+          padding: 10px 0;
+          mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+          -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+        }
+
+        .straight-cycling-track {
+          display: flex;
+          gap: 16px;
+          width: max-content;
+          animation: straightCycling 40s linear infinite;
+        }
+
+        .straight-cycling-track:hover {
+          animation-play-state: paused;
+        }
+
         * { box-sizing:border-box; }
         ::-webkit-scrollbar { width:4px; }
         ::-webkit-scrollbar-track { background:transparent; }
         ::-webkit-scrollbar-thumb { background:#1e293b; border-radius:2px; }
         input::placeholder { color:#334155; }
         textarea { outline:none; }
+        @media (prefers-reduced-motion: reduce) {
+          .straight-cycling-track { animation: none !important; }
+        }
       `}</style>
     </div>
   );
+}
+
+// ── Ambient particles (pure decorative motion behind hero) ───────────────────
+function Particles() {
+  const particles = useMemo(() => Array.from({ length: 18 }, (_, i) => ({
+    id: i,
+    left: Math.round(Math.random() * 100),
+    top: 40 + Math.round(Math.random() * 50),
+    delay: Math.round(Math.random() * 10),
+    duration: 12 + Math.round(Math.random() * 10),
+    size: 1 + Math.round(Math.random() * 2),
+  })), []);
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", overflow: "hidden" }}>
+      {particles.map(p => (
+        <div key={p.id} style={{
+          position: "absolute", left: `${p.left}%`, top: `${p.top}%`,
+          width: p.size, height: p.size, borderRadius: "50%",
+          background: "rgba(129,140,248,0.6)", boxShadow: "0 0 6px rgba(129,140,248,0.8)",
+          animation: `floatParticle ${p.duration}s ease-in-out ${p.delay}s infinite`,
+        }} />
+      ))}
+    </div>
+  );
+}
+
+// ── Deadline Timer ────────────────────────────────────────────────────────────
+function useDeadlineTimer() {
+  const [state, setState] = useState({ countdown: "", clock: "" });
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      const istDate = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+      const istEnd = new Date(istDate);
+      istEnd.setHours(23, 59, 59, 0);
+      const diff = istEnd.getTime() - istDate.getTime();
+      const h = Math.max(0, Math.floor(diff / 3600000));
+      const m = Math.max(0, Math.floor((diff % 3600000) / 60000));
+      const sec = Math.max(0, Math.floor((diff % 60000) / 1000));
+      setState({
+        countdown: `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`,
+        clock: istDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+      });
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+  return state;
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -1287,7 +1966,9 @@ const s: Record<string, React.CSSProperties> = {
   bgGlow2:{ position:"fixed", bottom:"-20%", right:"-10%", width:"500px", height:"500px", borderRadius:"50%", background:"radial-gradient(circle,rgba(59,130,246,0.06) 0%,transparent 70%)", zIndex:0, pointerEvents:"none" },
   sidebar:{ position:"fixed", left:0, top:0, bottom:0, width:"220px", background:"rgba(6,15,34,0.95)", backdropFilter:"blur(20px)", borderRight:"1px solid rgba(255,255,255,0.05)", display:"flex", flexDirection:"column", zIndex:10, padding:"0 0 20px" },
   sidebarLogo:{ display:"flex", alignItems:"center", gap:"10px", padding:"22px 20px 18px" },
-  sidebarLogoText:{ fontFamily:"'Rajdhani',sans-serif", fontSize:"1.2rem", fontWeight:700, color:"white", letterSpacing:"0.05em" },
+  sidebarLogoMark:{ width:"34px", height:"34px", borderRadius:"10px", background:"linear-gradient(135deg,#818cf8,#6366f1)", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"white", fontFamily:"'Rajdhani',sans-serif", fontSize:"1.1rem" },
+  sidebarLogoText:{ fontFamily:"'Rajdhani',sans-serif", fontSize:"1.05rem", fontWeight:700, color:"white", letterSpacing:"0.02em" },
+  sidebarLogoSub:{ fontSize:"0.62rem", color:"#475569" },
   nav:{ flex:1, display:"flex", flexDirection:"column", gap:"2px", padding:"8px 12px", overflowY:"auto" },
   navItem:{ position:"relative", display:"flex", alignItems:"center", gap:"10px", padding:"9px 12px", borderRadius:"10px", background:"none", border:"none", cursor:"pointer", color:"#94a3b8", transition:"all .2s", textAlign:"left", width:"100%" },
   navItemActive:{ background:"rgba(99,102,241,0.12)", color:"white" },
@@ -1295,102 +1976,89 @@ const s: Record<string, React.CSSProperties> = {
   sidebarFooter:{ display:"flex", alignItems:"center", gap:"10px", padding:"12px 16px", borderTop:"1px solid rgba(255,255,255,0.05)" },
   sidebarUser:{ flex:1, display:"flex", alignItems:"center", gap:"8px" },
   avatarSmall:{ width:"28px", height:"28px", borderRadius:"50%", background:"linear-gradient(135deg,#6366f1,#3b82f6)", color:"white", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"0.75rem", fontWeight:700 },
-  logoutBtn:{ background:"none", border:"none", cursor:"pointer", color:"#475569", padding:"4px", display:"flex" },
   main:{ marginLeft:"220px", flex:1, padding:"0 32px 0", position:"relative", zIndex:1, maxWidth:"calc(100vw - 220px)", overflowX:"hidden" },
-  topbar:{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 0 16px", borderBottom:"1px solid rgba(255,255,255,0.04)", marginBottom:"24px" },
+  topbar:{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 0 16px", borderBottom:"1px solid rgba(255,255,255,0.04)", marginBottom:"10px" },
   searchWrap:{ display:"flex", alignItems:"center", gap:"8px", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:"10px", padding:"8px 14px", width:"260px" },
   searchInput:{ background:"none", border:"none", outline:"none", color:"#94a3b8", fontSize:"0.85rem", width:"100%", fontFamily:"inherit" },
   topbarRight:{ display:"flex", alignItems:"center", gap:"12px" },
+  statusPill:{ display:"flex", alignItems:"center", gap:"6px", padding:"5px 12px", background:"rgba(34,197,94,0.08)", border:"1px solid rgba(34,197,94,0.2)", borderRadius:"20px", fontSize:"0.72rem", color:"#22c55e", fontWeight:600 },
+  statusDot:{ width:"6px", height:"6px", borderRadius:"50%", background:"#22c55e", animation:"livePulse 1.5s ease-in-out infinite" },
+  clock:{ fontFamily:"'Rajdhani',monospace", fontSize:"0.9rem", color:"#94a3b8", fontWeight:600 },
   iconBtn:{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:"8px", padding:"7px", color:"#64748b", cursor:"pointer", display:"flex" },
   avatarMed:{ width:"34px", height:"34px", borderRadius:"50%", background:"linear-gradient(135deg,#6366f1,#3b82f6)", color:"white", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"0.85rem", fontWeight:700, cursor:"pointer" },
-  missionControlWrap:{ display:"flex", gap:"20px", marginBottom:"24px", padding:"28px", background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"20px", backdropFilter:"blur(10px)" },
-  missionLeft:{ flex:1 },
-  mcTag:{ display:"inline-flex", alignItems:"center", gap:"6px", background:"rgba(99,102,241,0.12)", border:"1px solid rgba(99,102,241,0.25)", borderRadius:"20px", padding:"4px 12px", fontSize:"0.72rem", color:"#818cf8", fontWeight:600, marginBottom:"14px", letterSpacing:"0.03em" },
-  mcTitle:{ fontFamily:"'Rajdhani',sans-serif", fontSize:"1.9rem", fontWeight:700, color:"white", margin:"0 0 4px", lineHeight:1.2 },
-  mcName:{ color:"#6366f1" },
-  mcSubtitle:{ fontSize:"0.88rem", color:"#475569", margin:"0 0 18px", lineHeight:1.5 },
-  missionList:{ display:"flex", flexDirection:"column" as const, gap:"8px", marginBottom:"16px" },
-  missionItem:{ display:"flex", alignItems:"center", gap:"12px", padding:"11px 14px", background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.05)", borderRadius:"10px", cursor:"pointer", transition:"all .2s" },
-  missionItemDone:{ background:"rgba(34,197,94,0.04)", borderColor:"rgba(34,197,94,0.15)" },
-  missionNum:{ width:"22px", height:"22px", borderRadius:"6px", background:"rgba(99,102,241,0.15)", border:"1px solid rgba(99,102,241,0.25)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"0.72rem", fontWeight:700, color:"#818cf8", flexShrink:0 },
-  missionTitle:{ fontSize:"0.88rem", fontWeight:500, color:"white" },
-  missionCheck:{ flexShrink:0 },
-  mcProgressWrap:{ display:"flex", alignItems:"center", gap:"10px" },
-  mcProgressBar:{ flex:1, height:"4px", background:"rgba(255,255,255,0.06)", borderRadius:"2px", overflow:"hidden" },
-  mcProgressFill:{ height:"100%", background:"linear-gradient(90deg,#6366f1,#3b82f6)", borderRadius:"2px", transition:"width 0.4s ease" },
-  mcProgressLabel:{ fontSize:"0.72rem", color:"#475569", whiteSpace:"nowrap" as const },
-  missionRight:{ display:"flex", flexDirection:"column" as const, gap:"10px", width:"200px", flexShrink:0 },
-  mcStatCard:{ padding:"14px 16px", background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"12px", textAlign:"center" as const },
-  mcStatLabel:{ display:"flex", alignItems:"center", justifyContent:"center", gap:"5px", fontSize:"0.68rem", color:"#475569", marginBottom:"6px", letterSpacing:"0.04em", textTransform:"uppercase" as const },
-  mcTimer:{ fontFamily:"'Rajdhani',monospace", fontSize:"1.4rem", fontWeight:700, color:"#ef4444", letterSpacing:"0.04em" },
-  mcTimerSub:{ fontSize:"0.65rem", color:"#334155", marginTop:"2px" },
-  mcQuickLink:{ display:"flex", alignItems:"center", gap:"8px", padding:"10px 12px", background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.05)", borderRadius:"10px", cursor:"pointer", fontSize:"0.8rem", color:"#94a3b8", transition:"all .2s" },
-  emptyState:{ padding:"16px", background:"rgba(99,102,241,0.04)", border:"1px solid rgba(99,102,241,0.1)", borderRadius:"10px", fontSize:"0.82rem", color:"#475569", textAlign:"center" as const },
-  toast:{ position:"fixed", bottom:"24px", right:"24px", zIndex:100, display:"flex", alignItems:"flex-start", gap:"12px", padding:"16px 18px", background:"rgba(6,15,34,0.98)", border:"1px solid rgba(99,102,241,0.3)", borderRadius:"14px", backdropFilter:"blur(20px)", boxShadow:"0 8px 40px rgba(0,0,0,0.6)", maxWidth:"380px", animation:"toastIn 0.4s ease" },
-  toastLeft:{ display:"flex", alignItems:"flex-start", gap:"10px", flex:1 },
-  toastIcon:{ width:"32px", height:"32px", borderRadius:"8px", background:"rgba(99,102,241,0.15)", border:"1px solid rgba(99,102,241,0.25)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
-  toastTitle:{ fontSize:"0.8rem", fontWeight:700, color:"#818cf8", marginBottom:"4px" },
-  toastMsg:{ fontSize:"0.78rem", color:"#64748b", lineHeight:1.6 },
-  toastClose:{ background:"none", border:"none", cursor:"pointer", color:"#475569", padding:"2px", flexShrink:0 },
-  livePill:{ display:"flex", alignItems:"center", gap:"6px", padding:"4px 10px", background:"rgba(34,197,94,0.1)", border:"1px solid rgba(34,197,94,0.2)", borderRadius:"20px", fontSize:"0.72rem", color:"#22c55e", fontWeight:600 },
-  liveDot:{ width:"6px", height:"6px", borderRadius:"50%", background:"#22c55e", animation:"livePulse 1.5s ease-in-out infinite" },
-  section:{ marginBottom:"20px" },
-  twoCol:{ display:"flex", gap:"20px", marginBottom:"20px" },
+
+  // Hero
+  heroWrap:{ display:"grid", gridTemplateColumns:"1fr 340px", gap:"20px", alignItems:"center", minHeight:"400px", padding:"12px 0 20px" },
+  heroLeft:{ display:"flex", flexDirection:"column", gap:"16px" },
+  heroGreetTag:{ display:"inline-flex", alignItems:"center", gap:"6px", background:"rgba(99,102,241,0.12)", border:"1px solid rgba(99,102,241,0.25)", borderRadius:"20px", padding:"4px 12px", fontSize:"0.7rem", color:"#818cf8", fontWeight:600, letterSpacing:"0.03em", width:"fit-content" },
+  heroStatRow:{ display:"flex", gap:"12px", marginTop:"4px" },
+  heroStat:{ flex:1, display:"flex", alignItems:"center", gap:"8px", padding:"10px 14px", background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"12px", fontSize: "0.8rem" },
+  heroStatVal:{ fontWeight:700, color:"white", fontFamily:"'Rajdhani',monospace" },
+  heroStatLabel:{ color:"#475569" },
+
+  orbitWrap:{ position:"relative", width:"100%", height:"460px", display:"flex", alignItems:"center", justifyContent:"center" },
+  orbitRing:{ ["--orbit-r" as any]:"180px", position:"absolute", width:0, height:0, top:"50%", left:"50%" },
+  agentNode:{ width:"52px", height:"52px", borderRadius:"50%", background:"rgba(6,15,34,0.9)", border:"1.5px solid", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", transition:"box-shadow .3s ease", backdropFilter:"blur(6px)" },
+  agentLabelWrap:{ position:"absolute", top:"58px", left:"50%", transform:"translateX(-50%)", width:"140px", textAlign:"center" as const, pointerEvents:"none" },
+  agentLabel:{ fontSize:"0.74rem", fontWeight:700, whiteSpace:"nowrap" as const },
+  agentStatus:{ fontSize:"0.65rem", color:"#64748b", marginTop:"2px" },
+
+  orbCore:{ position:"relative", width:"140px", height:"140px", borderRadius:"50%", border:"none", cursor:"pointer", background:"radial-gradient(circle at 35% 30%, rgba(129,140,248,0.5), rgba(34,211,238,0.25) 45%, rgba(6,15,34,0.9) 75%)", boxShadow:"0 0 60px rgba(99,102,241,0.45), 0 0 120px rgba(34,211,238,0.15)", animation:"breathe 4.5s ease-in-out infinite", display:"flex", alignItems:"center", justifyContent:"center", zIndex:2 },
+  orbRingOuter:{ position:"absolute", inset:"-18px", borderRadius:"50%", border:"1px solid rgba(129,140,248,0.25)", borderTopColor:"rgba(34,211,238,0.5)", animation:"coreSwirl 12s linear infinite" },
+  orbRingInner:{ position:"absolute", inset:"-34px", borderRadius:"50%", border:"1px solid rgba(99,102,241,0.12)", borderBottomColor:"rgba(129,140,248,0.35)", animation:"coreSwirlRev 18s linear infinite" },
+  orbGlow:{ position:"absolute", inset:0, borderRadius:"50%", boxShadow:"inset 0 0 40px rgba(191,228,255,0.25)" },
+  orbFace:{ width:"64px", height:"64px", position:"relative", zIndex:2 },
+  orbWave:{ position:"absolute", bottom:"20px", display:"flex", alignItems:"center", gap:"3px", zIndex:3 },
+  orbWaveBar:{ width:"3px", height:"14px", borderRadius:"2px", background:"#bfe4ff", animation:"waveBounce 0.6s ease-in-out infinite" },
+  orbCaption:{ position:"absolute", bottom:"6px", left:"50%", transform:"translateX(-50%)", textAlign:"center" as const },
+  orbCaptionTitle:{ fontFamily:"'Rajdhani',sans-serif", fontSize:"1rem", fontWeight:700, color:"white" },
+  orbCaptionSub:{ fontSize:"0.7rem", color:"#475569", marginTop:"2px" },
+
+  // Nova Panel
+  novaPanel:{ display:"flex", flexDirection:"column", gap:"10px", background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:"18px", padding:"16px", backdropFilter:"blur(14px)", maxHeight:"420px" },
+  novaHeader:{ display:"flex", alignItems:"center", gap:"10px" },
+  novaAvatar:{ width:"36px", height:"36px", borderRadius:"50%", background:"radial-gradient(circle at 35% 30%, rgba(129,140,248,0.6), rgba(6,15,34,0.9) 70%)", border:"1px solid rgba(129,140,248,0.4)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
+  novaName:{ fontFamily:"'Rajdhani',sans-serif", fontSize:"1rem", fontWeight:700, color:"white" },
+  novaSub:{ fontSize:"0.68rem", color:"#475569" },
+  novaMicBtn:{ marginLeft:"auto", width:"30px", height:"30px", borderRadius:"50%", background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", color:"#64748b", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0 },
+  novaCard:{ padding:"12px 14px", background:"rgba(99,102,241,0.08)", border:"1px solid rgba(99,102,241,0.25)", borderRadius:"12px" },
+  novaCardText:{ fontSize:"0.8rem", color:"#cbd5e1", lineHeight:1.55 },
+  novaPrimaryBtn:{ flex:1, padding:"8px 12px", background:"linear-gradient(135deg,#6366f1,#818cf8)", border:"none", borderRadius:"8px", color:"white", fontSize:"0.76rem", fontWeight:700, cursor:"pointer" },
+  novaGhostBtn:{ padding:"8px 12px", background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:"8px", color:"#64748b", fontSize:"0.76rem", cursor:"pointer" },
+  novaChat:{ flex:1, minHeight:"70px", maxHeight:"120px", overflowY:"auto", display:"flex", flexDirection:"column", gap:"6px" },
+  novaEmpty:{ fontSize:"0.74rem", color:"#334155", padding:"8px 4px", lineHeight:1.5 },
+  novaBubble:{ fontSize:"0.78rem", padding:"8px 11px", borderRadius:"10px", lineHeight:1.5, maxWidth:"92%" },
+  novaBubbleUser:{ background:"rgba(99,102,241,0.15)", color:"#e0e7ff", alignSelf:"flex-end" },
+  novaBubbleNova:{ background:"rgba(255,255,255,0.04)", color:"#94a3b8", alignSelf:"flex-start" },
+  novaInputRow:{ display:"flex", gap:"6px" },
+  novaInput:{ flex:1, padding:"8px 12px", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:"9px", color:"white", fontSize:"0.78rem", outline:"none", fontFamily:"inherit" },
+  novaSendBtn:{ width:"34px", height:"34px", borderRadius:"9px", background:"rgba(99,102,241,0.18)", border:"1px solid rgba(99,102,241,0.3)", color:"#a5b4fc", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0 },
+  novaActivityHeader:{ display:"flex", justifyContent:"space-between", alignItems:"center", fontSize:"0.72rem", color:"#475569", fontWeight:700, marginTop:"4px", paddingTop:"10px", borderTop:"1px solid rgba(255,255,255,0.05)" },
+  novaActivityLive:{ color:"#22c55e", fontWeight:600, fontSize:"0.68rem" },
+  novaActivityList:{ display:"flex", flexDirection:"column", gap:"6px", maxHeight:"100px", overflowY:"auto" },
+  novaActivityItem:{ display:"flex", alignItems:"center", gap:"8px" },
+  novaActivityIcon:{ width:"24px", height:"24px", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"0.65rem", fontWeight:700, flexShrink:0 },
+  novaActivityText:{ fontSize:"0.72rem", color:"#64748b", lineHeight:1.4 },
+
+  section:{ marginBottom:"24px" },
+  twoCol:{ display:"flex", gap:"20px", marginBottom:"24px" },
   card:{ background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"18px", padding:"24px", backdropFilter:"blur(10px)", transition:"border-color .2s" },
   cardHeader:{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:"20px" },
   cardTitleWrap:{ display:"flex", alignItems:"center", gap:"12px" },
   cardIcon:{ width:"38px", height:"38px", borderRadius:"10px", background:"rgba(99,102,241,0.1)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
-  cardTitle:{ fontFamily:"'Rajdhani',sans-serif", fontSize:"1.1rem", fontWeight:700, color:"white", margin:"0 0 2px" },
+  cardTitle:{ fontFamily:"'Rajdhani',sans-serif", fontSize:"1.15rem", fontWeight:700, color:"white", margin:"0 0 2px" },
   cardSub:{ fontSize:"0.77rem", color:"#475569", margin:0 },
   regenBtn:{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 14px", background:"rgba(99,102,241,0.1)", border:"1px solid rgba(99,102,241,0.25)", borderRadius:"8px", color:"#818cf8", fontSize:"0.78rem", fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" as const },
-  monthTabs:{ display:"flex", gap:"10px", marginBottom:"24px" },
-  monthTab:{ flex:1, display:"flex", flexDirection:"column" as const, gap:"4px", padding:"12px 14px", background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"12px", cursor:"pointer", textAlign:"left" as const, transition:"all .2s" },
-  monthTabActive:{ background:"rgba(99,102,241,0.1)", border:"1px solid rgba(99,102,241,0.3)" },
-  monthTabNum:{ fontSize:"0.75rem", color:"#6366f1", fontWeight:700, letterSpacing:"0.05em" },
-  monthTabTheme:{ fontSize:"0.9rem", fontWeight:600, color:"white" },
-  monthTabProg:{ height:"3px", background:"rgba(255,255,255,0.06)", borderRadius:"2px", overflow:"hidden", margin:"4px 0 2px" },
-  monthTabProgFill:{ height:"100%", borderRadius:"2px", transition:"width .4s ease" },
-  insightBody:{ display:"flex", gap:"12px", marginBottom:"16px" },
+  insightBody:{ display:"flex", gap:"12px" },
   insightAvatar:{ width:"36px", height:"36px", borderRadius:"50%", background:"linear-gradient(135deg,rgba(99,102,241,0.3),rgba(59,130,246,0.2))", border:"1px solid rgba(99,102,241,0.3)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, animation:"orbPulse 3s ease-in-out infinite" },
   insightBubble:{ flex:1, background:"rgba(99,102,241,0.06)", border:"1px solid rgba(99,102,241,0.12)", borderRadius:"14px", padding:"14px 16px" },
   insightText:{ fontSize:"0.87rem", color:"#94a3b8", lineHeight:1.7, margin:0 },
-  insightMetrics:{ display:"flex", gap:"8px" },
-  metricPill:{ flex:1, display:"flex", flexDirection:"column" as const, alignItems:"center", gap:"2px", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"10px", padding:"8px 6px" },
-  taskProgress:{ position:"relative", display:"inline-flex", alignItems:"center", justifyContent:"center", marginBottom:"14px" },
-  taskProgressText:{ position:"absolute", display:"flex", flexDirection:"column" as const, alignItems:"center" },
-  taskList:{ display:"flex", flexDirection:"column" as const, gap:"8px", marginBottom:"16px" },
-  taskItem:{ display:"flex", gap:"12px", padding:"12px 14px", background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.05)", borderRadius:"12px", cursor:"pointer", transition:"all .2s", alignItems:"flex-start" },
-  taskItemDone:{ background:"rgba(34,197,94,0.04)", borderColor:"rgba(34,197,94,0.12)" },
-  taskCheck:{ flexShrink:0, marginTop:"1px" },
-  taskBody:{ flex:1 },
-  taskTitle:{ fontSize:"0.87rem", fontWeight:500, color:"white", marginBottom:"4px" },
-  taskMeta:{ display:"flex", alignItems:"center", gap:"6px" },
-  priorityDot:{ width:"6px", height:"6px", borderRadius:"50%", flexShrink:0 },
-  taskTime:{ fontSize:"0.7rem", color:"#475569" },
-  taskCat:{ fontSize:"0.7rem", color:"#334155", background:"rgba(255,255,255,0.04)", borderRadius:"6px", padding:"1px 6px" },
-  skillGrid:{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"10px" },
-  skillCard:{ position:"relative", display:"flex", flexDirection:"column" as const, gap:"4px", padding:"14px", background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"14px", cursor:"pointer", transition:"all .2s", textAlign:"left" as const },
-  skillCardTop:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" },
-  skillEmoji:{ fontSize:"1.6rem" },
-  skillRelevance:{ display:"flex", alignItems:"center", gap:"3px", fontSize:"0.7rem", color:"#f59e0b", fontWeight:600 },
-  skillName:{ fontSize:"0.9rem", fontWeight:600, color:"white" },
-  skillLevel:{ fontSize:"0.72rem", color:"#475569" },
-  skillBar:{ height:"3px", background:"rgba(255,255,255,0.06)", borderRadius:"2px", overflow:"hidden", margin:"4px 0" },
-  skillBarFill:{ height:"100%", background:"linear-gradient(90deg,#6366f1,#3b82f6)", borderRadius:"2px" },
-  skillWhy:{ fontSize:"0.72rem", color:"#334155", lineHeight:1.4 },
-  skillArrow:{ position:"absolute", bottom:"12px", right:"12px", color:"#334155", transition:"transform .2s" },
-  oppList:{ display:"flex", flexDirection:"column" as const, gap:"10px" },
-  oppCard:{ display:"flex", alignItems:"center", gap:"14px", padding:"14px 16px", background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"14px", transition:"all .2s" },
-  oppEmoji:{ fontSize:"1.8rem", flexShrink:0 },
-  oppBody:{ flex:1 },
-  oppTitle:{ fontSize:"0.9rem", fontWeight:600, color:"white", marginBottom:"3px" },
-  oppDesc:{ fontSize:"0.77rem", color:"#475569", lineHeight:1.4 },
-  oppMeta:{ marginTop:"6px" },
-  urgencyBadge:{ fontSize:"0.68rem", fontWeight:700, borderRadius:"10px", padding:"2px 8px" },
-  urgencyNow:{ background:"rgba(239,68,68,0.12)", color:"#ef4444" },
-  urgencyWeek:{ background:"rgba(59,130,246,0.12)", color:"#3b82f6" },
-  urgencyMonth:{ background:"rgba(100,116,139,0.12)", color:"#64748b" },
-  oppBtn:{ display:"flex", alignItems:"center", gap:"4px", padding:"7px 12px", background:"rgba(99,102,241,0.1)", border:"1px solid rgba(99,102,241,0.2)", borderRadius:"8px", color:"#818cf8", fontSize:"0.75rem", fontWeight:600, cursor:"pointer", whiteSpace:"nowrap" as const, flexShrink:0 },
+  taskListWrap:{ display:"flex", flexDirection:"column" as const, gap:"8px", marginBottom:"16px" },
+  emptyState:{ padding:"16px", background:"rgba(99,102,241,0.04)", border:"1px solid rgba(99,102,241,0.1)", borderRadius:"10px", fontSize:"0.82rem", color:"#475569", textAlign:"center" as const },
+  livePill:{ display:"flex", alignItems:"center", gap:"6px", padding:"4px 10px", background:"rgba(34,197,94,0.1)", border:"1px solid rgba(34,197,94,0.2)", borderRadius:"20px", fontSize:"0.72rem", color:"#22c55e", fontWeight:600 },
+  liveDot:{ width:"6px", height:"6px", borderRadius:"50%", background:"#22c55e", animation:"livePulse 1.5s ease-in-out infinite" },
+  footerNote:{ display:"flex", alignItems:"center", gap:"8px", justifyContent:"center", padding:"18px 0", fontSize:"0.75rem", color:"#334155" },
+  footerDot:{ width:"6px", height:"6px", borderRadius:"50%", background:"#22c55e" },
 };
 
 const pa: Record<string, React.CSSProperties> = {
@@ -1402,42 +2070,12 @@ const pa: Record<string, React.CSSProperties> = {
   aiBadge:{ fontSize:"0.65rem", padding:"2px 8px", borderRadius:"10px", background:"rgba(99,102,241,0.12)", color:"#818cf8", fontWeight:600 },
 };
 
-// ── SmartTask styles (fully intact from 1300-line file) ───────────────────────
 const st: Record<string, React.CSSProperties> = {
-  taskCard:{ background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"12px", padding:"12px 14px", cursor:"pointer", transition:"all .2s", display:"flex", flexDirection:"column" as const, gap:"0" },
+  taskCard:{ background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"10px", padding:"10px 12px", cursor:"pointer", transition:"all .2s" },
   taskCardDone:{ background:"rgba(34,197,94,0.04)", borderColor:"rgba(34,197,94,0.12)" },
-  taskCardExpanded:{ borderColor:"rgba(99,102,241,0.3)", background:"rgba(99,102,241,0.04)" },
-  taskHeader:{ display:"flex", alignItems:"flex-start", gap:"10px" },
-  checkWrap:{ flexShrink:0, marginTop:"2px" },
-  taskMeta:{ display:"flex", alignItems:"center", gap:"6px", marginBottom:"4px", flexWrap:"wrap" as const },
-  diffBadge:{ fontSize:"0.62rem", fontWeight:700, padding:"2px 7px", borderRadius:"10px" },
-  diffHard:{ background:"rgba(239,68,68,0.12)", color:"#ef4444" },
-  diffEasy:{ background:"rgba(34,197,94,0.12)", color:"#22c55e" },
-  skillTag:{ fontSize:"0.62rem", padding:"2px 7px", borderRadius:"10px", background:"rgba(99,102,241,0.1)", color:"#818cf8", fontWeight:600 },
-  xpBadge:{ fontSize:"0.62rem", padding:"2px 7px", borderRadius:"10px", background:"rgba(245,158,11,0.1)", color:"#f59e0b", fontWeight:700 },
-  timeBadge:{ display:"flex", alignItems:"center", gap:"3px", fontSize:"0.62rem", color:"#475569" },
-  taskTitle:{ fontSize:"0.86rem", fontWeight:500, color:"white", lineHeight:1.4 },
-  expandedBody:{ marginTop:"12px", display:"flex", flexDirection:"column" as const, gap:"10px" },
-  questionBox:{ padding:"12px 14px", background:"rgba(99,102,241,0.06)", border:"1px solid rgba(99,102,241,0.15)", borderRadius:"10px" },
-  questionLabel:{ fontSize:"0.62rem", fontWeight:700, color:"#6366f1", letterSpacing:"0.06em", marginBottom:"6px" },
-  questionText:{ fontSize:"0.84rem", color:"#94a3b8", lineHeight:1.65, whiteSpace:"pre-line" as const },
-  resourceLink:{ display:"inline-block", marginTop:"8px", fontSize:"0.75rem", color:"#818cf8", textDecoration:"none", fontWeight:600 },
-  answerWrap:{ display:"flex", flexDirection:"column" as const, gap:"6px" },
-  answerLabel:{ fontSize:"0.7rem", color:"#475569", fontWeight:600 },
-  answerTextarea:{ width:"100%", padding:"10px 12px", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:"10px", color:"#e2e8f0", fontFamily:"inherit", fontSize:"0.82rem", resize:"vertical" as const, outline:"none", lineHeight:1.6 },
-  submitBtn:{ flex:1, padding:"9px 14px", background:"rgba(99,102,241,0.15)", border:"1px solid rgba(99,102,241,0.35)", borderRadius:"9px", color:"#a5b4fc", fontSize:"0.8rem", fontWeight:700, cursor:"pointer", fontFamily:"inherit" },
-  skipBtn:{ padding:"9px 14px", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:"9px", color:"#475569", fontSize:"0.78rem", cursor:"pointer", fontFamily:"inherit" },
-  feedbackBox:{ marginTop:"10px", padding:"10px 13px", background:"rgba(34,197,94,0.06)", border:"1px solid rgba(34,197,94,0.2)", borderRadius:"10px" },
-  feedbackLabel:{ fontSize:"0.62rem", fontWeight:700, color:"#22c55e", letterSpacing:"0.06em", marginBottom:"4px" },
-  feedbackText:{ fontSize:"0.8rem", color:"#86efac", lineHeight:1.65 },
-};
-
-// ── Execution Lab card footer styles ─────────────────────────────────────────
-const labCard: Record<string, React.CSSProperties> = {
-  footer:{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:"10px", paddingTop:"8px", borderTop:"1px solid rgba(255,255,255,0.05)" },
-  tabs:{ display:"flex", gap:"4px" },
-  tabIcon:{ fontSize:"0.78rem" },
-  enterBtn:{ fontSize:"0.72rem", fontWeight:700, color:"#6366f1", background:"rgba(99,102,241,0.1)", border:"1px solid rgba(99,102,241,0.2)", borderRadius:"6px", padding:"4px 10px", cursor:"pointer", transition:"all .2s", letterSpacing:"0.02em" },
+  taskHeader:{ display:"flex", alignItems:"center", gap:"10px" },
+  checkWrap:{ flexShrink:0 },
+  taskTitle:{ fontSize:"0.84rem", fontWeight:500, color:"white" },
 };
 
 const feed: Record<string, React.CSSProperties> = {
@@ -1451,75 +2089,4 @@ const feed: Record<string, React.CSSProperties> = {
   time:{ fontSize:"0.7rem", color:"#334155", flexShrink:0 },
   footer:{ display:"flex", gap:"10px", paddingTop:"12px", borderTop:"1px solid rgba(255,255,255,0.05)" },
   footerBtn:{ display:"flex", alignItems:"center", gap:"6px", padding:"8px 16px", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:"8px", color:"#64748b", fontSize:"0.78rem", fontWeight:600, cursor:"pointer" },
-};
-
-// ── Execution Lab Modal Styles ────────────────────────────────────────────────
-const lab: Record<string, React.CSSProperties> = {
-  overlay:{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(6px)" },
-  panel:{ position:"relative", background:"rgba(6,15,34,0.98)", border:"1px solid rgba(99,102,241,0.3)", borderRadius:"20px", width:"min(780px,95vw)", maxHeight:"88vh", display:"flex", flexDirection:"column", overflow:"hidden", animation:"labSlideIn 0.3s ease", boxShadow:"0 24px 80px rgba(0,0,0,0.7)" },
-  header:{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"20px 24px 16px", borderBottom:"1px solid rgba(255,255,255,0.06)" },
-  headerLeft:{ display:"flex", alignItems:"center", gap:"14px" },
-  labTitle:{ fontFamily:"'Rajdhani',sans-serif", fontSize:"1.2rem", fontWeight:700, color:"white" },
-  labSub:{ fontSize:"0.75rem", color:"#475569", marginTop:"2px" },
-  startBtn:{ padding:"7px 14px", background:"rgba(99,102,241,0.15)", border:"1px solid rgba(99,102,241,0.3)", borderRadius:"8px", color:"#a5b4fc", fontSize:"0.78rem", fontWeight:700, cursor:"pointer", fontFamily:"inherit" },
-  closeBtn:{ width:"30px", height:"30px", borderRadius:"8px", background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", color:"#64748b", fontSize:"0.85rem", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" },
-  tabRow:{ display:"flex", gap:"4px", padding:"12px 24px", borderBottom:"1px solid rgba(255,255,255,0.06)", background:"rgba(0,0,0,0.2)" },
-  tab:{ display:"flex", alignItems:"center", gap:"6px", padding:"7px 14px", borderRadius:"8px", border:"none", background:"none", color:"#475569", fontSize:"0.8rem", fontWeight:600, cursor:"pointer", fontFamily:"inherit", transition:"all .2s" },
-  tabActive:{ background:"rgba(99,102,241,0.15)", color:"white" },
-  content:{ flex:1, overflowY:"auto", padding:"20px 24px" },
-  section:{ display:"flex", flexDirection:"column", gap:"8px" },
-  sectionTitle:{ fontSize:"1rem", fontWeight:700, color:"white" },
-  sectionSub:{ fontSize:"0.78rem", color:"#475569" },
-  pathItem:{ display:"flex", alignItems:"center", gap:"12px", padding:"12px 14px", background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"10px" },
-  pathNum:{ width:"28px", height:"28px", borderRadius:"8px", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"0.78rem", fontWeight:700, flexShrink:0 },
-  goBtn:{ padding:"5px 12px", background:"rgba(99,102,241,0.12)", border:"1px solid rgba(99,102,241,0.25)", borderRadius:"7px", color:"#818cf8", fontSize:"0.75rem", fontWeight:700, cursor:"pointer", fontFamily:"inherit", flexShrink:0 },
-  progressCard:{ padding:"14px", background:"rgba(99,102,241,0.04)", border:"1px solid rgba(99,102,241,0.1)", borderRadius:"12px", marginTop:"8px" },
-  progressBar:{ height:"6px", background:"rgba(255,255,255,0.06)", borderRadius:"3px", overflow:"hidden" },
-  progressFill:{ height:"100%", background:"linear-gradient(90deg,#6366f1,#3b82f6)", borderRadius:"3px" },
-  moduleCard:{ padding:"14px", background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"12px" },
-  moduleCardDone:{ background:"rgba(34,197,94,0.04)", borderColor:"rgba(34,197,94,0.2)" },
-  moduleHeader:{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:"12px", marginBottom:"8px" },
-  moduleBtn:{ padding:"5px 12px", background:"rgba(99,102,241,0.12)", border:"1px solid rgba(99,102,241,0.25)", borderRadius:"7px", color:"#818cf8", fontSize:"0.75rem", fontWeight:700, cursor:"pointer", fontFamily:"inherit", flexShrink:0 },
-  moduleBtnDone:{ background:"rgba(34,197,94,0.1)", borderColor:"rgba(34,197,94,0.3)", color:"#22c55e" },
-  taskList:{ display:"flex", gap:"6px", flexWrap:"wrap" as const },
-  taskChip:{ fontSize:"0.7rem", color:"#475569", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"6px", padding:"2px 8px" },
-  projectCard:{ padding:"16px", background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"12px" },
-  projectHeader:{ marginBottom:"10px" },
-  projectMeta:{ display:"flex", alignItems:"center", gap:"8px", flexWrap:"wrap" as const },
-  diffBadge:{ fontSize:"0.68rem", fontWeight:700, padding:"2px 8px", borderRadius:"8px" },
-  timeBadge:{ fontSize:"0.68rem", color:"#475569", background:"rgba(255,255,255,0.04)", padding:"2px 8px", borderRadius:"8px" },
-  buildBtn:{ marginLeft:"auto", padding:"5px 12px", background:"rgba(99,102,241,0.12)", border:"1px solid rgba(99,102,241,0.25)", borderRadius:"7px", color:"#818cf8", fontSize:"0.75rem", fontWeight:700, cursor:"pointer", fontFamily:"inherit" },
-  mentorReply:{ padding:"14px 16px", background:"rgba(99,102,241,0.06)", border:"1px solid rgba(99,102,241,0.15)", borderRadius:"12px", marginBottom:"12px" },
-  mentorInput:{ flex:1, padding:"10px 14px", background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.1)", borderRadius:"10px", color:"white", fontSize:"0.85rem", fontFamily:"inherit", outline:"none" },
-  mentorSendBtn:{ padding:"10px 18px", background:"rgba(99,102,241,0.15)", border:"1px solid rgba(99,102,241,0.3)", borderRadius:"10px", color:"#a5b4fc", fontSize:"0.82rem", fontWeight:700, cursor:"pointer", fontFamily:"inherit", flexShrink:0 },
-  quickQ:{ padding:"5px 10px", background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:"8px", color:"#64748b", fontSize:"0.72rem", cursor:"pointer", fontFamily:"inherit", textAlign:"left" as const },
-  earnCard:{ display:"flex", alignItems:"flex-start", gap:"12px", padding:"14px", background:"rgba(255,255,255,0.02)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:"12px" },
-  earnIcon:{ fontSize:"1.6rem", flexShrink:0 },
-  earnType:{ fontSize:"0.62rem", padding:"1px 6px", borderRadius:"6px", background:"rgba(34,197,94,0.1)", color:"#22c55e", fontWeight:700 },
-  earnBtn:{ padding:"5px 12px", background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.25)", borderRadius:"7px", color:"#f59e0b", fontSize:"0.75rem", fontWeight:700, cursor:"pointer", fontFamily:"inherit", flexShrink:0 },
-  earnNote:{ padding:"12px 14px", background:"rgba(245,158,11,0.05)", border:"1px solid rgba(245,158,11,0.15)", borderRadius:"10px", fontSize:"0.78rem", color:"#64748b", marginTop:"8px" },
-};
-
-const rs: Record<string, React.CSSProperties> = {
-  emptyWrap:{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"48px 20px", gap:"16px" },
-  emptyOrb:{ position:"relative", width:"90px", height:"90px", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:"8px" },
-  emptyOrbRing1:{ position:"absolute", inset:0, borderRadius:"50%", border:"2px solid transparent", borderTopColor:"rgba(99,102,241,0.5)", borderRightColor:"rgba(99,102,241,0.2)", animation:"orbSpin 3s linear infinite" },
-  emptyOrbRing2:{ position:"absolute", inset:"12px", borderRadius:"50%", border:"2px solid transparent", borderBottomColor:"rgba(59,130,246,0.4)", animation:"orbRevSpin 2s linear infinite" },
-  emptyOrbCenter:{ position:"relative", zIndex:2, width:"46px", height:"46px", borderRadius:"50%", background:"rgba(99,102,241,0.12)", border:"1px solid rgba(99,102,241,0.25)", display:"flex", alignItems:"center", justifyContent:"center" },
-  emptyTitle:{ fontFamily:"'Rajdhani',sans-serif", fontSize:"1.3rem", fontWeight:700, color:"white", margin:0, textAlign:"center" as const },
-  emptyDesc:{ fontSize:"0.87rem", color:"#475569", textAlign:"center" as const, lineHeight:1.7, margin:0 },
-  generateBtn:{ display:"flex", alignItems:"center", gap:"8px", padding:"11px 28px", background:"linear-gradient(135deg,rgba(99,102,241,0.25),rgba(59,130,246,0.15))", border:"1px solid rgba(99,102,241,0.4)", borderRadius:"12px", color:"#a5b4fc", fontSize:"0.9rem", fontWeight:700, cursor:"pointer", marginTop:"4px", letterSpacing:"0.02em", transition:"all .2s" },
-  loadingWrap:{ display:"flex", flexDirection:"column" as const, alignItems:"center", padding:"40px 20px", gap:"24px" },
-  loadingEngineTag:{ display:"flex", alignItems:"center", gap:"6px", background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.25)", borderRadius:"20px", padding:"5px 14px", fontSize:"0.75rem", color:"#f59e0b", fontWeight:700, letterSpacing:"0.05em" },
-  loadingOrb:{ position:"relative", width:"110px", height:"110px", display:"flex", alignItems:"center", justifyContent:"center" },
-  loadingRing1:{ position:"absolute", inset:0, borderRadius:"50%", border:"2px solid transparent", borderTopColor:"#6366f1", borderRightColor:"rgba(99,102,241,0.3)", animation:"orbSpin 1.8s linear infinite" },
-  loadingRing2:{ position:"absolute", inset:"14px", borderRadius:"50%", border:"2px solid transparent", borderBottomColor:"#3b82f6", borderLeftColor:"rgba(59,130,246,0.3)", animation:"orbRevSpin 1.4s linear infinite" },
-  loadingRing3:{ position:"absolute", inset:"28px", borderRadius:"50%", border:"2px solid transparent", borderTopColor:"#06b6d4", animation:"orbSpin 2.2s linear infinite" },
-  loadingOrbCore:{ position:"relative", zIndex:2, width:"48px", height:"48px", borderRadius:"50%", background:"rgba(99,102,241,0.15)", border:"1px solid rgba(99,102,241,0.35)", display:"flex", alignItems:"center", justifyContent:"center", animation:"orbPulse 2s ease-in-out infinite" },
-  loadingSteps:{ display:"flex", flexDirection:"column" as const, gap:"10px", width:"100%", maxWidth:"320px" },
-  loadingStep:{ display:"flex", alignItems:"center", gap:"12px" },
-  loadingStepIcon:{ width:"32px", height:"32px", borderRadius:"8px", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all 0.4s ease" },
-  loadingStepLabel:{ fontSize:"0.88rem", fontWeight:500, transition:"color 0.4s ease" },
-  loadingDots:{ display:"flex", gap:"3px", marginLeft:"auto" },
-  dot:{ width:"5px", height:"5px", borderRadius:"50%", background:"#6366f1", display:"inline-block", animation:"dotBounce 0.8s ease-in-out infinite" },
 };

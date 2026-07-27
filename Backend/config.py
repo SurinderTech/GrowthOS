@@ -2,7 +2,6 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 from supabase import create_client
-from Backend.services.mesh_client import create_mesh_model
 
 # Explicitly load Backend/.env
 env_path = Path(__file__).parent / ".env"
@@ -15,5 +14,7 @@ print("SUPABASE_URL:", SUPABASE_URL)
 
 supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-mesh_model = create_mesh_model()
-gemini_model = mesh_model
+# AI model access now goes through Backend/ai/ (OpenRouterClient + ModelRouter +
+# Orchestrator), not through a module-level model instance here. See
+# Backend/ai/orchestrator.py::get_orchestrator() and
+# Backend/services/gemini_service.py for the legacy-compat path.

@@ -19,6 +19,11 @@ from Backend.routers.practice_arena import router as arena_router
 from Backend.routers.smart_tasks import router as smart_tasks_router
 from Backend.routers.growth_plan import router as growth_plan_router
 from Backend.routers.settings import router as settings_router
+from Backend.routers.agents import router as agents_router
+from Backend.routers.resume_agent import router as resume_agent_router
+from Backend.routers.interview_agent import router as interview_agent_router
+from Backend.routers.project_agent import router as project_agent_router
+from Backend.routers.networking_agent import router as networking_agent_router
 
 from Backend.scheduler.task_scheduler import start_scheduler, shutdown_scheduler
 
@@ -71,6 +76,11 @@ app.include_router(accountability.router, prefix="/accountability", tags=["Accou
 app.include_router(settings_router, prefix="/settings", tags=["Settings"])
 app.include_router(growth_plan_router, prefix="/growth-plan", tags=["Growth Plan"])
 app.include_router(arena_router, prefix="/practice-arena", tags=["Practice Arena"])
+app.include_router(agents_router, prefix="/agents", tags=["Agents"])
+app.include_router(resume_agent_router,     prefix="/agents/resume",     tags=["Resume Agent"])
+app.include_router(interview_agent_router,  prefix="/agents/interview",  tags=["Interview Agent"])
+app.include_router(project_agent_router,    prefix="/agents/projects",   tags=["Project Agent"])
+app.include_router(networking_agent_router, prefix="/agents/networking", tags=["Networking Agent"])
 
 # ─────────────────────────────────
 # Root Endpoint

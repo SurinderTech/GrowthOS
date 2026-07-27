@@ -15,6 +15,7 @@ from sqlalchemy import create_engine
 # Import models so Alembic detects them
 from Backend.models.user import User
 from Backend.models.dashboard import GrowthPlan, DailyTask, AIInsight
+from Backend.models.agents_data import ResumeAnalysis, InterviewSession, Project, Contact
 from dotenv import load_dotenv
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")

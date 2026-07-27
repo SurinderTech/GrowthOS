@@ -8,6 +8,7 @@ from Backend.models.user import User
 from Backend.models.onboarding import UserOnboarding
 import Backend.models.practice
 import Backend.models.practice_arena    # ← ADD THIS LINE
+import Backend.models.agents_data       # Resume / Interview / Project / Networking agents
 
 
 def init_db():
