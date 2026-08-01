@@ -481,7 +481,7 @@ npm install -g vercel
 vercel --prod
 ```
 
-### Backend → Railway / Render
+### Backend →  Render
 ```bash
 # Render.com
 # Point to backend/ directory
