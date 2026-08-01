@@ -4,7 +4,7 @@ Pydantic schemas for all 7 onboarding steps.
 """
 
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Any
 from uuid import UUID
 
 
@@ -19,16 +19,20 @@ class Step2Schema(BaseModel):
     age_group: Optional[str] = None
     country: Optional[str] = None
     primary_goal: Optional[str] = None
+    experience_level: Optional[str] = None
 
 
 # ── Step 3 ───────────────────────────────────────────────────────────────────
 class Step3Schema(BaseModel):
-    daily_time: str  # 30min | 1hour | 2-3hours | 4+hours
+    daily_time: Optional[str] = None  # 30min | 1hour | 2-3hours | 4+hours
+    daily_commitment_hours: Optional[str] = None
+    primary_goal: Optional[str] = None
 
 
 # ── Step 4 ───────────────────────────────────────────────────────────────────
 class Step4Schema(BaseModel):
-    interests: List[str]
+    interests: Optional[List[str]] = []
+    daily_commitment_hours: Optional[str] = None
 
 
 # ── Step 5 — Student ─────────────────────────────────────────────────────────
@@ -36,6 +40,9 @@ class Step5StudentSchema(BaseModel):
     education_level: Optional[str] = None
     field_of_study: Optional[str] = None
     career_goal: Optional[str] = None
+    degree_level: Optional[str] = None
+    graduation_year: Optional[str] = None
+    target_role: Optional[str] = None
 
 
 # ── Step 5 — Freelancer ──────────────────────────────────────────────────────
@@ -43,7 +50,10 @@ class Step5FreelancerSchema(BaseModel):
     primary_skill: Optional[str] = None
     experience_level: Optional[str] = None
     monthly_income_goal: Optional[str] = None
+    freelance_platforms: Optional[List[str]] = []
     services_offered: Optional[List[str]] = []
+    freelance_niche: Optional[str] = None
+    current_clients: Optional[str] = None
 
 
 # ── Step 5 — Business Owner ──────────────────────────────────────────────────
@@ -51,15 +61,21 @@ class Step5BusinessSchema(BaseModel):
     business_type: Optional[str] = None
     team_size: Optional[str] = None
     revenue_stage: Optional[str] = None
+    business_challenge: Optional[str] = None
     business_goal: Optional[str] = None
+    business_stage: Optional[str] = None
+    business_industry: Optional[str] = None
+    target_mrr: Optional[str] = None
 
 
 # ── Step 5 — Creator ─────────────────────────────────────────────────────────
 class Step5CreatorSchema(BaseModel):
     creator_platform: Optional[str] = None
+    content_platform: Optional[str] = None
     content_niche: Optional[str] = None
     audience_size: Optional[str] = None
     creator_growth_goal: Optional[str] = None
+    target_followers: Optional[str] = None
 
 
 # ── Step 5 — Exam Aspirant ───────────────────────────────────────────────────
@@ -84,14 +100,14 @@ class Step7Schema(BaseModel):
 class OnboardingResponse(BaseModel):
     id: UUID
     user_id: UUID
-    user_type: Optional[str]
-    primary_goal: Optional[str]
-    daily_time: Optional[str]
-    interests: Optional[List[str]]
-    productivity_style: Optional[str]
-    twelve_month_goal: Optional[str]
-    onboarding_completed: bool
-    current_step: int
+    user_type: Optional[str] = None
+    primary_goal: Optional[str] = None
+    daily_time: Optional[str] = None
+    interests: Optional[List[Any]] = None
+    productivity_style: Optional[str] = None
+    twelve_month_goal: Optional[str] = None
+    onboarding_completed: bool = False
+    current_step: int = 1
 
     class Config:
         from_attributes = True

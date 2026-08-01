@@ -10,6 +10,9 @@ import {
   BookOpen, Users, Settings, LogOut, Bell, ChevronLeft,
   Flame, Crown, Check, X, Lock, ChevronRight, Star, Zap,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import ProfileSettingsModal from "@/components/ui/ProfileSettingsModal";
+import BrandLogo from "@/components/ui/BrandLogo";
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
 const NAV = [
@@ -199,6 +202,16 @@ function leagueColor(l:string){ return LEAGUES.find(x=>x.name===l)?.color||"#475
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function LeaderboardPage() {
+  const { user, logout } = useAuth();
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  const [mounted, setMounted] = useState(false);
+
+  const rawName = (user as any)?.full_name || (user as any)?.name || (typeof window !== "undefined" ? localStorage.getItem("user_name") : "") || "User";
+  const currentUser = mounted ? (rawName.includes("@") ? rawName.split("@")[0] : rawName) : "User";
+  const avatarInitials = mounted && currentUser && currentUser !== "User" ? currentUser.slice(0, 2).toUpperCase() : "US";
+  const userAvatarUrl = (user as any)?.avatar_url || (user as any)?.image || null;
+
   const [loaded, setLoaded]               = useState(false);
   const [domain, setDomain]               = useState("developer");
   const [tab, setTab]                     = useState<"daily"|"weekly"|"monthly"|"alltime">("monthly");
@@ -212,11 +225,19 @@ export default function LeaderboardPage() {
   const notifId = useRef(0);
   const xpId    = useRef(0);
 
+  useEffect(() => { setMounted(true); }, []);
+
   // Load domain players
   useEffect(() => {
     const base = DOMAIN_PLAYERS[domain] || DOMAIN_PLAYERS.developer;
-    setPlayers(JSON.parse(JSON.stringify(base)));
-  }, [domain]);
+    const updated = JSON.parse(JSON.stringify(base)).map((p: any) => {
+      if (p.isCurrentUser) {
+        return { ...p, name: currentUser, avatar: avatarInitials };
+      }
+      return p;
+    });
+    setPlayers(updated);
+  }, [domain, currentUser, avatarInitials]);
 
   useEffect(() => { setTimeout(()=>setLoaded(true),80); }, []);
 
@@ -269,9 +290,9 @@ export default function LeaderboardPage() {
 
   const top3 = players.slice(0,3);
   const rest  = players.slice(3);
-  const currentUser = players.find(p=>p.isCurrentUser);
-  const xpToNext = currentUser && players[currentUser.rank-2]
-    ? players[currentUser.rank-2].score - currentUser.score : 0;
+  const currentPlayerData = players.find(p=>p.isCurrentUser);
+  const xpToNext = currentPlayerData && players[currentPlayerData.rank-2]
+    ? players[currentPlayerData.rank-2].score - currentPlayerData.score : 0;
   const domainInfo = DOMAINS.find(d=>d.id===domain)!;
 
   return (
@@ -408,6 +429,9 @@ export default function LeaderboardPage() {
 
       {/* ── Sidebar ── */}
       <aside style={s.sidebar}>
+        <div style={{ padding: "0 4px 24px" }}>
+          <BrandLogo size="md" />
+        </div>
         <nav style={s.nav}>
           {NAV.map(item=>(
             <Link key={item.label} href={item.href} style={{textDecoration:"none"}}>
@@ -420,14 +444,22 @@ export default function LeaderboardPage() {
           ))}
         </nav>
         <div style={s.sidebarFooter}>
-          <div style={s.sidebarUser}>
-            <div style={s.avatarSmall}>Y</div>
+          <div
+            style={{ ...s.sidebarUser, cursor: "pointer" }}
+            onClick={() => setIsProfileModalOpen(true)}
+            title="Open Profile Settings"
+          >
+            {userAvatarUrl ? (
+              <img src={userAvatarUrl} alt={currentUser} style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
+            ) : (
+              <div style={s.avatarSmall}>{avatarInitials}</div>
+            )}
             <div>
-              <div style={{fontSize:"0.82rem",fontWeight:600,color:"#e2e8f0"}}>You</div>
-              <div style={{fontSize:"0.7rem",color:"#475569"}}>Free Plan</div>
+              <div style={{fontSize:"0.82rem",fontWeight:600,color:"#e2e8f0"}}>{currentUser}</div>
+              <div style={{fontSize:"0.7rem",color:"#818cf8",fontWeight:600}}>{user?.plan || user?.plan_tier || "MEMBER PLAN"}</div>
             </div>
           </div>
-          <button style={s.logoutBtn}><LogOut size={15}/></button>
+          <button style={s.logoutBtn} onClick={() => logout && logout()} title="Log Out"><LogOut size={15}/></button>
         </div>
       </aside>
 
@@ -445,9 +477,24 @@ export default function LeaderboardPage() {
           </div>
           <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
             <button style={s.iconBtn}><Bell size={18}/></button>
-            <div style={s.avatarMed}>Y</div>
+            <div
+              style={{ ...s.avatarMed, cursor: "pointer", overflow: "hidden" }}
+              onClick={() => setIsProfileModalOpen(true)}
+              title="Open Profile Settings"
+            >
+              {userAvatarUrl ? (
+                <img src={userAvatarUrl} alt={currentUser} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
+              ) : (
+                avatarInitials
+              )}
+            </div>
           </div>
         </div>
+
+        <ProfileSettingsModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+        />
 
         {/* Domain selector */}
         <div style={s.domainRow}>
@@ -576,29 +623,29 @@ export default function LeaderboardPage() {
           <div style={s.rightCol}>
 
             {/* Your stats */}
-            {currentUser && (
+            {currentPlayerData && (
               <div style={s.yourCard}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"12px"}}>
                   <div style={{fontSize:"0.72rem",fontWeight:700,color:domainInfo?.color,letterSpacing:"0.06em",textTransform:"uppercase" as const}}>YOUR RANK — {domainInfo?.label.split(" ").slice(1).join(" ")}</div>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:"14px",marginBottom:"14px"}}>
-                  <div style={{fontFamily:"'Rajdhani',sans-serif",fontSize:"2.4rem",fontWeight:800,color:domainInfo?.color}}>#{currentUser.rank}</div>
+                  <div style={{fontFamily:"'Rajdhani',sans-serif",fontSize:"2.4rem",fontWeight:800,color:domainInfo?.color}}>#{currentPlayerData.rank}</div>
                   <div>
-                    <div style={{fontSize:"0.78rem",fontWeight:600,color:"white"}}>{currentUser.score.toLocaleString()} XP</div>
-                    <div style={{fontSize:"0.68rem",color:"#475569"}}>League: <span style={{color:leagueColor(currentUser.league)}}>{currentUser.league}</span></div>
-                    <div style={{fontSize:"0.68rem",color:"#f97316"}}>{currentUser.streak}d 🔥 streak</div>
+                    <div style={{fontSize:"0.78rem",fontWeight:600,color:"white"}}>{(currentPlayerData.score || 0).toLocaleString()} XP</div>
+                    <div style={{fontSize:"0.68rem",color:"#475569"}}>League: <span style={{color:leagueColor(currentPlayerData.league)}}>{currentPlayerData.league}</span></div>
+                    <div style={{fontSize:"0.68rem",color:"#f97316"}}>{currentPlayerData.streak}d 🔥 streak</div>
                   </div>
                 </div>
                 {xpToNext > 0 && (
                   <div style={{marginBottom:"12px"}}>
                     <div style={{fontSize:"0.72rem",color:"#475569",marginBottom:"6px"}}>
-                      Only <strong style={{color:domainInfo?.color}}>{xpToNext} XP</strong> to reach Rank #{currentUser.rank-1} 🚀
+                      Only <strong style={{color:domainInfo?.color}}>{xpToNext} XP</strong> to reach Rank #{currentPlayerData.rank-1} 🚀
                     </div>
                     <div style={s.xpBar}><div style={{...s.xpFill,width:`${Math.max(8,100-(xpToNext/300)*100)}%`,background:domainInfo?.color}}/></div>
                   </div>
                 )}
                 <button style={{...s.challengeBtn,borderColor:`${domainInfo?.color}30`,color:domainInfo?.color}} onClick={()=>alert("Challenge sent! ⚔️")}>
-                  ⚔️ Challenge Rank #{(currentUser.rank||2)-1}
+                  ⚔️ Challenge Rank #{(currentPlayerData.rank||2)-1}
                 </button>
               </div>
             )}

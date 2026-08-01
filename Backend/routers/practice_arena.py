@@ -31,9 +31,10 @@ from Backend.routers.auth import get_current_user
 from Backend.services.practice_arena_service import (
     get_mcq_questions, evaluate_mcq_answer,
     get_numeric_questions, evaluate_numeric_answer,
-    get_coding_problems, submit_code,
+    get_coding_problems, submit_code, run_code_test,
     get_exam_questions, submit_exam,
     get_activity_graph, get_recent_submissions,
+    get_submission_detail,
     get_practice_stats,
 )
 from Backend.services.streak_service import update_streak
@@ -89,10 +90,18 @@ class CodingProblemOut(BaseModel):
         from_attributes = True
 
 
+class CodeRunRequest(BaseModel):
+    problem_id: str
+    language: str       # python | cpp | java | javascript
+    code: str
+
+
 class CodeSubmitRequest(BaseModel):
     problem_id: str
-    language: str       # python | cpp | javascript
+    language: str       # python | cpp | java | javascript
     code: str
+    is_pasted: Optional[bool] = False
+    time_spent_s: Optional[int] = 0
 
 
 class ExamQuestionOut(BaseModel):
@@ -306,6 +315,26 @@ def coding_problems(
     ]
 
 
+@router.post("/coding/run")
+def coding_run(
+    req: CodeRunRequest,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Run sample test cases for coding problem (Run button).
+    Performs language validation and test case evaluation without updating streak/XP.
+    """
+    result = run_code_test(
+        problem_id = req.problem_id,
+        language   = req.language,
+        code       = req.code,
+        user_id    = current_user.id,
+        db         = db,
+    )
+    return result
+
+
 @router.post("/coding/submit")
 def coding_submit(
     req: CodeSubmitRequest,
@@ -313,21 +342,24 @@ def coding_submit(
     db: Session = Depends(get_db),
 ):
     """
-    Evaluate a code submission using Gemini.
+    Evaluate a code submission using strict syntax validator and LeetCode OJ.
     Called when user clicks 'Submit' on the Coding tab.
     """
     result = submit_code(
-        problem_id = req.problem_id,
-        language   = req.language,
-        code       = req.code,
-        user_id    = current_user.id,
-        db         = db,
+        problem_id  = req.problem_id,
+        language    = req.language,
+        code        = req.code,
+        user_id     = current_user.id,
+        db          = db,
+        is_pasted   = req.is_pasted or False,
+        time_spent_s= req.time_spent_s or 0,
     )
     return {
         "pass":       result["pass"],
+        "status":     result.get("status", "Accepted" if result["pass"] else "Wrong Answer"),
         "message":    result["message"],
-        "result":     result["result"],
-        "xp_earned":  result["xp_earned"],
+        "result":     result.get("result", "accepted" if result["pass"] else "wrong_answer"),
+        "xp_earned":  result.get("xp_earned", 0),
         "runtime_ms": result.get("runtime_ms"),
     }
 
@@ -433,6 +465,21 @@ def recent_submissions(
     Returns recent submission history for the activity tab feed.
     """
     return get_recent_submissions(current_user.id, db, limit=limit)
+
+
+@router.get("/submissions/{submission_id}")
+def submission_detail(
+    submission_id: str,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Returns solution details, solve count, history, and 1-week spaced repetition status for a topic/submission.
+    """
+    res = get_submission_detail(submission_id, current_user.id, db)
+    if "error" in res:
+        raise HTTPException(status_code=404, detail=res["error"])
+    return res
 
 
 # ── Session Complete ──────────────────────────────────────────────────────────

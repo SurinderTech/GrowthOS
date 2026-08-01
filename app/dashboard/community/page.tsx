@@ -12,13 +12,17 @@ import {
   Star, TrendingUp, Activity, Swords,
 } from "lucide-react";
 
+import { useAuth } from "@/context/AuthContext";
+import ProfileSettingsModal from "@/components/ui/ProfileSettingsModal";
+import BrandLogo from "@/components/ui/BrandLogo";
+
 // ── Nav ───────────────────────────────────────────────────────────────────────
 const NAV = [
   { icon: <LayoutDashboard size={18}/>, label:"Dashboard",     href:"/dashboard" },
   { icon: <Play size={18}/>,            label:"Practice Arena",href:"/dashboard/practice" },
   { icon: <BarChart2 size={18}/>,       label:"Leaderboard",   href:"/dashboard/leaderboard" },
   { icon: <Trophy size={18}/>,          label:"Challenges",    href:"/dashboard/challenges" },
-  { icon: <Users size={18}/>,           label:"Your Arena",    href:"/dashboard/community", active:true },
+  { icon: <Users size={18}/>,           label:"Community",     href:"/dashboard/community", active:true },
   { icon: <Settings size={18}/>,        label:"Settings",      href:"/dashboard/settings" },
 ];
 
@@ -110,6 +114,16 @@ function leagueGlow(league:League){ const c=LEAGUE_COLORS[league]; return league
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function YourArenaPage() {
+  const { user, logout } = useAuth();
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  const [mounted, setMounted] = useState(false);
+
+  const rawName = (user as any)?.full_name || (user as any)?.name || (typeof window !== "undefined" ? localStorage.getItem("user_name") : "") || "User";
+  const currentUser = mounted ? (rawName.includes("@") ? rawName.split("@")[0] : rawName) : "User";
+  const avatarInitials = mounted && currentUser && currentUser !== "User" ? currentUser.slice(0, 2).toUpperCase() : "US";
+  const userAvatarUrl = (user as any)?.avatar_url || (user as any)?.image || null;
+
   const [loaded, setLoaded]                   = useState(false);
   const [players, setPlayers]                 = useState<Player[]>(ARENA_PLAYERS);
   const [domain, setDomain]                   = useState("All");
@@ -122,6 +136,8 @@ export default function YourArenaPage() {
   const [xpPops, setXpPops]                   = useState<{id:number;xp:number;x:number}[]>([]);
   const [hoveredCard, setHoveredCard]         = useState<number|null>(null);
   const evId = useRef(0); const xpId = useRef(0);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => { setTimeout(()=>setLoaded(true),100); }, []);
 
@@ -363,6 +379,9 @@ export default function YourArenaPage() {
 
       {/* ── Sidebar ── */}
       <aside style={s.sidebar}>
+        <div style={{ padding: "0 4px 24px" }}>
+          <BrandLogo size="md" />
+        </div>
         <nav style={s.nav}>
           {NAV.map(item=>(
             <Link key={item.label} href={item.href} style={{textDecoration:"none"}}>
@@ -375,17 +394,25 @@ export default function YourArenaPage() {
           ))}
         </nav>
         <div style={s.sidebarFooter}>
-          <div style={s.sidebarUser}>
-            <div style={s.avatarSmall}>Y</div>
+          <div
+            style={{ ...s.sidebarUser, cursor: "pointer" }}
+            onClick={() => setIsProfileModalOpen(true)}
+            title="Open Profile Settings"
+          >
+            {userAvatarUrl ? (
+              <img src={userAvatarUrl} alt={currentUser} style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
+            ) : (
+              <div style={s.avatarSmall}>{avatarInitials}</div>
+            )}
             <div>
-              <div style={{fontSize:"0.82rem",fontWeight:600,color:"#e2e8f0"}}>You</div>
+              <div style={{fontSize:"0.82rem",fontWeight:600,color:"#e2e8f0"}}>{currentUser}</div>
               <div style={{display:"flex",alignItems:"center",gap:"4px"}}>
                 <div style={{width:"6px",height:"6px",borderRadius:"50%",background:"#22c55e",animation:"livePulse 1.5s ease-in-out infinite"}}/>
-                <span style={{fontSize:"0.65rem",color:"#22c55e"}}>Online</span>
+                <span style={{fontSize:"0.65rem",color:"#818cf8",fontWeight:600}}>{user?.plan || user?.plan_tier || "MEMBER PLAN"}</span>
               </div>
             </div>
           </div>
-          <button style={s.logoutBtn}><LogOut size={15}/></button>
+          <button style={s.logoutBtn} onClick={() => logout && logout()} title="Log Out"><LogOut size={15}/></button>
         </div>
       </aside>
 
@@ -409,20 +436,39 @@ export default function YourArenaPage() {
           </div>
           <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
             <button style={s.iconBtn}><Bell size={18}/></button>
-            <div style={s.avatarMed}>Y</div>
+            <div
+              style={{ ...s.avatarMed, cursor: "pointer", overflow: "hidden" }}
+              onClick={() => setIsProfileModalOpen(true)}
+              title="Open Profile Settings"
+            >
+              {userAvatarUrl ? (
+                <img src={userAvatarUrl} alt={currentUser} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
+              ) : (
+                avatarInitials
+              )}
+            </div>
           </div>
         </div>
+
+        <ProfileSettingsModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+        />
 
         {/* ══ YOUR STATS BANNER ══ */}
         <div style={s.myStatsBanner}>
           <div style={s.myStatsLeft}>
             <div style={s.myAvatarWrap}>
-              <div style={s.myAvatar}>YO</div>
+              {userAvatarUrl ? (
+                <img src={userAvatarUrl} alt={currentUser} style={{ width: 42, height: 42, borderRadius: "50%", objectFit: "cover" }} />
+              ) : (
+                <div style={s.myAvatar}>{avatarInitials}</div>
+              )}
               <div style={s.myStatusDot}/>
             </div>
             <div>
               <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
-                <span style={{fontFamily:"'Rajdhani',sans-serif",fontSize:"1.2rem",fontWeight:700,color:"white"}}>You</span>
+                <span style={{fontFamily:"'Rajdhani',sans-serif",fontSize:"1.2rem",fontWeight:700,color:"white"}}>{currentUser}</span>
                 <span style={{...s.myTitle,color:TITLE_CONFIG[me.title].color}}>{me.title}</span>
                 <span style={{...s.myLeague,color:LEAGUE_COLORS[me.league]}}>{me.league}</span>
               </div>

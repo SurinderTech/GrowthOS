@@ -299,7 +299,7 @@ export default function SignupPage() {
   );
 }
 
-const s: Record<string, React.CSSProperties> = {
+const s: Record<string, any> = {
   root:      { display:"flex", minHeight:"100vh", fontFamily:"'DM Sans','Segoe UI',sans-serif", flexDirection:"column", "@media (min-width: 768px)": { flexDirection:"row" } },
   left:      { width:"100%", position:"relative", display:"flex", alignItems:"center", justifyContent:"center", padding:"40px 24px", overflow:"visible", background:"radial-gradient(ellipse at 30% 40%,rgba(21,101,192,.22) 0%,transparent 60%),linear-gradient(135deg,#0d1f3c 0%,#0a1628 60%,#0d2547 100%)", minHeight:"auto", "@media (min-width: 768px)": { width:"52%", padding:"60px 50px", minHeight:"100vh" } },
   grid:      { position:"absolute", inset:0, backgroundImage:"linear-gradient(rgba(33,150,243,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(33,150,243,.05) 1px,transparent 1px)", backgroundSize:"40px 40px" },

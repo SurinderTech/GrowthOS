@@ -1,17 +1,24 @@
 "use client";
 // context/AuthContext.tsx
-// Provides login state to your entire app.
-// Any component can call useAuth() to get the current user or log out.
+// Provides real-time user authentication and profile state to your entire app.
 
-import { createContext, useContext, useEffect, useState, ReactNode, useMemo } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback } from "react";
 import { getUser, getToken, removeToken } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
-interface User {
+export interface User {
   id: string;
   email: string;
   name: string;
   image?: string;
+  avatar_url?: string;
+  full_name?: string;
+  plan?: string;
+  plan_tier?: string;
+  user_type?: string;
+  level?: number;
+  streak?: number;
+  xp?: number;
 }
 
 interface AuthContextType {
@@ -20,7 +27,10 @@ interface AuthContextType {
   isLoggedIn: boolean;
   setUser: (user: User | null) => void;
   logout: () => void;
+  refetchUser: () => Promise<void>;
 }
+
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
@@ -28,6 +38,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoggedIn: false,
   setUser: () => {},
   logout: () => {},
+  refetchUser: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -35,18 +46,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  const refetchUser = useCallback(async () => {
+    const token = getToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch(`${API}/dashboard/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUser((prev) => {
+          const base = prev || getUser() || { id: "", email: "", name: "" };
+          const rawPlan = data.plan_tier || data.user_type || "Free";
+          const formattedPlan = rawPlan.replace("_", " ").toUpperCase() + " PLAN";
+
+          return {
+            ...base,
+            name: data.user_name || data.full_name || base.name,
+            full_name: data.full_name || data.user_name || base.name,
+            image: data.avatar_url || data.image || base.image,
+            avatar_url: data.avatar_url || data.image || base.image,
+            plan: formattedPlan,
+            plan_tier: formattedPlan,
+            user_type: data.user_type,
+            level: data.level || 1,
+            xp: data.current_xp || 0,
+          };
+        });
+      }
+    } catch {
+      // Fail soft
+    }
+  }, []);
+
   useEffect(() => {
-    // On app load, check if user is already logged in (token in localStorage)
     const token = getToken();
     const savedUser = getUser();
     if (token && savedUser) {
       setUser(savedUser);
+      refetchUser();
     }
     setIsLoading(false);
-  }, []);
+  }, [refetchUser]);
 
   const logout = () => {
     removeToken();
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("user_name");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("token");
+    }
     setUser(null);
     router.push("/login");
   };
@@ -57,7 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoggedIn: !!user,
     setUser,
     logout,
-  }), [user, isLoading]);
+    refetchUser,
+  }), [user, isLoading, refetchUser]);
 
   return (
     <AuthContext.Provider value={value}>
@@ -66,7 +117,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Use this hook in any component: const { user, logout } = useAuth();
 export function useAuth() {
   return useContext(AuthContext);
 }

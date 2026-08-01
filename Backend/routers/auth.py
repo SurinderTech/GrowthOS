@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from authlib.integrations.starlette_client import OAuth
 from starlette.config import Config
 import os
+import httpx
 from dotenv import load_dotenv
 from Backend.schemas.auth import RegisterRequest, AuthResponse
 from Backend.schemas.user import UserResponse
@@ -42,6 +43,11 @@ oauth.register(
     client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
     client_kwargs={"scope": "openid email profile"},
+    claims_options={
+        "iat": {"leeway": 300},
+        "exp": {"leeway": 300},
+        "nbf": {"leeway": 300},
+    },
 )
 
 oauth.register(
@@ -203,24 +209,69 @@ async def google_login(request: Request):
 
 @router.get("/google/callback")
 async def google_callback(request: Request, db: Session = Depends(get_db)):
-    token = await oauth.google.authorize_access_token(request)
-    info  = token.get("userinfo")
+    info = None
+    try:
+        token = await oauth.google.authorize_access_token(
+            request,
+            claims_options={
+                "iat": {"leeway": 300},
+                "exp": {"leeway": 300},
+                "nbf": {"leeway": 300},
+            }
+        )
+        info = token.get("userinfo")
+        if not info and "access_token" in token:
+            async with httpx.AsyncClient() as client:
+                res = await client.get(
+                    "https://www.googleapis.com/oauth2/v3/userinfo",
+                    headers={"Authorization": f"Bearer {token['access_token']}"}
+                )
+                if res.status_code == 200:
+                    info = res.json()
+    except Exception:
+        # Fallback to fetching access token directly if id_token claims validation fails due to machine clock skew
+        try:
+            token = await oauth.google.fetch_access_token(request)
+            if token and "access_token" in token:
+                async with httpx.AsyncClient() as client:
+                    res = await client.get(
+                        "https://www.googleapis.com/oauth2/v3/userinfo",
+                        headers={"Authorization": f"Bearer {token['access_token']}"}
+                    )
+                    if res.status_code == 200:
+                        info = res.json()
+        except Exception as err:
+            return RedirectResponse(f"{FRONTEND_URL}/login?error=Google+authentication+failed.+Please+try+again.")
 
-    user = db.query(User).filter(User.email == info["email"].lower()).first()
+    if not info or not info.get("email"):
+        return RedirectResponse(f"{FRONTEND_URL}/login?error=Google+did+not+return+a+valid+email.")
+
+    email_clean = info["email"].lower()
+    name = info.get("name") or info.get("given_name") or email_clean.split("@")[0]
+    picture = info.get("picture")
+    sub = info.get("sub")
+
+    user = db.query(User).filter(User.email == email_clean).first()
     if not user:
         user = User(
-            email=info["email"].lower(),
-            name=info.get("name"),
-            image=info.get("picture"),
+            email=email_clean,
+            name=name,
+            image=picture,
             provider="google",
-            provider_id=info["sub"],
+            provider_id=sub,
         )
         db.add(user)
         db.commit()
         db.refresh(user)
+    else:
+        # Seamless account linking for existing email accounts
+        if picture and not user.image:
+            user.image = picture
+        if sub and not getattr(user, "provider_id", None):
+            user.provider_id = sub
+        db.commit()
 
     access_token = create_access_token(str(user.id), user.email)
-    # Redirect back to frontend with token in URL
     return RedirectResponse(f"{FRONTEND_URL}/auth/callback?token={access_token}")
 
 
@@ -305,10 +356,33 @@ from pydantic import BaseModel
 from typing import Optional
 
 class ProfileUpdateRequest(BaseModel):
-    name:    Optional[str] = None
-    bio:     Optional[str] = None
-    country: Optional[str] = None
-    phone:   Optional[str] = None
+    name:       Optional[str] = None
+    bio:        Optional[str] = None
+    country:    Optional[str] = None
+    phone:      Optional[str] = None
+    image:      Optional[str] = None
+    avatar_url: Optional[str] = None
+
+
+@router.get("/me")
+def get_current_user_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    ob = db.query(UserOnboarding).filter(UserOnboarding.user_id == current_user.id).first()
+    clean_name = current_user.name or (ob.full_name if ob else None) or current_user.email.split("@")[0]
+    avatar_url = current_user.image or f"https://api.dicebear.com/7.x/avataaars/svg?seed={clean_name.replace(' ', '')}&backgroundColor=030712"
+    return {
+        "id": str(current_user.id),
+        "email": current_user.email,
+        "name": clean_name,
+        "full_name": clean_name,
+        "image": avatar_url,
+        "avatar_url": avatar_url,
+        "plan_tier": ob.user_type.title() if (ob and ob.user_type) else "Free Plan",
+        "onboarding_completed": ob.onboarding_completed if ob else False,
+    }
+
 
 @router.patch("/profile")
 def update_profile(
@@ -319,23 +393,34 @@ def update_profile(
     if req.name is not None and req.name.strip():
         current_user.name = req.name.strip()
 
+    if req.image is not None and req.image.strip():
+        current_user.image = req.image.strip()
+    elif req.avatar_url is not None and req.avatar_url.strip():
+        current_user.image = req.avatar_url.strip()
+
     current_user.updated_at = datetime.utcnow()
 
-    # Update country in onboarding if it exists
-    if req.country is not None:
-        ob = db.query(UserOnboarding).filter(
-            UserOnboarding.user_id == current_user.id
-        ).first()
-        if ob:
+    # Update country & name in onboarding if it exists
+    ob = db.query(UserOnboarding).filter(
+        UserOnboarding.user_id == current_user.id
+    ).first()
+    if ob:
+        if req.name is not None and req.name.strip():
+            ob.full_name = req.name.strip()
+        if req.country is not None and req.country.strip():
             ob.country = req.country.strip()
 
     db.commit()
     db.refresh(current_user)
 
+    avatar_url = current_user.image or f"https://api.dicebear.com/7.x/avataaars/svg?seed={(current_user.name or 'User').replace(' ', '')}&backgroundColor=030712"
+
     return {
         "success": True,
         "user": {
-            "name":  current_user.name,
-            "email": current_user.email,
+            "name":       current_user.name,
+            "email":      current_user.email,
+            "image":      avatar_url,
+            "avatar_url": avatar_url,
         }
     }

@@ -101,7 +101,7 @@ class OpenRouterClient:
     def chat(
         self,
         messages: list[dict[str, str]],
-        model: str,
+        model: str | None = None,
         *,
         fallback_models: list[str] | None = None,
         temperature: float = 0.7,
@@ -113,6 +113,10 @@ class OpenRouterClient:
         """
         Non-streaming chat completion. Raises OpenRouterError on total failure.
         """
+        if not model:
+            from Backend.ai.model_router import get_model_router, TaskType
+            model = get_model_router().model_for(TaskType.CHAT)
+
         if not self.api_key:
             raise OpenRouterError(
                 f"{OPENROUTER_API_KEY_ENV} is not set. Add it to Backend/.env."
@@ -179,7 +183,7 @@ class OpenRouterClient:
     def stream(
         self,
         messages: list[dict[str, str]],
-        model: str,
+        model: str | None = None,
         *,
         fallback_models: list[str] | None = None,
         temperature: float = 0.7,
@@ -189,6 +193,10 @@ class OpenRouterClient:
         """
         Streaming chat completion. Yields text chunks as they arrive.
         """
+        if not model:
+            from Backend.ai.model_router import get_model_router, TaskType
+            model = get_model_router().model_for(TaskType.CHAT)
+
         if not self.api_key:
             raise OpenRouterError(
                 f"{OPENROUTER_API_KEY_ENV} is not set. Add it to Backend/.env."

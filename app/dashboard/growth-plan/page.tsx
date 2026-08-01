@@ -12,6 +12,9 @@ import {
   AlertTriangle, ArrowRight, GitBranch, Sparkles, RefreshCw,
   Award, Shield, Brain, Activity, BarChart, ChevronDown, ChevronUp,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import ProfileSettingsModal from "@/components/ui/ProfileSettingsModal";
+import BrandLogo from "@/components/ui/BrandLogo";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Task {
@@ -169,6 +172,9 @@ const taskTypeIcon = { challenge: "⚡", revision: "📖", build: "🔨", mcq: "
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function GrowthPlanPage() {
+  const { user, logout } = useAuth();
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
   const [plan, setPlan]           = useState(MOCK_PLAN);
   const [loading, setLoading]     = useState(true);
   const [expandedPhase, setExpandedPhase] = useState<number>(2); // active phase open by default
@@ -214,6 +220,14 @@ export default function GrowthPlanPage() {
 
   const activePhase = plan.phases.find(p => p.status === "active");
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  const rawName = (user as any)?.full_name || (user as any)?.name || userName || (typeof window !== "undefined" ? localStorage.getItem("user_name") : "") || "User";
+  const currentUser = mounted ? (rawName.includes("@") ? rawName.split("@")[0] : rawName) : "User";
+  const avatarInitials = mounted && currentUser && currentUser !== "User" ? currentUser.slice(0, 2).toUpperCase() : "US";
+  const userAvatarUrl = (user as any)?.avatar_url || (user as any)?.image || null;
+
   return (
     <div style={s.root}>
       {/* Background layers */}
@@ -225,14 +239,17 @@ export default function GrowthPlanPage() {
 
       {/* Sidebar */}
       <aside style={s.sidebar}>
+        <div style={{ padding: "0 4px 24px" }}>
+          <BrandLogo size="md" />
+        </div>
         <nav style={s.nav}>
           {[
-            { icon: <LayoutDashboard size={18}/>, label: "Dashboard",     href: "/dashboard" },
-            { icon: <Play size={18}/>,            label: "Practice Arena",href: "/dashboard/practice" },
-            { icon: <BarChart2 size={18}/>,       label: "Leaderboard",   href: "/dashboard/leaderboard" },
-            { icon: <Trophy size={18}/>,          label: "Challenges",    href: "/dashboard/challenges" },
-            { icon: <Users size={18}/>,           label: "Community",     href: "/dashboard/community" },
-            { icon: <Settings size={18}/>,        label: "Settings",      href: "/dashboard/settings" },
+            { icon: <LayoutDashboard size={18}/>, label: "Dashboard",     href: "/dashboard", active: false },
+            { icon: <Play size={18}/>,            label: "Practice Arena",href: "/dashboard/practice", active: false },
+            { icon: <BarChart2 size={18}/>,       label: "Leaderboard",   href: "/dashboard/leaderboard", active: false },
+            { icon: <Trophy size={18}/>,          label: "Challenges",    href: "/dashboard/challenges", active: false },
+            { icon: <Users size={18}/>,           label: "Community",     href: "/dashboard/community", active: false },
+            { icon: <Settings size={18}/>,        label: "Settings",      href: "/dashboard/settings", active: false },
           ].map(item => (
             <Link key={item.label} href={item.href} style={{ textDecoration: "none" }}>
               <button style={{ ...s.navItem, ...(item.active ? s.navItemActive : {}) }}>
@@ -244,14 +261,22 @@ export default function GrowthPlanPage() {
           ))}
         </nav>
         <div style={s.sidebarFooter}>
-          <div style={s.sidebarUser}>
-            <div style={s.avatarSmall}>{avatar}</div>
+          <div
+            style={{ ...s.sidebarUser, cursor: "pointer" }}
+            onClick={() => setIsProfileModalOpen(true)}
+            title="Open Profile Settings"
+          >
+            {userAvatarUrl ? (
+              <img src={userAvatarUrl} alt={currentUser} style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
+            ) : (
+              <div style={s.avatarSmall}>{avatarInitials}</div>
+            )}
             <div>
-              <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "#e2e8f0" }}>{userName || "User"}</div>
-              <div style={{ fontSize: "0.7rem", color: "#475569" }}>Pro Plan</div>
+              <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "#e2e8f0" }}>{currentUser}</div>
+              <div style={{ fontSize: "0.7rem", color: "#818cf8", fontWeight: 600 }}>{user?.plan || user?.plan_tier || "MEMBER PLAN"}</div>
             </div>
           </div>
-          <button style={s.logoutBtn}><LogOut size={15} /></button>
+          <button style={s.logoutBtn} onClick={() => logout && logout()} title="Log Out"><LogOut size={15} /></button>
         </div>
       </aside>
 
@@ -266,9 +291,24 @@ export default function GrowthPlanPage() {
           </div>
           <div style={s.topbarRight}>
             <button style={s.iconBtn}><Bell size={18} /></button>
-            <div style={s.avatarMed}>{avatar}</div>
+            <div
+              style={{ ...s.avatarMed, cursor: "pointer", overflow: "hidden" }}
+              onClick={() => setIsProfileModalOpen(true)}
+              title="Open Profile Settings"
+            >
+              {userAvatarUrl ? (
+                <img src={userAvatarUrl} alt={currentUser} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
+              ) : (
+                avatarInitials
+              )}
+            </div>
           </div>
         </div>
+
+        <ProfileSettingsModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+        />
 
         {/* ── HERO: GOAL HEADER ── */}
         <div style={s.heroWrap}>

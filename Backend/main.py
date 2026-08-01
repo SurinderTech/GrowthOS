@@ -24,6 +24,7 @@ from Backend.routers.resume_agent import router as resume_agent_router
 from Backend.routers.interview_agent import router as interview_agent_router
 from Backend.routers.project_agent import router as project_agent_router
 from Backend.routers.networking_agent import router as networking_agent_router
+from Backend.routers.learning_agent import router as learning_agent_router
 
 from Backend.scheduler.task_scheduler import start_scheduler, shutdown_scheduler
 
@@ -66,6 +67,7 @@ app.add_middleware(
 # ─────────────────────────────────
 app.include_router(auth_router)
 app.include_router(onboarding_router, prefix="/onboarding", tags=["Onboarding"])
+app.include_router(onboarding_router, prefix="/api/onboarding", tags=["Onboarding"])
 app.include_router(smart_tasks_router, prefix="/api/tasks", tags=["smart-tasks"])
 app.include_router(dashboard_router, prefix="/dashboard", tags=["Dashboard"])
 app.include_router(practice.router,       prefix="/practice",       tags=["Practice"])
@@ -81,6 +83,7 @@ app.include_router(resume_agent_router,     prefix="/agents/resume",     tags=["
 app.include_router(interview_agent_router,  prefix="/agents/interview",  tags=["Interview Agent"])
 app.include_router(project_agent_router,    prefix="/agents/projects",   tags=["Project Agent"])
 app.include_router(networking_agent_router, prefix="/agents/networking", tags=["Networking Agent"])
+app.include_router(learning_agent_router, prefix="/api/learning-agent", tags=["Learning Agent"])
 
 # ─────────────────────────────────
 # Root Endpoint

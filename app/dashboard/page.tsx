@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Sparkles, CheckCircle2, Circle, ChevronRight, RefreshCw,
   Zap, Target, BookOpen, Trophy, Users, Rocket, GitBranch,
@@ -13,15 +14,17 @@ import {
   Play, X, BarChart2, Cpu, Mic, Send, Volume2, MessageSquare, FileText,
 } from "lucide-react";
 import LoadingScreen from "./LoadingScreen";
+import ProfileSettingsModal from "@/components/ui/ProfileSettingsModal";
+import BrandLogo from "@/components/ui/BrandLogo";
 import {
-  ResumeAgentPanel,
-  InterviewAgentPanel,
-  ProjectAgentPanel,
-  NetworkingAgentPanel,
-  LearningAgentPanel,
-  OpportunityAgentPanel,
-  RoadmapAgentPanel,
-} from "./AgentPanels";
+  ResumeAgent,
+  InterviewAgent,
+  ProjectAgent,
+  NetworkingAgent,
+  LearningAgent,
+  OpportunityAgent,
+  RoadmapAgent,
+} from "@/components/agents";
 import { useAuth } from "@/context/AuthContext";
 import {
   getDashboard,
@@ -481,16 +484,73 @@ function DynamicLiveGreeting({
 
 // ── MAIN DASHBOARD COMPONENT ──────────────────────────────────────────────────
 
+function cleanDisplayName(raw?: string, email?: string): string {
+  if (raw && raw.trim()) {
+    const trimmed = raw.trim();
+    const clean = trimmed.replace(/\d+$/, "").trim();
+    return clean || trimmed;
+  }
+  if (email && email.trim()) {
+    const handle = email.split("@")[0];
+    const cleanHandle = handle.replace(/\d+$/, "").replace(/[._-]/g, " ").trim();
+    return cleanHandle.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") || "User";
+  }
+  return "User";
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const [showLoader, setShowLoader] = useState(true);
+  const [showLoader, setShowLoader] = useState(false);
   const [loaded, setLoaded]         = useState(false);
-  const [userName, setUserName]     = useState("");
 
-  const displayName = userName || user?.full_name || (user?.email ? user.email.split("@")[0] : "");
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const lastTimeStr = localStorage.getItem("last_growthos_loading_time");
+      const now = Date.now();
+      const nowDate = new Date(now).toDateString();
+      let shouldShow = true;
+
+      if (lastTimeStr) {
+        const lastTime = parseInt(lastTimeStr, 10);
+        if (!isNaN(lastTime)) {
+          const lastDate = new Date(lastTime).toDateString();
+          const ONE_HOUR = 60 * 60 * 1000;
+          // Skip loader screen if visited on same day AND within 1 hour
+          if (nowDate === lastDate && (now - lastTime) < ONE_HOUR) {
+            shouldShow = false;
+          }
+        }
+      }
+
+      if (shouldShow) {
+        setShowLoader(true);
+      } else {
+        setLoaded(true);
+      }
+    }
+  }, []);
+
+  const handleLoaderDone = useCallback(() => {
+    setShowLoader(false);
+    setLoaded(true);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("last_growthos_loading_time", Date.now().toString());
+    }
+  }, []);
+  const [userName, setUserName]     = useState("");
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
+  const [planTier, setPlanTier]     = useState<string>("Student");
+  const [userLevel, setUserLevel]   = useState<number>(1);
+  const [userXp, setUserXp]         = useState<number>(0);
+  const [nextLevelXp, setNextLevelXp] = useState<number>(500);
+  const [levelProgressPct, setLevelProgressPct] = useState<number>(0);
+
+  const rawName = userName || (user as any)?.full_name || (user as any)?.name;
+  const displayName = cleanDisplayName(rawName, user?.email);
   const avatar = displayName ? displayName.slice(0, 2).toUpperCase() : "GO";
+  const effectiveAvatarUrl = userAvatarUrl || (user as any)?.image || (user as any)?.avatar_url || (displayName ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(displayName)}&backgroundColor=0f172a` : null);
 
   const [smartTasks, setSmartTasks]         = useState<SmartTask[]>([]);
   const [expandedTask, setExpandedTask]     = useState<string | null>(null);
@@ -518,8 +578,11 @@ export default function DashboardPage() {
 
   // Agent workspace panel state
   const [activeAgentPanel, setActiveAgentPanel] = useState<
-    "learning" | "opportunity" | "roadmap" | "resume" | "interview" | "project" | "productivity" | null
+    "learning" | "opportunity" | "roadmap" | "resume" | "interview" | "project" | "networking" | "productivity" | null
   >(null);
+
+  // Profile & Settings wide modal state
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Nova companion
   const [novaMessages, setNovaMessages] = useState<NovaMessage[]>([]);
@@ -566,7 +629,17 @@ export default function DashboardPage() {
 
   useEffect(() => {
     getDashboard()
-      .then(d => { if (d?.user_name) setUserName(d.user_name); })
+      .then(d => {
+        if (d) {
+          if (d.user_name || (d as any).full_name) setUserName(d.user_name || (d as any).full_name);
+          if ((d as any).avatar_url || (d as any).image) setUserAvatarUrl((d as any).avatar_url || (d as any).image);
+          if ((d as any).plan_tier) setPlanTier((d as any).plan_tier);
+          if ((d as any).level !== undefined) setUserLevel((d as any).level);
+          if ((d as any).current_xp !== undefined) setUserXp((d as any).current_xp);
+          if ((d as any).next_level_xp !== undefined) setNextLevelXp((d as any).next_level_xp);
+          if ((d as any).level_progress_percent !== undefined) setLevelProgressPct((d as any).level_progress_percent);
+        }
+      })
       .catch(() => {})
       .finally(() => setDashLoading(false));
 
@@ -609,17 +682,16 @@ export default function DashboardPage() {
     finally { setMissionsLoading(false); }
   }
 
-  const handleLoaderDone = useCallback(() => {
-    setShowLoader(false);
-    setTimeout(() => setLoaded(true), 100);
-  }, []);
-
   const toggleSmartTask = async (taskId: string) => {
     const task = smartTasks.find(t => t.id === taskId);
     if (!task) return;
-    setSmartTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t));
+    const isNowCompleted = !task.completed;
+    setSmartTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: isNowCompleted } : t));
     const endpoint = task.completed ? "uncomplete" : "complete";
     await fetch(`${API}/api/tasks/${taskId}/${endpoint}`, { method: "POST", headers: { Authorization: `Bearer ${getToken()}` } }).catch(() => {});
+    if (isNowCompleted) {
+      getPracticeStreak().then(d => setStreakData(d)).catch(() => {});
+    }
   };
 
   const toggleMission = (id: string) => {
@@ -639,8 +711,9 @@ export default function DashboardPage() {
       });
       const data = await res.json();
       setTaskFeedback(prev => ({ ...prev, [taskId]: data.feedback }));
-      if (data.status === "completed") {
+      if (data.status === "completed" || data.completed) {
         setSmartTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: true } : t));
+        getPracticeStreak().then(d => setStreakData(d)).catch(() => {});
       }
     } catch {
       setTaskFeedback(prev => ({ ...prev, [taskId]: "Answer saved. Keep up the momentum!" }));
@@ -696,6 +769,21 @@ export default function DashboardPage() {
     }
     const sample = `Hello ${displayName || "there"}. I am Nova, your AI Core orchestrator. All 7 AI agents are actively synced. How can I accelerate your goals today?`;
     speak(sample);
+  };
+
+  const askAI = async (promptText: string) => {
+    try {
+      const res = await fetch(`${API}/api/learning-agent/tutor/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ message: promptText }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data.text || "Synced with Nova AI Core.";
+      }
+    } catch {}
+    return `I am keeping track of your goals. How else can I assist you today?`;
   };
 
   const sendNovaMessage = async (overrideText?: string) => {
@@ -789,28 +877,32 @@ export default function DashboardPage() {
     },
   ];
 
+  if (showLoader) {
+    return <LoadingScreen onDone={handleLoaderDone} />;
+  }
+
   return (
     <div style={s.root}>
       <div style={s.bg} /><div style={s.bgGrid} /><div style={s.bgGlow1} /><div style={s.bgGlow2} />
       <Particles />
 
       {/* Render AI Agent Workspace Modals */}
-      {activeAgentPanel === "learning" && <LearningAgentPanel onClose={() => setActiveAgentPanel(null)} />}
-      {activeAgentPanel === "opportunity" && <OpportunityAgentPanel onClose={() => setActiveAgentPanel(null)} />}
-      {activeAgentPanel === "roadmap" && <RoadmapAgentPanel onClose={() => setActiveAgentPanel(null)} />}
-      {activeAgentPanel === "resume" && <ResumeAgentPanel onClose={() => setActiveAgentPanel(null)} />}
-      {activeAgentPanel === "interview" && <InterviewAgentPanel onClose={() => setActiveAgentPanel(null)} />}
-      {activeAgentPanel === "project" && <ProjectAgentPanel onClose={() => setActiveAgentPanel(null)} />}
-      {activeAgentPanel === "productivity" && <RoadmapAgentPanel onClose={() => setActiveAgentPanel(null)} />}
+      {activeAgentPanel === "learning" && <LearningAgent onClose={() => setActiveAgentPanel(null)} />}
+      {activeAgentPanel === "opportunity" && <OpportunityAgent onClose={() => setActiveAgentPanel(null)} />}
+      {activeAgentPanel === "roadmap" && <RoadmapAgent onClose={() => setActiveAgentPanel(null)} />}
+      {activeAgentPanel === "resume" && <ResumeAgent onClose={() => setActiveAgentPanel(null)} />}
+      {activeAgentPanel === "interview" && <InterviewAgent onClose={() => setActiveAgentPanel(null)} />}
+      {activeAgentPanel === "project" && <ProjectAgent onClose={() => setActiveAgentPanel(null)} />}
+      {activeAgentPanel === "networking" && <NetworkingAgent onClose={() => setActiveAgentPanel(null)} />}
+      {activeAgentPanel === "productivity" && <RoadmapAgent onClose={() => setActiveAgentPanel(null)} />}
+
+      {/* Wide Settings & Profile Modal */}
+      <ProfileSettingsModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
 
       {/* Sidebar */}
       <aside style={s.sidebar}>
-        <div style={s.sidebarLogo}>
-          <div style={s.sidebarLogoMark}>G</div>
-          <div>
-            <div style={s.sidebarLogoText}>GrowthOS</div>
-            <div style={s.sidebarLogoSub}>AI Operating System</div>
-          </div>
+        <div style={{ padding: "0 4px 24px" }}>
+          <BrandLogo size="md" />
         </div>
         <nav style={s.nav}>
           {[
@@ -831,29 +923,39 @@ export default function DashboardPage() {
           ))}
         </nav>
         <div style={s.sidebarFooter}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%" }}>
+          <div
+            onClick={() => setIsProfileModalOpen(true)}
+            style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%", cursor: "pointer" }}
+            title="Click to open Profile & Wide Settings"
+          >
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <div style={s.avatarSmall}>{avatar}</div>
+              <div style={{ ...s.avatarSmall, overflow: "hidden", borderRadius: "50%", background: "#0f172a", border: "1px solid rgba(34,211,238,0.3)" }}>
+                {effectiveAvatarUrl ? (
+                  <img src={effectiveAvatarUrl} alt={displayName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  avatar
+                )}
+              </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "white", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {dashLoading ? <Skeleton w="70px" h="11px" /> : displayName || "Surinder"}
+                    {dashLoading ? <Skeleton w="70px" h="11px" /> : displayName}
                   </div>
                   <span style={{ fontSize: "0.62rem", fontWeight: 700, padding: "1px 6px", borderRadius: "6px", background: "linear-gradient(135deg, #6366f1, #818cf8)", color: "white" }}>
-                    Pro
+                    {planTier}
                   </span>
                 </div>
-                <div style={{ fontSize: "0.68rem", color: "#64748b" }}>Level 12</div>
+                <div style={{ fontSize: "0.68rem", color: "#64748b" }}>Level {userLevel}</div>
               </div>
             </div>
             {/* XP Progress Bar */}
             <div>
               <div style={{ width: "100%", height: "4px", background: "rgba(255,255,255,0.08)", borderRadius: "2px", overflow: "hidden" }}>
-                <div style={{ width: "60%", height: "100%", background: "linear-gradient(90deg, #6366f1, #38bdf8)", borderRadius: "2px", boxShadow: "0 0 8px #38bdf8" }} />
+                <div style={{ width: `${levelProgressPct}%`, height: "100%", background: "linear-gradient(90deg, #6366f1, #38bdf8)", borderRadius: "2px", boxShadow: "0 0 8px #38bdf8", transition: "width 0.5s ease" }} />
               </div>
               <div style={{ fontSize: "0.64rem", color: "#475569", marginTop: "4px", display: "flex", justifyContent: "space-between" }}>
-                <span>4,820 / 8,000 XP</span>
-                <span style={{ color: "#38bdf8" }}>60%</span>
+                <span>{userXp.toLocaleString()} / {nextLevelXp.toLocaleString()} XP</span>
+                <span style={{ color: "#38bdf8" }}>{levelProgressPct}%</span>
               </div>
             </div>
           </div>
@@ -873,7 +975,17 @@ export default function DashboardPage() {
             <div style={s.statusPill}><div style={s.statusDot}/><span>All agents synced</span></div>
             <div style={s.clock}>{timeLeft.clock}</div>
             <button style={s.iconBtn}><Bell size={17} /></button>
-            <div style={s.avatarMed}>{avatar}</div>
+            <div
+              onClick={() => setIsProfileModalOpen(true)}
+              style={{ ...s.avatarMed, cursor: "pointer", overflow: "hidden", borderRadius: "50%", border: "1.5px solid rgba(34,211,238,0.4)" }}
+              title="Click to open Profile & Wide Settings"
+            >
+              {effectiveAvatarUrl ? (
+                <img src={effectiveAvatarUrl} alt={displayName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                avatar
+              )}
+            </div>
           </div>
         </div>
 
@@ -1034,7 +1146,7 @@ export default function DashboardPage() {
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  justify: "flex-end",
+                  justifyContent: "flex-end",
                   cursor: "pointer",
                 }}
                 aria-label="Talk to Orbit Voice AI Assistant"

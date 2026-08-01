@@ -28,6 +28,7 @@ from Backend.services.gemini_service import (
     generate_skill_subskills
 )
 from Backend.routers.auth import get_current_user
+from Backend.services.streak_service import update_streak
 
 
 router = APIRouter(tags=["Dashboard"])
@@ -87,23 +88,93 @@ def get_user_profile(user_id: UUID, db: Session) -> dict:
     return profile
 
 
+import re
+
+def resolve_clean_user_name(user, ob) -> str:
+    if ob and ob.full_name and ob.full_name.strip():
+        name = ob.full_name.strip()
+    elif user and user.name and user.name.strip():
+        name = user.name.strip()
+    else:
+        handle = user.email.split("@")[0]
+        cleaned = re.sub(r'\d+$', '', handle)
+        if not cleaned:
+            cleaned = handle
+        name = cleaned.replace(".", " ").replace("_", " ").title()
+    return re.sub(r'\d+$', '', name).strip() or name
+
+
 # ── GET /dashboard/ ───────────────────────────────────────────────────────────
 @router.get("/")
 def get_dashboard(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
-    """Return basic dashboard meta for the hero section."""
+    """Return basic dashboard meta with clean user name, real profile image, plan tier, level & XP."""
     ob = db.query(UserOnboarding).filter(UserOnboarding.user_id == current_user.id).first()
     plan = db.query(GrowthPlan).filter(
         GrowthPlan.user_id == current_user.id,
         GrowthPlan.is_active == True
     ).order_by(GrowthPlan.generated_at.desc()).first()
 
+    clean_name = resolve_clean_user_name(current_user, ob)
+
+    # Real profile avatar URL or crisp SVG avatar fallback based on user name
+    avatar_url = current_user.image
+    if not avatar_url or not avatar_url.strip():
+        avatar_url = f"https://api.dicebear.com/7.x/avataaars/svg?seed={clean_name.replace(' ', '')}&backgroundColor=030712"
+
+    # User plan tier (e.g. "Student", "Developer", "Creator", "Entrepreneur", "Free Plan")
+    user_type_raw = ob.user_type if (ob and ob.user_type) else "student"
+    plan_tier = user_type_raw.replace("_", " ").title()
+
+    # Compute real-time user XP & Level directly from database activity records
+    try:
+        from Backend.models.practice_arena import RecentSubmission
+        from Backend.models.smart_task import SmartDailyTask
+        from Backend.models.learning_agent import LearningMissionTask
+
+        solved_count = db.query(RecentSubmission).filter(
+            RecentSubmission.user_id == current_user.id,
+            RecentSubmission.is_correct == True
+        ).count()
+
+        smart_tasks_completed = db.query(SmartDailyTask).filter(
+            SmartDailyTask.user_id == current_user.id,
+            SmartDailyTask.completed == True
+        ).count()
+
+        learning_tasks_completed = db.query(LearningMissionTask).filter(
+            LearningMissionTask.user_id == current_user.id,
+            LearningMissionTask.completed == True
+        ).count()
+    except Exception:
+        solved_count = 0
+        smart_tasks_completed = 0
+        learning_tasks_completed = 0
+
+    activity_xp = (solved_count * 150) + (smart_tasks_completed * 100) + (learning_tasks_completed * 75)
+    total_xp = activity_xp
+
+    # Level calculation: 500 XP per level
+    level = max(1, (total_xp // 500) + 1)
+    current_level_xp = total_xp % 500
+    next_level_xp = 500
+    level_progress_percent = int((current_level_xp / 500) * 100)
+
     return {
-        "user_name": current_user.email.split("@")[0],
-        "user_type": ob.user_type if ob else "student",
+        "user_name": clean_name,
+        "full_name": clean_name,
+        "avatar_url": avatar_url,
+        "image": avatar_url,
+        "user_type": user_type_raw,
+        "plan_tier": plan_tier,
         "primary_goal": ob.primary_goal if ob else "",
         "twelve_month_goal": ob.twelve_month_goal if ob else "",
         "onboarding_completed": ob.onboarding_completed if ob else False,
         "growth_plan_generated": plan is not None,
+        "level": level,
+        "current_xp": total_xp,
+        "current_level_xp": current_level_xp,
+        "next_level_xp": next_level_xp,
+        "level_progress_percent": level_progress_percent,
     }
 
 
@@ -257,8 +328,9 @@ def complete_task(task_id: UUID, current_user=Depends(get_current_user), db: Ses
     if not task: raise HTTPException(404, "Task not found")
     task.completed = True
     task.completed_at = datetime.now(timezone.utc)
+    streak_data = update_streak(current_user.id, db)
     db.commit()
-    return {"success": True}
+    return {"success": True, "streak": streak_data}
 
 
 # ── POST /dashboard/tasks/{task_id}/uncomplete ────────────────────────────────

@@ -32,7 +32,7 @@ export function Hero({ onCTA }: HeroProps) {
       y: 0,
       opacity: 1,
       transition: {
-        type: 'spring',
+        type: 'spring' as const,
         damping: 15,
         stiffness: 100,
         mass: 0.8,
@@ -50,7 +50,7 @@ export function Hero({ onCTA }: HeroProps) {
       transition: {
         duration: 2,
         repeat: Infinity,
-        ease: 'easeInOut',
+        ease: 'easeInOut' as const,
       },
     },
   };

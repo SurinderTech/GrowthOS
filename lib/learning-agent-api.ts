@@ -1,0 +1,390 @@
+// lib/learning-agent-api.ts
+//
+// Shared types + API client for the Learning Agent Workspace (Phase 2).
+//
+// Scope: Goal Board, current-week Roadmap, Today's Mission, Learning Workspace
+// (per-topic), AI Tutor, Resource Engine, Progress summary (lightweight, no
+// historical analytics). Practice Arena is intentionally NOT modeled here —
+// it's a redirect into the existing dashboard Practice Arena.
+//
+// Every fetch function fails soft: on error it returns a typed mock so the
+// workspace always renders something useful for a first-time user, instead
+// of blank states while the real backend is still catching up. Replace the
+// MOCK_* objects with nothing once your endpoints are live — the shape is
+// the contract, the mocks are just a development crutch.
+
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+function getToken() {
+  return typeof window !== "undefined" ? localStorage.getItem("access_token") || "" : "";
+}
+
+async function authedFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${getToken()}`,
+      ...(init?.headers || {}),
+    },
+  });
+  if (!res.ok) throw new Error(`Request failed: ${res.status} ${path}`);
+  return res.json();
+}
+
+// ── Types ────────────────────────────────────────────────────────────────
+
+export interface GoalBoardData {
+  name: string;
+  career_goal: string;
+  current_level: string;
+  target_timeline: string;
+  daily_study_hours: number;
+  current_week: number;
+  today_completion_pct: number; // 0-100
+  estimated_journey_weeks?: number;
+}
+
+export type MissionType = "topic" | "practice" | "project";
+
+export interface DailyMissionItem {
+  id: string;
+  type: MissionType;
+  title: string;
+  estimated_minutes: number;
+  completed: boolean;
+  topic_id?: string; // present when type === "topic", used to open the Learning Workspace
+}
+
+export interface TodayMission {
+  date: string;
+  estimated_minutes_total: number;
+  items: DailyMissionItem[];
+}
+
+export interface RoadmapDay {
+  day_label: string;   // "Mon", "Day 1"...
+  date: string;
+  theme: string;
+  is_today: boolean;
+  is_locked: boolean;
+  mission_item_ids: string[];
+  topic_titles: string[];
+}
+
+export interface WeeklyRoadmap {
+  week_number: number;
+  week_theme: string;
+  objectives: string[];
+  days: RoadmapDay[];
+  next_week_locked: true;
+}
+
+export interface CodeSnippet {
+  language: string;
+  code: string;
+  caption?: string;
+}
+
+export interface PracticeQuestion {
+  id: string;
+  prompt: string;
+  kind: "mcq" | "short_answer" | "coding";
+  options?: string[];
+  answered?: boolean;
+}
+
+export interface TopicDetail {
+  id: string;
+  title: string;
+  week_number: number;
+  explanation_md: string;
+  examples: { title: string; body: string }[];
+  code_snippets: CodeSnippet[];
+  practice_questions: PracticeQuestion[];
+  notes: string;
+  completed: boolean;
+  estimated_minutes: number;
+}
+
+export interface ResourceItem {
+  title: string;
+  url: string;
+  source: string;
+  duration?: string;
+}
+
+export interface TopicResources {
+  best_video?: ResourceItem;
+  best_article?: ResourceItem;
+  official_docs?: ResourceItem;
+  project?: ResourceItem;
+  more: ResourceItem[];
+}
+
+export interface ProgressSummary {
+  topics_completed: number;
+  topics_total: number;
+  missions_completed: number;
+  missions_total: number;
+  practice_completion_pct: number;
+  study_minutes_today: number;
+  study_minutes_goal: number;
+}
+
+export interface TutorMessage {
+  id: string;
+  role: "user" | "tutor";
+  text: string;
+}
+
+export interface TutorContext {
+  topic_id?: string;
+  topic_title?: string;
+}
+
+// ── Career Discovery → Week 1 commit ───────────────────────────────────
+
+export interface RoadmapStatus {
+  week1_committed: boolean;
+  destination: string;          // career goal, human-readable
+  estimated_journey_weeks: number;
+}
+
+export interface ExplorationSignal {
+  node_id: string;
+  seconds_spent: number;
+  expanded: boolean;
+}
+
+export interface CommitWeek1Payload {
+  chosen_path_id: string;       // e.g. "frontend" | "backend" | "full_stack" | "ai_ml"
+  exploration_signals: ExplorationSignal[];
+  ai_question_answer?: "yes" | "no" | "full_stack" | null;
+}
+
+// ── Mocks (fallback only — real data should come from the backend) ────────
+
+const MOCK_GOAL_BOARD: GoalBoardData = {
+  name: "Surinder",
+  career_goal: "Software Engineer",
+  current_level: "Python Foundations",
+  target_timeline: "January 2027",
+  daily_study_hours: 3,
+  current_week: 1,
+  today_completion_pct: 25,
+  estimated_journey_weeks: 28,
+};
+
+const MOCK_TODAY_MISSION: TodayMission = {
+  date: new Date().toISOString(),
+  estimated_minutes_total: 140,
+  items: [
+    { id: "m1", type: "topic", title: "Learn Variables", estimated_minutes: 30, completed: true, topic_id: "variables" },
+    { id: "m2", type: "topic", title: "Practice Lists", estimated_minutes: 30, completed: false, topic_id: "lists" },
+    { id: "m3", type: "practice", title: "Solve 5 Questions", estimated_minutes: 30, completed: false },
+    { id: "m4", type: "project", title: "Build Mini Calculator", estimated_minutes: 50, completed: false },
+  ],
+};
+
+const MOCK_ROADMAP: WeeklyRoadmap = {
+  week_number: 1,
+  week_theme: "Python Foundations",
+  objectives: [
+    "Understand core data types and variables",
+    "Get comfortable with lists and control flow",
+    "Ship a small calculator project",
+  ],
+  days: [
+    { day_label: "Mon", date: "", theme: "Variables & Data Types", is_today: true, is_locked: false, mission_item_ids: ["m1"], topic_titles: ["Variables", "Data Types"] },
+    { day_label: "Tue", date: "", theme: "Lists & Loops", is_today: false, is_locked: false, mission_item_ids: ["m2"], topic_titles: ["Lists", "Loops"] },
+    { day_label: "Wed", date: "", theme: "Functions", is_today: false, is_locked: false, mission_item_ids: [], topic_titles: ["Functions"] },
+    { day_label: "Thu", date: "", theme: "Practice Day", is_today: false, is_locked: false, mission_item_ids: [], topic_titles: ["Mixed Practice"] },
+    { day_label: "Fri", date: "", theme: "Mini Project", is_today: false, is_locked: false, mission_item_ids: [], topic_titles: ["Calculator Project"] },
+    { day_label: "Sat", date: "", theme: "Revision", is_today: false, is_locked: false, mission_item_ids: [], topic_titles: ["Review"] },
+    { day_label: "Sun", date: "", theme: "Rest / Buffer", is_today: false, is_locked: false, mission_item_ids: [], topic_titles: [] },
+  ],
+  next_week_locked: true,
+};
+
+const MOCK_TOPICS: Record<string, TopicDetail> = {
+  variables: {
+    id: "variables",
+    title: "Variables",
+    week_number: 1,
+    explanation_md:
+      "A variable is a named reference to a value stored in memory. In Python, you don't declare a type — the type is inferred from the value you assign, and it can change if you reassign the variable to something else.",
+    examples: [
+      { title: "Assigning a variable", body: "age = 24\nname = \"Surinder\"\nis_active = True" },
+      { title: "Reassigning a variable", body: "score = 10\nscore = score + 5  # score is now 15" },
+    ],
+    code_snippets: [
+      { language: "python", code: "name = \"Surinder\"\nage = 24\nprint(f\"{name} is {age} years old\")", caption: "String, int, and an f-string together" },
+    ],
+    practice_questions: [
+      { id: "q1", kind: "mcq", prompt: "What will `type(5.0)` return in Python?", options: ["int", "float", "str", "bool"] },
+      { id: "q2", kind: "short_answer", prompt: "Write one line of code that swaps the values of two variables `a` and `b`." },
+    ],
+    notes: "",
+    completed: true,
+    estimated_minutes: 30,
+  },
+  lists: {
+    id: "lists",
+    title: "Lists",
+    week_number: 1,
+    explanation_md:
+      "A list is an ordered, mutable collection. You can hold mixed types, index into it, slice it, and change it in place — which is what separates it from a tuple.",
+    examples: [
+      { title: "Creating and indexing", body: "fruits = [\"apple\", \"banana\", \"cherry\"]\nfruits[0]  # \"apple\"" },
+      { title: "Slicing", body: "fruits[0:2]  # [\"apple\", \"banana\"]" },
+    ],
+    code_snippets: [
+      { language: "python", code: "numbers = [4, 2, 9, 1]\nnumbers.sort()\nprint(numbers)  # [1, 2, 4, 9]" },
+    ],
+    practice_questions: [
+      { id: "q1", kind: "coding", prompt: "Write a function that returns the largest number in a list without using `max()`." },
+    ],
+    notes: "",
+    completed: false,
+    estimated_minutes: 30,
+  },
+};
+
+const MOCK_RESOURCES: Record<string, TopicResources> = {
+  variables: {
+    best_video: { title: "Python Variables in 10 Minutes", url: "#", source: "YouTube", duration: "10:12" },
+    best_article: { title: "A Practical Guide to Python Variables", url: "#", source: "Real Python" },
+    official_docs: { title: "Python Data Model — Objects & Values", url: "#", source: "docs.python.org" },
+    project: { title: "Build a BMI Calculator using variables", url: "#", source: "GrowthOS Projects" },
+    more: [],
+  },
+  lists: {
+    best_video: { title: "Python Lists Explained Visually", url: "#", source: "YouTube", duration: "14:03" },
+    best_article: { title: "Everything You Can Do With a Python List", url: "#", source: "Real Python" },
+    official_docs: { title: "Python Lists — Data Structures", url: "#", source: "docs.python.org" },
+    project: { title: "Build a To-Do List manager", url: "#", source: "GrowthOS Projects" },
+    more: [],
+  },
+};
+
+const MOCK_PROGRESS: ProgressSummary = {
+  topics_completed: 1,
+  topics_total: 5,
+  missions_completed: 1,
+  missions_total: 4,
+  practice_completion_pct: 20,
+  study_minutes_today: 35,
+  study_minutes_goal: 180,
+};
+
+const MOCK_ROADMAP_STATUS: RoadmapStatus = {
+  week1_committed: false,
+  destination: "Software Engineer",
+  estimated_journey_weeks: 28,
+};
+
+// ── API functions ───────────────────────────────────────────────────────
+
+export async function getGoalBoard(): Promise<GoalBoardData> {
+  try { return await authedFetch<GoalBoardData>("/api/learning-agent/goal-board"); }
+  catch { return MOCK_GOAL_BOARD; }
+}
+
+export async function getRoadmapStatus(): Promise<RoadmapStatus> {
+  try { return await authedFetch<RoadmapStatus>("/api/learning-agent/roadmap/status"); }
+  catch { return MOCK_ROADMAP_STATUS; }
+}
+
+export async function commitWeek1(payload: CommitWeek1Payload): Promise<void> {
+  try {
+    await authedFetch("/api/learning-agent/roadmap/commit", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    // Non-blocking: the UI already transitions optimistically into Week 1.
+    // A background sync/retry layer can be added later without changing
+    // this function's contract.
+  }
+}
+
+export async function getCurrentWeekRoadmap(): Promise<WeeklyRoadmap> {
+  try { return await authedFetch<WeeklyRoadmap>("/api/learning-agent/roadmap/current-week"); }
+  catch { return MOCK_ROADMAP; }
+}
+
+export async function getTodayMission(): Promise<TodayMission> {
+  try { return await authedFetch<TodayMission>("/api/learning-agent/missions/today"); }
+  catch { return MOCK_TODAY_MISSION; }
+}
+
+export async function toggleMissionItem(itemId: string, completed: boolean): Promise<void> {
+  try {
+    await authedFetch(`/api/learning-agent/missions/today/${itemId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ completed }),
+    });
+  } catch { /* optimistic UI already applied by caller */ }
+}
+
+export async function getTopic(topicId: string): Promise<TopicDetail> {
+  try { return await authedFetch<TopicDetail>(`/api/learning-agent/topics/${topicId}`); }
+  catch { return MOCK_TOPICS[topicId] || MOCK_TOPICS.variables; }
+}
+
+export async function saveTopicNotes(topicId: string, notes: string): Promise<void> {
+  try {
+    await authedFetch(`/api/learning-agent/topics/${topicId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ notes }),
+    });
+  } catch { /* non-blocking */ }
+}
+
+export async function markTopicComplete(topicId: string, completed: boolean): Promise<void> {
+  try {
+    await authedFetch(`/api/learning-agent/topics/${topicId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ completed }),
+    });
+  } catch { /* non-blocking */ }
+}
+
+export async function getTopicResources(topicId: string): Promise<TopicResources> {
+  try { return await authedFetch<TopicResources>(`/api/learning-agent/topics/${topicId}/resources`); }
+  catch { return MOCK_RESOURCES[topicId] || MOCK_RESOURCES.variables; }
+}
+
+export async function getProgressSummary(): Promise<ProgressSummary> {
+  try { return await authedFetch<ProgressSummary>("/api/learning-agent/progress/summary"); }
+  catch { return MOCK_PROGRESS; }
+}
+
+export async function askTutor(message: string, context: TutorContext, history: TutorMessage[]): Promise<string> {
+  try {
+    const data = await authedFetch<{ reply: string }>("/api/learning-agent/tutor/message", {
+      method: "POST",
+      body: JSON.stringify({ message, context, history: history.slice(-10) }),
+    });
+    return data.reply;
+  } catch {
+    // Soft fallback so the tutor never feels "broken" during development.
+    return mentorFallback(message, context);
+  }
+}
+
+function mentorFallback(message: string, context: TutorContext): string {
+  const topic = context.topic_title || "this topic";
+  const lower = message.toLowerCase();
+  if (lower.includes("quiz")) {
+    return `Here's a quick check on ${topic}: try explaining it out loud in one sentence, as if to a beginner. If you hesitate, that's the part we should revisit.`;
+  }
+  if (lower.includes("note")) {
+    return `Noted. I'll fold the key points of ${topic} into a short summary you can revisit later.`;
+  }
+  if (lower.includes("didn't understand") || lower.includes("dont understand") || lower.includes("don't understand")) {
+    return `No problem — let's take ${topic} from a different angle, with a smaller example this time.`;
+  }
+  return `I'm connected to your ${topic} lesson, but I couldn't reach the tutor service just now. Try again in a moment — your goal and roadmap context are still loaded.`;
+}

@@ -4,7 +4,7 @@
 export * from './constants';
 
 // UI Components
-export { Navbar } from './ui/Navbar';
+export { default as Navbar } from './ui/Navbar';
 export { Hero } from './ui/Hero';
 export { Timeline } from './ui/Timeline';
 export { PricingCard } from './ui/PricingCard';

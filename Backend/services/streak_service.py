@@ -11,7 +11,10 @@ from uuid import UUID
 
 
 def get_or_create_streak(user_id, db: Session) -> UserStreak:
-    """Get streak row, creating it if it doesn't exist."""
+    """
+    Get streak row, creating it if missing, and sync date boundary & expiration.
+    Ensures current_streak and practiced_today are always accurate when fetched anywhere.
+    """
     row = db.query(UserStreak).filter(UserStreak.user_id == user_id).first()
     if not row:
         row = UserStreak(
@@ -24,40 +27,74 @@ def get_or_create_streak(user_id, db: Session) -> UserStreak:
         db.add(row)
         db.commit()
         db.refresh(row)
+        return row
+
+    today     = date.today()
+    yesterday = today - timedelta(days=1)
+    last      = row.last_practice_date
+
+    changed = False
+
+    if last is None:
+        if row.current_streak != 0 or row.practiced_today:
+            row.current_streak = 0
+            row.practiced_today = False
+            changed = True
+    elif last == today:
+        if not row.practiced_today:
+            row.practiced_today = True
+            changed = True
+    elif last == yesterday:
+        # Practiced yesterday — streak is active from yesterday, but NOT practiced today yet
+        if row.practiced_today:
+            row.practiced_today = False
+            changed = True
+    else:
+        # Missed at least 1 day — streak broken, reset current_streak to 0
+        if row.current_streak != 0 or row.practiced_today:
+            row.current_streak = 0
+            row.practiced_today = False
+            changed = True
+
+    # Keep longest_streak accurately updated
+    if row.current_streak > row.longest_streak:
+        row.longest_streak = row.current_streak
+        changed = True
+
+    if changed:
+        db.commit()
+        db.refresh(row)
+
     return row
 
 
 def update_streak(user_id, db: Session) -> dict:
     """
-    Call this when a user completes a practice session.
+    Call this when a user completes any practice question or daily task.
     Returns the updated streak state.
-
-    Logic:
-    - If last_practice_date == yesterday → streak += 1
-    - If last_practice_date == today → no change (already counted)
-    - Anything else → reset to 1
     """
-    row     = get_or_create_streak(user_id, db)
-    today   = date.today()
+    row       = get_or_create_streak(user_id, db)
+    today     = date.today()
     yesterday = today - timedelta(days=1)
 
     last = row.last_practice_date
     streak_updated = False
 
     if last == today:
-        # Already practiced today — don't double count
+        # Already practiced today — preserve streak
         return {
             "current_streak":  row.current_streak,
             "longest_streak":  row.longest_streak,
             "practiced_today": True,
             "streak_updated":  False,
         }
-    elif last == yesterday:
-        # Consecutive day
+
+    if last == yesterday:
+        # Consecutive day!
         row.current_streak += 1
         streak_updated = True
     else:
-        # Missed at least one day, or first time
+        # First time or missed day(s)
         row.current_streak = 1
         streak_updated = True
 
@@ -99,24 +136,8 @@ def increment_skill_progress(user_id, topic: str, delta: int, db: Session) -> di
         return {"topic": topic, "old_pct": 0, "new_pct": delta, "delta": delta}
 
 
-       
-
-
-def get_streak(db: Session, user_id: UUID):
+def get_streak(user_id, db: Session) -> UserStreak:
     """
-    Returns the user's current streak.
-    If none exists, create one.
+    Returns synchronized UserStreak for user.
     """
-
-    streak = db.query(UserStreak).filter(UserStreak.user_id == user_id).first()
-
-    if not streak:
-        streak = UserStreak(
-            user_id=user_id,
-            current_streak=0
-        )
-        db.add(streak)
-        db.commit()
-        db.refresh(streak)
-
-    return streak
+    return get_or_create_streak(user_id, db)

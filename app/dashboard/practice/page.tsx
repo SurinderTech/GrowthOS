@@ -10,6 +10,11 @@ import {
   Target, LayoutDashboard, Settings, LogOut, Bell, Users,
 } from "lucide-react";
 
+import { useAuth } from "@/context/AuthContext";
+import ProfileSettingsModal from "@/components/ui/ProfileSettingsModal";
+import BrandLogo from "@/components/ui/BrandLogo";
+import LeetCodeMonacoEditor from "@/components/ui/LeetCodeMonacoEditor";
+
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 function getToken(): string {
@@ -59,6 +64,7 @@ interface APICodingProblem {
   examples: { input: string; output: string; explain?: string }[];
   starter_python?: string;
   starter_cpp?: string;
+  starter_java?: string;
   starter_javascript?: string;
 }
 
@@ -68,11 +74,51 @@ interface APIActivityDay {
 }
 
 interface APISubmission {
+  id?: string;
   name: string;
   result: string;
   lang: string;
   time: string;
+  submitted_at?: string;
   correct: boolean;
+  item_id?: string;
+  user_answer?: string;
+  correct_answer?: string;
+  explanation?: string;
+  solve_count?: number;
+  days_since_last_solve?: number;
+  can_resolve?: boolean;
+}
+
+interface APISubmissionDetail {
+  id: string;
+  name: string;
+  result: string;
+  lang: string;
+  is_correct: boolean;
+  item_id?: string;
+  user_answer: string;
+  correct_answer: string;
+  explanation: string;
+  time: string;
+  submitted_at: string;
+  solve_count: number;
+  total_attempts: number;
+  days_since_last_solve: number;
+  spaced_repetition_status: string;
+  history: Array<{
+    id: string;
+    result: string;
+    lang: string;
+    is_correct: boolean;
+    time: string;
+    submitted_at: string;
+  }>;
+  resolve_config: {
+    mode: TabId;
+    item_id?: string;
+    name?: string;
+  };
 }
 
 // Stats shape — built from your real /practice/streak + /practice/progress
@@ -140,7 +186,7 @@ export default function PracticeArenaPage() {
   const [codingLoading, setCodingLoading]   = useState(false);
   const [codingError, setCodingError]       = useState("");
   const [codeProbIndex, setCodeProbIndex]   = useState(0);
-  const [codeLang, setCodeLang]             = useState<"python"|"cpp"|"javascript">("python");
+  const [codeLang, setCodeLang]             = useState<string>("python");
   const [codeValue, setCodeValue]           = useState("");
   const [codeRunning, setCodeRunning]       = useState(false);
   const [codeResult, setCodeResult]         = useState<{ pass: boolean; msg: string } | null>(null);
@@ -171,7 +217,7 @@ export default function PracticeArenaPage() {
   const [examResult, setExamResult]         = useState<any>(null);
   const [examSubmitting, setExamSubmitting] = useState(false);
   const [examSessionId, setExamSessionId]   = useState<string | null>(null);
-  const examTimerRef = useRef<NodeJS.Timeout>();
+  const examTimerRef = useRef<any>(null);
 
   // Activity state
   const [activityData, setActivityData]       = useState<APIActivityDay[]>([]);
@@ -179,6 +225,11 @@ export default function PracticeArenaPage() {
   const [activityError, setActivityError]     = useState("");
   const [recentSubs, setRecentSubs]           = useState<APISubmission[]>([]);
   const [recentLoading, setRecentLoading]     = useState(false);
+
+  // Solved topic solution & practice modal state
+  const [selectedSubDetail, setSelectedSubDetail] = useState<APISubmissionDetail | null>(null);
+  const [isSubModalOpen, setIsSubModalOpen]       = useState(false);
+  const [loadingSubDetail, setLoadingSubDetail]   = useState(false);
 
   useEffect(() => {
     setTimeout(() => setLoaded(true), 100);
@@ -329,36 +380,58 @@ export default function PracticeArenaPage() {
     }
   }
 
-  function codeRun() {
+  async function codeRun(isPasted: boolean = false, timeSpentS: number = 0) {
+    if (!codingProblems[codeProbIndex]) return;
     setCodeRunning(true);
-    setTimeout(() => {
-      const keywords = ["for","while","if","return","map","hash","stack","seen","dict"];
-      const hits = keywords.filter(k => codeValue.includes(k)).length;
-      const pass = codeValue.length > 80 && hits >= 2;
-      setCodeResult(pass
-        ? { pass:true,  msg:"✔ All test cases passed (3/3)\nTest 1: ✓  Test 2: ✓  Test 3: ✓" }
-        : { pass:false, msg:"✘ Test failed\nHint: Try using a hash map / stack for optimal time complexity." });
+    try {
+      const result = await apiFetch("/practice-arena/coding/run", {
+        method: "POST",
+        body: JSON.stringify({
+          problem_id: codingProblems[codeProbIndex].id,
+          language: codeLang,
+          code: codeValue,
+          is_pasted: isPasted,
+          time_spent_s: timeSpentS,
+        }),
+      });
+      setCodeResult({
+        pass: result.pass,
+        msg: result.pass
+          ? `✔ ${result.message || "All sample test cases passed!"}\nRuntime: ${result.runtime_ms || 35}ms`
+          : `✘ [${result.status || "Compilation Error"}]\n${result.message}`,
+      });
+    } catch (e: any) {
+      setCodeResult({ pass: false, msg: `✘ Compilation Error:\n${e.message}` });
+    } finally {
       setCodeRunning(false);
-    }, 1200);
+    }
   }
 
-  async function codeSubmit() {
+  async function codeSubmit(isPasted: boolean = false, timeSpentS: number = 0) {
     if (!codingProblems[codeProbIndex]) return;
     setCodeRunning(true);
     try {
       const result = await apiFetch("/practice-arena/coding/submit", {
         method: "POST",
-        body: JSON.stringify({ problem_id: codingProblems[codeProbIndex].id, language: codeLang, code: codeValue }),
+        body: JSON.stringify({
+          problem_id: codingProblems[codeProbIndex].id,
+          language: codeLang,
+          code: codeValue,
+          is_pasted: isPasted,
+          time_spent_s: timeSpentS,
+        }),
       });
       setCodeResult({
         pass: result.pass,
         msg: result.pass
-          ? `🎉 Accepted! ${result.runtime_ms ? `Runtime: ${result.runtime_ms}ms` : ""} | +${result.xp_earned || 0} XP`
-          : `✘ ${result.message}`,
+          ? `🎉 Accepted! ${result.runtime_ms ? `Runtime: ${result.runtime_ms}ms` : ""} | +${result.xp_earned || 15} XP\n✔ All test cases passed!`
+          : `✘ [${result.status || "Wrong Answer"}]\n${result.message}`,
       });
-      if (result.pass) setStats(prev => prev ? { ...prev, total_solved: prev.total_solved + 1, today_xp: prev.today_xp + (result.xp_earned || 0) } : prev);
+      if (result.pass) {
+        setStats(prev => prev ? { ...prev, total_solved: prev.total_solved + 1, today_xp: prev.today_xp + (result.xp_earned || 15) } : prev);
+      }
     } catch (e: any) {
-      setCodeResult({ pass:false, msg:`Error: ${e.message}` });
+      setCodeResult({ pass: false, msg: `✘ Error: ${e.message}` });
     } finally {
       setCodeRunning(false);
     }
@@ -484,20 +557,24 @@ export default function PracticeArenaPage() {
     setExamFlagged(prev => { const s = new Set(prev); s.has(i) ? s.delete(i) : s.add(i); return s; });
   }
 
-  // ── Activity — uses /practice/progress for activity graph ─────────────────
+  // ── Activity — uses /practice-arena endpoints + fallback ─────────────────
   async function fetchActivity() {
     setActivityLoading(true); setActivityError(""); setRecentLoading(true);
     try {
-      // Build activity from progress data + streak info
-      const [progressData, streakData] = await Promise.all([
+      const [arenaActivity, arenaSubs, progressData] = await Promise.all([
+        apiFetch("/practice-arena/activity").catch(() => []),
+        apiFetch("/practice-arena/submissions/recent?limit=20").catch(() => []),
         apiFetch("/practice/progress").catch(() => []),
-        apiFetch("/practice/streak").catch(() => null),
       ]);
 
-      // Generate activity heatmap from progress data
-      // Each topic with progress_pct > 0 was practiced on updated_at date
       const activityMap: Record<string, number> = {};
-      if (Array.isArray(progressData)) {
+      if (Array.isArray(arenaActivity) && arenaActivity.length > 0) {
+        arenaActivity.forEach((a: any) => {
+          if (a.date && a.submissions) {
+            activityMap[a.date] = a.submissions;
+          }
+        });
+      } else if (Array.isArray(progressData)) {
         progressData.forEach((p: any) => {
           if (p.updated_at) {
             const date = p.updated_at.split("T")[0];
@@ -516,14 +593,17 @@ export default function PracticeArenaPage() {
       }
       setActivityData(days);
 
-      // Build recent submissions from progress topics
-      if (Array.isArray(progressData) && progressData.length > 0) {
+      if (Array.isArray(arenaSubs) && arenaSubs.length > 0) {
+        setRecentSubs(arenaSubs);
+      } else if (Array.isArray(progressData) && progressData.length > 0) {
         const recent: APISubmission[] = progressData.slice(0, 10).map((p: any) => ({
+          id: p.id || p.topic,
           name: p.topic,
-          result: p.progress_pct >= 50 ? "AC" : "Practice",
+          result: p.progress_pct >= 50 ? "Accepted" : "Practice",
           lang: "AI Practice",
           time: p.updated_at ? new Date(p.updated_at).toLocaleDateString() : "Recently",
           correct: p.progress_pct >= 50,
+          solve_count: 1,
         }));
         setRecentSubs(recent);
       }
@@ -534,13 +614,83 @@ export default function PracticeArenaPage() {
     }
   }
 
+  async function handleOpenSubDetail(sub: APISubmission) {
+    setIsSubModalOpen(true);
+    setLoadingSubDetail(true);
+    setSelectedSubDetail(null);
+    try {
+      const subId = sub.id || sub.name;
+      const detail: APISubmissionDetail = await apiFetch(`/practice-arena/submissions/${encodeURIComponent(subId)}`);
+      setSelectedSubDetail(detail);
+    } catch {
+      const langLower = (sub.lang || "").toLowerCase();
+      const mode: TabId = (langLower.includes("python") || langLower.includes("cpp") || langLower.includes("coding")) ? "coding" : (langLower.includes("numeric") ? "numeric" : "mcq");
+      setSelectedSubDetail({
+        id: sub.id || "sub-1",
+        name: sub.name,
+        result: sub.result || "Accepted",
+        lang: sub.lang || "MCQ",
+        is_correct: sub.correct,
+        item_id: sub.item_id || "",
+        user_answer: sub.user_answer || "Solution snapshot recorded during practice session.",
+        correct_answer: sub.correct_answer || "Accepted & Verified.",
+        explanation: sub.explanation || `You have practiced ${sub.name}. Practicing regularly builds long-term recall!`,
+        time: sub.time || "Recently",
+        submitted_at: sub.submitted_at || new Date().toISOString(),
+        solve_count: sub.solve_count || (sub.correct ? 1 : 0),
+        total_attempts: 1,
+        days_since_last_solve: sub.days_since_last_solve ?? 0,
+        spaced_repetition_status: sub.days_since_last_solve !== undefined && sub.days_since_last_solve < 7
+          ? `Solved ${sub.days_since_last_solve} day(s) ago · Revision Window Active`
+          : "🔥 1-Week Spaced Repetition Window Reached! Ready for practice!",
+        history: [{
+          id: sub.id || "hist-1",
+          result: sub.result || "Accepted",
+          lang: sub.lang || "MCQ",
+          is_correct: sub.correct,
+          time: sub.time || "Recently",
+          submitted_at: sub.submitted_at || new Date().toISOString(),
+        }],
+        resolve_config: {
+          mode: mode,
+          item_id: sub.item_id || "",
+          name: sub.name,
+        },
+      });
+    } finally {
+      setLoadingSubDetail(false);
+    }
+  }
+
+  function handleReSolveTopic(resolveConfig: { mode: TabId; item_id?: string; name?: string }) {
+    setIsSubModalOpen(false);
+    setActiveTab(resolveConfig.mode);
+    if (resolveConfig.mode === "mcq") {
+      fetchMCQ();
+    } else if (resolveConfig.mode === "coding") {
+      fetchCoding();
+    } else if (resolveConfig.mode === "numeric") {
+      fetchNumeric();
+    } else if (resolveConfig.mode === "exam") {
+      fetchExam();
+    }
+  }
+
   const timerStr = `${String(Math.floor(examTime/60)).padStart(2,"0")}:${String(examTime%60).padStart(2,"0")}`;
 
   function optionText(opt: string): string { return opt.replace(/^[A-D]\.\s*/,""); }
   function letterToIndex(letter: string): number { return letter.charCodeAt(0) - 65; }
 
-  const currentUser = typeof window !== "undefined"
-    ? (localStorage.getItem("user_name") || "User") : "User";
+  const { user, logout } = useAuth();
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  const rawName = (user as any)?.full_name || (user as any)?.name || (typeof window !== "undefined" ? localStorage.getItem("user_name") : "") || "User";
+  const currentUser = mounted ? (rawName.includes("@") ? rawName.split("@")[0] : rawName) : "User";
+  const avatarInitials = mounted && currentUser && currentUser !== "User" ? currentUser.slice(0, 2).toUpperCase() : "US";
+  const userAvatarUrl = (user as any)?.avatar_url || (user as any)?.image || null;
 
   return (
     <div style={s.root}>
@@ -548,9 +698,8 @@ export default function PracticeArenaPage() {
 
       {/* Sidebar */}
       <aside style={s.sidebar}>
-        <div style={s.sidebarLogo}>
-          <Image src="/images/GrowthOs.png" alt="GrowthOS" width={32} height={32} style={{ borderRadius:"50%" }}/>
-          <span style={s.sidebarLogoText}>GrowthOS</span>
+        <div style={{ padding: "0 4px 24px" }}>
+          <BrandLogo size="md" />
         </div>
         <nav style={s.nav}>
           {NAV_ITEMS.map(item => (
@@ -564,14 +713,22 @@ export default function PracticeArenaPage() {
           ))}
         </nav>
         <div style={s.sidebarFooter}>
-          <div style={s.sidebarUser}>
-            <div style={s.avatarSmall}>{currentUser[0]?.toUpperCase()}</div>
+          <div
+            style={{ ...s.sidebarUser, cursor: "pointer" }}
+            onClick={() => setIsProfileModalOpen(true)}
+            title="Open Profile Settings"
+          >
+            {userAvatarUrl ? (
+              <img src={userAvatarUrl} alt={currentUser} style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
+            ) : (
+              <div style={s.avatarSmall}>{avatarInitials}</div>
+            )}
             <div>
               <div style={{ fontSize:"0.82rem", fontWeight:600, color:"#e2e8f0" }}>{currentUser}</div>
-              <div style={{ fontSize:"0.7rem", color:"#475569" }}>Pro Plan</div>
+              <div style={{ fontSize:"0.68rem", color:"#818cf8", fontWeight:600 }}>{user?.plan || user?.plan_tier || "MEMBER PLAN"} · 🔥 {(stats?.current_streak ?? 0)}d streak</div>
             </div>
           </div>
-          <button style={s.logoutBtn}><LogOut size={15}/></button>
+          <button style={s.logoutBtn} onClick={() => logout && logout()} title="Log Out"><LogOut size={15}/></button>
         </div>
       </aside>
 
@@ -588,9 +745,24 @@ export default function PracticeArenaPage() {
           </div>
           <div style={s.topbarRight}>
             <button style={s.iconBtn}><Bell size={18}/></button>
-            <div style={s.avatarMed}>{currentUser[0]?.toUpperCase()}</div>
+            <div
+              style={{ ...s.avatarMed, cursor: "pointer", overflow: "hidden" }}
+              onClick={() => setIsProfileModalOpen(true)}
+              title="Open Profile Settings"
+            >
+              {userAvatarUrl ? (
+                <img src={userAvatarUrl} alt={currentUser} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
+              ) : (
+                avatarInitials
+              )}
+            </div>
           </div>
         </div>
+
+        <ProfileSettingsModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+        />
 
         {/* Stats row — real data from /practice/streak */}
         <div style={s.statsRow}>
@@ -766,34 +938,41 @@ export default function PracticeArenaPage() {
                     </div>
                   ))}
                 </div>
-                <div style={s.codeRight}>
-                  <div style={s.codeToolbar}>
-                    <select value={codeLang} onChange={e => {
-                      const l = e.target.value as "python"|"cpp"|"javascript";
-                      setCodeLang(l);
-                      const p = codingProblems[codeProbIndex];
-                      setCodeValue(l==="python"?p.starter_python||"":l==="cpp"?p.starter_cpp||"":p.starter_javascript||"");
-                      setCodeResult(null);
-                    }} style={s.langSelect}>
-                      <option value="python">Python 3</option>
-                      <option value="cpp">C++</option>
-                      <option value="javascript">JavaScript</option>
-                    </select>
-                    <span style={{ fontSize:"0.72rem", color:"#334155", marginLeft:"auto" }}>Code Editor</span>
-                  </div>
-                  <textarea value={codeValue} onChange={e => setCodeValue(e.target.value)} style={s.codeArea} spellCheck={false}/>
-                  {codeResult && (
-                    <div style={{ padding:"8px 16px" }}>
-                      <div style={{ ...s.testResult, ...(codeResult.pass?s.testPass:s.testFail) }}>{codeResult.msg}</div>
-                    </div>
-                  )}
-                  <div style={s.codeFooter}>
-                    <button style={{ ...s.btnCheck, flex:1 }} onClick={codeRun} disabled={codeRunning}>
-                      {codeRunning?"Running...":"▶ Run Code"}
-                    </button>
-                    <button style={{ ...s.btnNext, flex:1 }} onClick={codeSubmit} disabled={codeRunning}>Submit →</button>
-                  </div>
-                </div>
+                <LeetCodeMonacoEditor
+                  value={codeValue}
+                  onChange={setCodeValue}
+                  language={codeLang}
+                  onLanguageChange={(l) => {
+                    setCodeLang(l);
+                    const p = codingProblems[codeProbIndex];
+                    if (p) {
+                      setCodeValue(
+                        l === "python"
+                          ? p.starter_python || "def solution():\n    pass"
+                          : l === "cpp"
+                          ? p.starter_cpp || "#include <iostream>\nusing namespace std;\n\nint main() {\n    return 0;\n}"
+                          : l === "java"
+                          ? p.starter_java || "public class Solution {\n    public static void main(String[] args) {\n        \n    }\n}"
+                          : p.starter_javascript || "function solution() {\n    \n}"
+                      );
+                    }
+                    setCodeResult(null);
+                  }}
+                  onRun={(isPasted, timeSpentS) => codeRun(isPasted, timeSpentS)}
+                  onSubmit={(isPasted, timeSpentS) => codeSubmit(isPasted, timeSpentS)}
+                  running={codeRunning}
+                  testResult={codeResult}
+                  examples={codingProblems[codeProbIndex]?.examples || []}
+                  starterCode={
+                    codeLang === "python"
+                      ? codingProblems[codeProbIndex]?.starter_python || ""
+                      : codeLang === "cpp"
+                      ? codingProblems[codeProbIndex]?.starter_cpp || ""
+                      : codeLang === "java"
+                      ? codingProblems[codeProbIndex]?.starter_java || ""
+                      : codingProblems[codeProbIndex]?.starter_javascript || ""
+                  }
+                />
               </div>
             )
           )}
@@ -994,15 +1173,15 @@ export default function PracticeArenaPage() {
                       {Array.from({ length:53 },(_,w) => (
                         <div key={w} style={{ display:"flex", flexDirection:"column" as const, gap:"3px" }}>
                           {activityData.slice(w*7, w*7+7).map((d,day) => (
-                            <div key={day} title={`${d.date}: ${d.submissions} sessions`} style={{ width:"12px", height:"12px", borderRadius:"2px", cursor:"pointer", background:d.submissions===0?"#0f172a":d.submissions<=2?"#14532d":d.submissions<=5?"#166534":"#22c55e" }}/>
+                            <div key={day} title={`${d.date}: ${d.submissions} sessions`} style={{ width:"12px", height:"12px", borderRadius:"2px", cursor:"pointer", background:d.submissions===0?"#ffffff":d.submissions<=2?"#86efac":d.submissions<=5?"#22c55e":"#15803d" }}/>
                           ))}
                         </div>
                       ))}
                     </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:"6px", marginTop:"10px", fontSize:"0.7rem", color:"#475569" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:"6px", marginTop:"10px", fontSize:"0.7rem", color:"#94a3b8" }}>
                       <span>Less</span>
-                      {["#0f172a","#14532d","#166534","#22c55e"].map((c,i) => (
-                        <div key={i} style={{ width:"10px", height:"10px", borderRadius:"2px", background:c, border:i===0?"1px solid rgba(255,255,255,0.08)":"none" }}/>
+                      {["#ffffff","#86efac","#22c55e","#15803d"].map((c,i) => (
+                        <div key={i} style={{ width:"10px", height:"10px", borderRadius:"2px", background:c, border:i===0?"1px solid rgba(0,0,0,0.1)":"none" }}/>
                       ))}
                       <span>More</span>
                     </div>
@@ -1017,16 +1196,197 @@ export default function PracticeArenaPage() {
                 ) : (
                   <div style={{ display:"flex", flexDirection:"column" as const, gap:"8px" }}>
                     {recentSubs.map((sub,i) => (
-                      <div key={i} style={s.recentItem}>
-                        <div style={{ flex:1, fontSize:"0.85rem", fontWeight:500, color:"white" }}>{sub.name}</div>
+                      <div
+                        key={i}
+                        onClick={() => handleOpenSubDetail(sub)}
+                        style={{ ...s.recentItem, cursor: "pointer", transition: "all 0.2s ease" }}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.08)";
+                          (e.currentTarget as HTMLElement).style.borderColor = "rgba(99,102,241,0.3)";
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.02)";
+                          (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.05)";
+                        }}
+                        title="Click to view solution, solve count & re-solve question"
+                      >
+                        <div style={{ flex:1, display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <div style={{ fontSize:"0.85rem", fontWeight:500, color:"white", display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span>{sub.name}</span>
+                            {sub.solve_count && sub.solve_count > 0 && (
+                              <span style={{ fontSize: "0.65rem", fontWeight: 700, padding: "1px 6px", borderRadius: "10px", background: "rgba(34,197,94,0.15)", color: "#86efac", border: "1px solid rgba(34,197,94,0.3)" }}>
+                                Solved {sub.solve_count}x
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: "0.68rem", color: "#64748b" }}>
+                            Click to inspect solution & re-solve (1-Week Spaced Repetition)
+                          </div>
+                        </div>
                         <div style={{ display:"flex", gap:"8px", alignItems:"center" }}>
                           <span style={{ ...s.badge, ...(sub.correct?s.badgeAc:s.badgeWa) }}>{sub.result}</span>
                           <span style={{ ...s.badge, ...s.badgeLang }}>{sub.lang}</span>
+                          <span style={{ fontSize: "0.75rem", color: "#818cf8", fontWeight: 700, marginLeft: "4px" }}>🔍 Solution →</span>
                         </div>
-                        <div style={{ fontSize:"0.7rem", color:"#334155", marginLeft:"8px" }}>{sub.time}</div>
+                        <div style={{ fontSize:"0.7rem", color:"#475569", marginLeft:"8px" }}>{sub.time}</div>
                       </div>
                     ))}
                   </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── SOLVED TOPIC SOLUTION & PRACTICE MODAL ───────────────────── */}
+          {isSubModalOpen && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                background: "rgba(2,8,24,0.82)",
+                backdropFilter: "blur(12px)",
+                zIndex: 9999,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "20px",
+              }}
+              onClick={() => setIsSubModalOpen(false)}
+            >
+              <div
+                style={{
+                  width: "100%",
+                  maxWidth: "680px",
+                  maxHeight: "90vh",
+                  background: "linear-gradient(135deg, rgba(15,23,42,0.96) 0%, rgba(6,15,34,0.98) 100%)",
+                  border: "1px solid rgba(99,102,241,0.25)",
+                  boxShadow: "0 24px 60px -12px rgba(0,0,0,0.7), 0 0 30px rgba(99,102,241,0.15)",
+                  borderRadius: "20px",
+                  overflowY: "auto",
+                  padding: "24px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "16px",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.07)", paddingBottom: "16px" }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                      <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "white", margin: 0, fontFamily: "'Rajdhani', sans-serif" }}>
+                        {selectedSubDetail?.name || "Topic Solution"}
+                      </h2>
+                      {selectedSubDetail && (
+                        <span style={{ fontSize: "0.7rem", fontWeight: 700, padding: "3px 10px", borderRadius: "14px", background: "rgba(34,197,94,0.15)", color: "#86efac", border: "1px solid rgba(34,197,94,0.3)" }}>
+                          🏆 Solved {selectedSubDetail.solve_count} {selectedSubDetail.solve_count === 1 ? "time" : "times"}
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ fontSize: "0.78rem", color: "#94a3b8", margin: "4px 0 0" }}>
+                      Inspect how this topic was solved, view step-by-step reasoning, and re-solve to build long-term memory.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setIsSubModalOpen(false)}
+                    style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "10px", width: "32px", height: "32px", color: "#94a3b8", cursor: "pointer", fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {loadingSubDetail ? (
+                  <Spinner label="Loading solution and solve history..." />
+                ) : selectedSubDetail ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                    
+                    {/* Spaced Repetition & Solve Stats */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" }}>
+                      <div style={{ padding: "12px", borderRadius: "12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div style={{ fontSize: "0.68rem", color: "#64748b", fontWeight: 700, letterSpacing: ".05em" }}>TOTAL SOLVES</div>
+                        <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "#22c55e", marginTop: "2px" }}>{selectedSubDetail.solve_count}x Solved</div>
+                        <div style={{ fontSize: "0.65rem", color: "#475569", marginTop: "2px" }}>{selectedSubDetail.total_attempts} total attempt(s)</div>
+                      </div>
+                      <div style={{ padding: "12px", borderRadius: "12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div style={{ fontSize: "0.68rem", color: "#64748b", fontWeight: 700, letterSpacing: ".05em" }}>LAST PRACTICE</div>
+                        <div style={{ fontSize: "1.1rem", fontWeight: 700, color: "#818cf8", marginTop: "2px" }}>{selectedSubDetail.time}</div>
+                        <div style={{ fontSize: "0.65rem", color: "#475569", marginTop: "2px" }}>{selectedSubDetail.days_since_last_solve} day(s) ago</div>
+                      </div>
+                      <div style={{ padding: "12px", borderRadius: "12px", background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.2)" }}>
+                        <div style={{ fontSize: "0.68rem", color: "#818cf8", fontWeight: 700, letterSpacing: ".05em" }}>1-WEEK REPETITION</div>
+                        <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#f59e0b", marginTop: "4px", lineHeight: 1.3 }}>
+                          {selectedSubDetail.spaced_repetition_status}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Solution & Explanation Box */}
+                    <div style={{ padding: "16px", borderRadius: "14px", background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)", display: "flex", flexDirection: "column", gap: "12px" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#e2e8f0" }}>💡 How It Was Solved</div>
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          <span style={{ fontSize: "0.68rem", fontWeight: 700, padding: "2px 8px", borderRadius: "6px", background: selectedSubDetail.is_correct ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)", color: selectedSubDetail.is_correct ? "#22c55e" : "#ef4444" }}>
+                            {selectedSubDetail.result}
+                          </span>
+                          <span style={{ fontSize: "0.68rem", fontWeight: 700, padding: "2px 8px", borderRadius: "6px", background: "rgba(99,102,241,0.12)", color: "#a5b4fc" }}>
+                            {selectedSubDetail.lang}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Submitted Answer or Code */}
+                      <div>
+                        <div style={{ fontSize: "0.7rem", color: "#64748b", fontWeight: 700, marginBottom: "4px", textTransform: "uppercase", letterSpacing: ".05em" }}>User Code / Submitted Answer</div>
+                        <div style={{ padding: "12px", borderRadius: "10px", background: "rgba(6,15,34,0.8)", border: "1px solid rgba(255,255,255,0.08)", fontFamily: "'JetBrains Mono', monospace", fontSize: "0.8rem", color: "#a5b4fc", whiteSpace: "pre-wrap", overflowX: "auto", maxHeight: "160px" }}>
+                          {selectedSubDetail.user_answer}
+                        </div>
+                      </div>
+
+                      {/* Step-by-Step AI Explanation */}
+                      <div>
+                        <div style={{ fontSize: "0.7rem", color: "#64748b", fontWeight: 700, marginBottom: "4px", textTransform: "uppercase", letterSpacing: ".05em" }}>Expected Answer & Logic</div>
+                        <div style={{ padding: "12px", borderRadius: "10px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", color: "#86efac", fontSize: "0.82rem", lineHeight: 1.65 }}>
+                          <div style={{ fontWeight: 700, marginBottom: "4px" }}>Verified Answer: {selectedSubDetail.correct_answer}</div>
+                          <div style={{ color: "#d1fae5" }}>{selectedSubDetail.explanation}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Solve History */}
+                    {selectedSubDetail.history && selectedSubDetail.history.length > 1 && (
+                      <div style={{ padding: "12px", borderRadius: "12px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "#cbd5e1", marginBottom: "8px" }}>
+                          📜 Previous Solve History ({selectedSubDetail.history.length} attempts)
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px", maxHeight: "100px", overflowY: "auto" }}>
+                          {selectedSubDetail.history.map((h, i) => (
+                            <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.72rem", padding: "5px 10px", background: "rgba(0,0,0,0.2)", borderRadius: "6px" }}>
+                              <span style={{ color: h.is_correct ? "#22c55e" : "#ef4444", fontWeight: 600 }}>
+                                {h.is_correct ? "✓ Accepted" : "✗ Attempted"} ({h.lang})
+                              </span>
+                              <span style={{ color: "#475569" }}>{h.time}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action Footer */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "12px", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+                      <div style={{ fontSize: "0.72rem", color: "#64748b" }}>
+                        💡 Practice again within 1 week to reinforce memory like LeetCode repetition.
+                      </div>
+                      <button
+                        onClick={() => handleReSolveTopic(selectedSubDetail.resolve_config)}
+                        style={{ padding: "10px 22px", borderRadius: "10px", background: "linear-gradient(135deg, #6366f1 0%, #3b82f6 100%)", border: "none", color: "white", fontSize: "0.85rem", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 14px rgba(99,102,241,0.35)", transition: "all 0.2s" }}
+                      >
+                        ⚡ Solve Again (Practice Mode)
+                      </button>
+                    </div>
+
+                  </div>
+                ) : (
+                  <div style={{ padding: "20px", color: "#ef4444" }}>Could not load topic details.</div>
                 )}
               </div>
             </div>

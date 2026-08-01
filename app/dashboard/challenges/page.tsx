@@ -12,13 +12,17 @@ import {
   Swords, Shield, CheckCircle2, AlertTriangle,
 } from "lucide-react";
 
+import { useAuth } from "@/context/AuthContext";
+import ProfileSettingsModal from "@/components/ui/ProfileSettingsModal";
+import BrandLogo from "@/components/ui/BrandLogo";
+
 // ── Nav ───────────────────────────────────────────────────────────────────────
 const NAV = [
   { icon:<LayoutDashboard size={18}/>, label:"Dashboard",    href:"/dashboard" },
   { icon:<Play size={18}/>,            label:"Practice Arena",href:"/dashboard/practice" },
   { icon:<BarChart2 size={18}/>,       label:"Leaderboard",  href:"/dashboard/leaderboard" },
   { icon:<Trophy size={18}/>,          label:"Challenges",   href:"/dashboard/challenges", active:true },
-  { icon:<Users size={18}/>,           label:"Your Arena",   href:"/dashboard/community" },
+  { icon:<Users size={18}/>,           label:"Community",    href:"/dashboard/community" },
   { icon:<Settings size={18}/>,        label:"Settings",     href:"/dashboard/settings" },
 ];
 
@@ -280,6 +284,17 @@ function useCountdown(initial:string){
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ChallengesPage() {
+  const { user, logout } = useAuth();
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  const [mounted, setMounted] = useState(false);
+
+  const rawName = (user as any)?.full_name || (user as any)?.name || (typeof window !== "undefined" ? localStorage.getItem("user_name") : "") || "User";
+  const currentUser = mounted ? (rawName.includes("@") ? rawName.split("@")[0] : rawName) : "User";
+  const avatarInitials = mounted && currentUser && currentUser !== "User" ? currentUser.slice(0, 2).toUpperCase() : "US";
+  const userAvatarUrl = (user as any)?.avatar_url || (user as any)?.image || null;
+
   const [loaded, setLoaded]           = useState(false);
   const [activeTab, setActiveTab]     = useState<CatType>("daily");
   const [activeDomain, setActiveDomain] = useState<Domain>("All");
@@ -294,12 +309,23 @@ export default function ChallengesPage() {
   const [participants, setParticipants] = useState<Record<number,number>>({});
   const [communityProgress, setCommunityProgress] = useState(68);
   const [xpTotal, setXpTotal]         = useState(820);
-  const [streak]                      = useState(18);
+  const [streak, setStreak]           = useState(0);
   const [hintsLeft, setHintsLeft]     = useState(3);
   const evId = useRef(0);
   const dailyCountdown = useCountdown("11h 42m");
 
-  useEffect(()=>{ setTimeout(()=>setLoaded(true),100); },[]);
+  useEffect(() => {
+    setMounted(true);
+    setTimeout(() => setLoaded(true), 100);
+
+    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : "";
+    if (token) {
+      fetch(`${API}/practice/streak`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(d => { if (d?.current_streak !== undefined) setStreak(d.current_streak); })
+        .catch(() => {});
+    }
+  }, []);
 
   // Live events
   useEffect(()=>{
@@ -513,6 +539,9 @@ export default function ChallengesPage() {
 
       {/* ── Sidebar ── */}
       <aside style={s.sidebar}>
+        <div style={{ padding: "0 4px 24px" }}>
+          <BrandLogo size="md" />
+        </div>
         <nav style={s.nav}>
           {NAV.map(item=>(
             <Link key={item.label} href={item.href} style={{textDecoration:"none"}}>
@@ -525,14 +554,22 @@ export default function ChallengesPage() {
           ))}
         </nav>
         <div style={s.sidebarFooter}>
-          <div style={s.sidebarUser}>
-            <div style={s.avatarSmall}>Y</div>
+          <div
+            style={{ ...s.sidebarUser, cursor: "pointer" }}
+            onClick={() => setIsProfileModalOpen(true)}
+            title="Open Profile Settings"
+          >
+            {userAvatarUrl ? (
+              <img src={userAvatarUrl} alt={currentUser} style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
+            ) : (
+              <div style={s.avatarSmall}>{avatarInitials}</div>
+            )}
             <div>
-              <div style={{fontSize:"0.82rem",fontWeight:600,color:"#e2e8f0"}}>You</div>
-              <div style={{fontSize:"0.7rem",color:"#22c55e"}}>🔥 {streak}-day streak</div>
+              <div style={{fontSize:"0.82rem",fontWeight:600,color:"#e2e8f0"}}>{currentUser}</div>
+              <div style={{fontSize:"0.68rem",color:"#818cf8",fontWeight:600}}>{user?.plan || user?.plan_tier || "MEMBER PLAN"} · 🔥 {streak}d streak</div>
             </div>
           </div>
-          <button style={s.logoutBtn}><LogOut size={15}/></button>
+          <button style={s.logoutBtn} onClick={() => logout && logout()} title="Log Out"><LogOut size={15}/></button>
         </div>
       </aside>
 
@@ -553,9 +590,24 @@ export default function ChallengesPage() {
           <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
             <div style={s.xpDisplay}>⚡ {xpTotal.toLocaleString()} XP</div>
             <button style={s.iconBtn}><Bell size={18}/></button>
-            <div style={s.avatarMed}>Y</div>
+            <div
+              style={{ ...s.avatarMed, cursor: "pointer", overflow: "hidden" }}
+              onClick={() => setIsProfileModalOpen(true)}
+              title="Open Profile Settings"
+            >
+              {userAvatarUrl ? (
+                <img src={userAvatarUrl} alt={currentUser} style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover" }} />
+              ) : (
+                avatarInitials
+              )}
+            </div>
           </div>
         </div>
+
+        <ProfileSettingsModal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+        />
 
         {/* ══ HERO DAILY CHALLENGE ══ */}
         <div style={s.heroCard}>

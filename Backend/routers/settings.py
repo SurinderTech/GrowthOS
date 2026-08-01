@@ -39,10 +39,12 @@ router = APIRouter()
 # ── Pydantic Schemas ──────────────────────────────────────────────────────────
 
 class ProfileUpdateRequest(BaseModel):
-    name:    Optional[str] = None
-    bio:     Optional[str] = None
-    country: Optional[str] = None
-    phone:   Optional[str] = None
+    name:       Optional[str] = None
+    bio:        Optional[str] = None
+    country:    Optional[str] = None
+    phone:      Optional[str] = None
+    avatar_url: Optional[str] = None
+    image:      Optional[str] = None
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
@@ -73,6 +75,55 @@ class DeleteAccountRequest(BaseModel):
     confirm: str   # must be "DELETE"
 
 
+# ── GET /settings/profile ───────────────────────────────────────────────────
+
+@router.get("/profile")
+def get_profile(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get aggregated user profile, appearance, notification, and privacy settings.
+    """
+    ob = db.query(UserOnboarding).filter(
+        UserOnboarding.user_id == current_user.id
+    ).first()
+
+    return {
+        "profile": {
+            "id": str(current_user.id),
+            "name": current_user.name or "",
+            "email": current_user.email or "",
+            "bio": getattr(current_user, "bio", "") or "",
+            "phone": getattr(current_user, "phone", "") or "",
+            "country": (ob.country if ob else "") or "",
+            "avatar_url": current_user.image or "",
+            "provider": current_user.provider or "credentials",
+        },
+        "appearance": (ob.appearance_settings if (ob and ob.appearance_settings) else {
+            "theme": "dark",
+            "accent_color": "#6366f1",
+            "compact_mode": False,
+            "animations": True,
+        }),
+        "notifications": (ob.notification_settings if (ob and ob.notification_settings) else {
+            "email_missions": True,
+            "email_streak": True,
+            "email_weekly": False,
+            "push_missions": True,
+            "push_streak": True,
+            "push_achievements": True,
+            "sms_critical": False,
+        }),
+        "privacy": (ob.privacy_settings if (ob and ob.privacy_settings) else {
+            "profile_public": True,
+            "show_streak": True,
+            "show_leaderboard": True,
+            "data_analytics": True,
+        }),
+    }
+
+
 # ── PATCH /settings/profile ───────────────────────────────────────────────────
 
 @router.patch("/profile")
@@ -90,19 +141,26 @@ def update_profile(
             raise HTTPException(status_code=400, detail="Name cannot be empty")
         current_user.name = req.name.strip()
 
-    # ── bio and phone stored directly on User model ───────────────────────
     if req.bio is not None:
         current_user.bio = req.bio.strip()
 
     if req.phone is not None:
         current_user.phone = req.phone.strip()
 
-    # ── country stored in onboarding ─────────────────────────────────────
+    if req.avatar_url is not None:
+        current_user.image = req.avatar_url.strip()
+    elif req.image is not None:
+        current_user.image = req.image.strip()
+
     ob = db.query(UserOnboarding).filter(
         UserOnboarding.user_id == current_user.id
     ).first()
 
-    if ob and req.country is not None:
+    if not ob:
+        ob = UserOnboarding(user_id=current_user.id)
+        db.add(ob)
+
+    if req.country is not None:
         ob.country = req.country.strip()
 
     current_user.updated_at = datetime.now(timezone.utc)
@@ -112,10 +170,13 @@ def update_profile(
     return {
         "success": True,
         "user": {
-            "name":  current_user.name,
-            "email": current_user.email,
-            "bio":   current_user.bio,
-            "phone": current_user.phone,
+            "id":         str(current_user.id),
+            "name":       current_user.name,
+            "email":      current_user.email,
+            "bio":        current_user.bio,
+            "phone":      current_user.phone,
+            "country":    ob.country if ob else "",
+            "avatar_url": current_user.image,
         }
     }
 
@@ -249,6 +310,33 @@ def update_notifications(
     return {
         "success":  True,
         "message":  "Notification preferences saved",
+        "settings": settings_data,
+    }
+
+
+# ── GET /settings/appearance ────────────────────────────────────────────────
+
+@router.get("/appearance")
+def get_appearance(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get saved appearance preferences.
+    """
+    ob = db.query(UserOnboarding).filter(
+        UserOnboarding.user_id == current_user.id
+    ).first()
+
+    settings_data = ob.appearance_settings if (ob and ob.appearance_settings) else {
+        "theme": "dark",
+        "accent_color": "#6366f1",
+        "compact_mode": False,
+        "animations": True,
+    }
+
+    return {
+        "success": True,
         "settings": settings_data,
     }
 

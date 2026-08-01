@@ -17,6 +17,7 @@ from Backend.models.onboarding import UserOnboarding
 from Backend.schemas.smart_task import SmartTaskOut, SubmitAnswerRequest, SubmitAnswerResponse
 from Backend.services.smart_task_service import generate_smart_daily_tasks
 from Backend.services.gemini_service import ask_ai   # reuse your existing ask_ai
+from Backend.services.streak_service import update_streak
 
 router = APIRouter()
 
@@ -133,8 +134,9 @@ def complete_task(
 
     task.completed    = True
     task.completed_at = datetime.now(timezone.utc)
+    streak_data       = update_streak(current_user.id, db)
     db.commit()
-    return {"success": True, "xp_earned": task.xp_reward}
+    return {"success": True, "xp_earned": task.xp_reward, "streak": streak_data}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -210,6 +212,7 @@ Plain text only. No markdown. Be encouraging but honest.
     task.ai_feedback  = feedback
     task.completed    = True
     task.completed_at = datetime.now(timezone.utc)
+    update_streak(current_user.id, db)
     db.commit()
     db.refresh(task)
 

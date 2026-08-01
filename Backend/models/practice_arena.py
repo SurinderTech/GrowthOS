@@ -26,6 +26,7 @@ class CodingProblem(Base):
     examples    = Column(JSON, default=list)           # [{input, output, explain}]
     starter_python     = Column(Text, nullable=True)
     starter_cpp        = Column(Text, nullable=True)
+    starter_java       = Column(Text, nullable=True)
     starter_javascript = Column(Text, nullable=True)
     created_by  = Column(String(20), default="ai")
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
@@ -42,10 +43,12 @@ class CodingSubmission(Base):
     id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id     = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     problem_id  = Column(UUID(as_uuid=True), ForeignKey("coding_problems.id"), nullable=False)
-    language    = Column(String(20), nullable=False)   # python | cpp | javascript
+    language    = Column(String(20), nullable=False)   # python | cpp | java | javascript
     code        = Column(Text, nullable=False)
     result      = Column(String(20), nullable=False)   # accepted | wrong_answer | error
     runtime_ms  = Column(Integer, nullable=True)
+    is_pasted   = Column(Boolean, default=False)
+    time_spent_s= Column(Integer, default=0)
     submitted_at= Column(DateTime(timezone=True), server_default=func.now())
 
     problem = relationship("CodingProblem", back_populates="submissions")
@@ -102,6 +105,10 @@ class RecentSubmission(Base):
     result      = Column(String(50), nullable=False)    # "Accepted" | "Wrong Answer"
     lang        = Column(String(30), nullable=False)    # "Python" | "MCQ" | "Numeric"
     is_correct  = Column(Boolean, default=False)
+    item_id     = Column(String(100), nullable=True)    # question_id or problem_id or topic
+    user_answer = Column(Text, nullable=True)          # submitted code or answer string
+    correct_answer = Column(Text, nullable=True)       # correct answer string
+    explanation = Column(Text, nullable=True)          # solution explanation or test output
     submitted_at= Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User")
