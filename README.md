@@ -118,7 +118,7 @@ School & College<br>
 30 questions per test<br>
 Real exam-like pressure<br>
 Time-based solving<br>
-🔢 Question Types<br>
+ Question Types<br>
 MCQ (Objective)<br>
 Numerical (Manual input)
 
