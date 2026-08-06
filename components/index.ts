@@ -18,10 +18,12 @@ export { AIDashboard } from './ui/AIDashboard';
 // Section Components
 export { HeroSection } from './sections/HeroSection';
 export { ProblemSection } from './sections/ProblemSection';
-export { MetricsSection } from './sections/MetricsSection';
 export { AIAccountabilitySection } from './sections/AIAccountabilitySection';
-export { FeaturesSection } from './sections/FeaturesSection';
 export { PipelineSection } from './sections/PipelineSection';
 export { PsychologySection } from './sections/PsychologySection';
 export { CtaSection } from './sections/CtaSection';
 export { Footer } from './sections/Footer';
+export { default as ProblemHero } from './ProblemHero';
+export { default as SolutionSection } from './SolutionSection';
+export { default as NovaLiveSection } from './NovaLiveSection';
+export { default as WhoItsForSection } from './WhoItsForSection';

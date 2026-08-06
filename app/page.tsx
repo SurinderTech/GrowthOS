@@ -3,12 +3,12 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  HeroSection, 
-  ProblemSection, 
-  MetricsSection, 
+import {
+  ProblemHero,
+  SolutionSection,
+  NovaLiveSection,
+  WhoItsForSection,
   AIAccountabilitySection,
-  FeaturesSection,
   PipelineSection,
   PsychologySection,
   CtaSection,
@@ -26,9 +26,9 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    // GSAP Scroll Animations
-    const sections = document.querySelectorAll('section');
-    
+    // GSAP Scroll Animations (excluding .ph to allow ProblemHero to handle its own opacity/visibility)
+    const sections = document.querySelectorAll('section:not(.ph)');
+
     sections.forEach((section) => {
       gsap.fromTo(section,
         {
@@ -79,11 +79,12 @@ export default function Home() {
 
   return (
     <>
-      <HeroSection onCTA={() => router.push('/signup')} />
-      <ProblemSection />
-      <MetricsSection />
+      <ProblemHero onStartTransformation={() => router.push('/signup')} />
+      <SolutionSection />
+      <NovaLiveSection />
+      <WhoItsForSection />
       <AIAccountabilitySection />
-      <FeaturesSection />
+
       <PipelineSection />
       <PsychologySection onCTA={() => router.push('/signup')} />
       <CtaSection onCTA={() => router.push('/signup')} />
