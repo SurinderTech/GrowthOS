@@ -447,10 +447,14 @@ export default function SignupPage() {
             </p>
 
             <div className="gos-stats">
-              {[["500+","Members"],["120+","Projects Built"],["1000+","Hours of Learning"]].map(([n,l]) => (
-                <div key={l} className="gos-stat-card">
-                  <div className="gos-stat-num">{n}</div>
-                  <div className="gos-stat-lbl">{l}</div>
+              {[
+                { title: "AI Execution", sub: "Personalized Daily System" },
+                { title: "Deep Focus", sub: "Habits & Goal Tracking" },
+                { title: "Learner Tribe", sub: "Grow Together Daily" },
+              ].map((item) => (
+                <div key={item.title} className="gos-stat-card">
+                  <div className="gos-stat-num" style={{ fontSize: "14px", color: "#818cf8" }}>{item.title}</div>
+                  <div className="gos-stat-lbl" style={{ fontSize: "10px", marginTop: "3px" }}>{item.sub}</div>
                 </div>
               ))}
             </div>

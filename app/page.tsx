@@ -5,13 +5,8 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ProblemHero,
-  SolutionSection,
   NovaLiveSection,
   WhoItsForSection,
-  AIAccountabilitySection,
-  PipelineSection,
-  PsychologySection,
-  CtaSection,
   Footer,
 } from "@/components";
 import gsap from 'gsap';
@@ -80,14 +75,8 @@ export default function Home() {
   return (
     <>
       <ProblemHero onStartTransformation={() => router.push('/signup')} />
-      <SolutionSection />
       <NovaLiveSection />
-      <WhoItsForSection />
-      <AIAccountabilitySection />
-
-      <PipelineSection />
-      <PsychologySection onCTA={() => router.push('/signup')} />
-      <CtaSection onCTA={() => router.push('/signup')} />
+      <WhoItsForSection onCTA={() => router.push('/signup')} />
       <Footer onCTA={() => router.push('/signup')} />
     </>
   );

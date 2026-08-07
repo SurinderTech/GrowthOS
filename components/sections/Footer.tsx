@@ -2,6 +2,7 @@
 'use client';
 
 import Link from "next/link";
+import BrandLogo from "@/components/ui/BrandLogo";
 
 interface FooterProps {
   onCTA: () => void;
@@ -51,9 +52,8 @@ export function Footer({ onCTA }: FooterProps) {
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 32, marginBottom: 40 }}>
           <div style={{ maxWidth: 240 }}>
-            <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, textDecoration: "none" }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#a855f7)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>⚡</div>
-              <span style={{ fontSize: 18, fontWeight: 900, color: "white" }}>Growth<span style={{ color: "#6366f1" }}>OS</span></span>
+            <Link href="/" style={{ textDecoration: "none", marginBottom: 14, display: "inline-block" }}>
+              <BrandLogo size="sm" showSubtitle={true} />
             </Link>
             <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", lineHeight: 1.7 }}>Building the Digital Silicon Valley where execution defines intelligence.</p>
           </div>
