@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ProblemHero,
+  SolutionSection,
   NovaLiveSection,
   WhoItsForSection,
   Footer,
@@ -75,6 +76,7 @@ export default function Home() {
   return (
     <>
       <ProblemHero onStartTransformation={() => router.push('/signup')} />
+      <SolutionSection />
       <NovaLiveSection />
       <WhoItsForSection onCTA={() => router.push('/signup')} />
       <Footer onCTA={() => router.push('/signup')} />
