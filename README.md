@@ -440,7 +440,7 @@ uvicorn main:app --reload --port 8000
 # → Swagger docs: http://localhost:8000/docs
 ```
 
-## 🔑 Environment Variables
+##  Environment Variables
 
 
 # Backend URL
