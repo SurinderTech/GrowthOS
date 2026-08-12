@@ -160,7 +160,7 @@ export default function SolutionSection() {
           position: relative;
           width: 100%;
           background: #04050a;
-          padding: 60px 4vw 70px;
+          padding: 60px 1.5vw 70px;
           overflow: hidden;
         }
 
@@ -175,19 +175,20 @@ export default function SolutionSection() {
 
         .sol__card {
           position: relative;
-          max-width: 1300px;
+          width: 100%;
+          max-width: 100%;
           margin: 0 auto;
           border: 1px solid rgba(139,92,246,0.18);
-          border-radius: 28px;
+          border-radius: 24px;
           background: radial-gradient(120% 100% at 50% 0%, rgba(88,28,135,0.18), transparent 60%),
                       radial-gradient(80% 80% at 50% 50%, rgba(15,10,30,0.95), rgba(4,5,10,0.98));
-          padding: 48px 30px 40px;
+          padding: 48px 36px 40px;
         }
 
         /* ---------- Centered Header ---------- */
         .sol__header {
           text-align: center;
-          max-width: 720px;
+          max-width: 840px;
           margin: 0 auto 36px;
         }
 
@@ -247,7 +248,7 @@ export default function SolutionSection() {
         .sol__orbitWrap {
           position: relative;
           width: 100%;
-          max-width: 1050px;
+          max-width: 1300px;
           margin: 0 auto;
           aspect-ratio: 1000 / 640;
         }
@@ -306,7 +307,7 @@ export default function SolutionSection() {
         .sol__label {
           position: absolute;
           top: 50%;
-          width: 185px;
+          width: 210px;
           transform: translateY(-50%);
           pointer-events: none;
           z-index: 3;
@@ -414,7 +415,8 @@ export default function SolutionSection() {
           align-items: center;
           justify-content: space-between;
           gap: 16px;
-          max-width: 1100px;
+          width: 100%;
+          max-width: 1400px;
           margin: 40px auto 0;
           padding: 16px 28px;
           border-radius: 9999px;
@@ -480,7 +482,8 @@ export default function SolutionSection() {
 
         /* ---------- See it in action ---------- */
         .sol__action {
-          max-width: 1300px;
+          width: 100%;
+          max-width: 100%;
           margin: 64px auto 0;
           display: grid;
           grid-template-columns: minmax(0,5fr) minmax(0,6fr);
@@ -569,6 +572,8 @@ export default function SolutionSection() {
         }
 
         @media (max-width: 820px) {
+          .sol { padding: 40px 12px 50px; }
+          .sol__card { padding: 32px 16px 28px; border-radius: 16px; }
           .sol__label { width: 140px; }
           .sol__labelName { font-size: 12px; }
           .sol__labelLine { font-size: 10px; }
