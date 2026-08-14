@@ -32,7 +32,7 @@ interface Agent {
   lines: string[];
   x: number;
   y: number;
-  side: "left" | "right";
+  side: "top" | "left" | "right";
 }
 
 // Center of viewBox (1000 x 640)
@@ -54,7 +54,7 @@ const AGENTS: Agent[] = [
     lines: ["Understands how you learn.", "Adapts. Personalizes.", "Improves continuously."],
     x: 500,
     y: 110,
-    side: "right",
+    side: "top",
   },
   {
     num: "02",
@@ -150,7 +150,7 @@ export default function SolutionSection() {
     if (!v) return;
     v.muted = true;
     v.loop = true;
-    v.play().catch(() => {});
+    v.play().catch(() => { });
   }, []);
 
   return (
@@ -313,6 +313,7 @@ export default function SolutionSection() {
           z-index: 3;
         }
 
+        .sol__label--top { text-align: center; width: 220px; }
         .sol__label--right { text-align: left; }
         .sol__label--left { text-align: right; }
 
@@ -327,6 +328,10 @@ export default function SolutionSection() {
           font-size: 11.5px;
           line-height: 1.5;
           color: rgba(255,255,255,0.52);
+        }
+
+        .sol__mobileAgentGrid {
+          display: none;
         }
 
         /* Center Core */
@@ -567,18 +572,79 @@ export default function SolutionSection() {
         @keyframes solSpinReverse { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
 
         @media (max-width: 1024px) {
-          .sol__strip { border-radius: 20px; justify-content: center; }
-          .sol__action { grid-template-columns: 1fr; }
+          .sol__strip { border-radius: 20px; justify-content: center; padding: 16px 20px; }
+          .sol__action { grid-template-columns: 1fr; gap: 32px; }
         }
 
         @media (max-width: 820px) {
-          .sol { padding: 40px 12px 50px; }
-          .sol__card { padding: 32px 16px 28px; border-radius: 16px; }
-          .sol__label { width: 140px; }
-          .sol__labelName { font-size: 12px; }
+          .sol { padding: 36px 12px 48px; }
+          .sol__card { padding: 28px 14px 24px; border-radius: 16px; }
+          .sol__label { width: 130px; }
+          .sol__labelName { font-size: 11.5px; }
           .sol__labelLine { font-size: 10px; }
-          .sol__steps { flex-wrap: wrap; justify-content: center; gap: 20px; }
+          .sol__steps { flex-wrap: wrap; justify-content: center; gap: 18px; }
           .sol__stepConnector { display: none; }
+        }
+
+        @media (max-width: 768px) {
+          .sol { padding: 28px 10px 36px; }
+          .sol__card { padding: 20px 10px 18px; border-radius: 14px; }
+          .sol__heading { font-size: 22px; }
+          .sol__lede { font-size: 13px; }
+          .sol__label { display: none !important; }
+          .sol__orbitWrap { padding-bottom: 0; }
+          .sol__core { transform: translate(-50%, -24%); }
+          .sol__coreOrb { width: 72px; height: 72px; }
+          .sol__coreCenter { width: 48px; height: 48px; }
+          .sol__coreCenter svg { width: 26px; height: 26px; }
+          .sol__coreName { font-size: 13px; margin-top: 70px; font-weight: 800; }
+          .sol__coreSub { font-size: 9px; margin-top: 1px; color: #a78bfa; }
+          .sol__nodeIcon { width: 38px; height: 38px; }
+          .sol__nodeIcon svg { width: 17px; height: 17px; }
+          .sol__mobileAgentGrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+            width: 100%;
+          }
+          .sol__mobileAgentCard {
+            background: rgba(12, 14, 28, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-left: 3px solid var(--c);
+            border-radius: 12px;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+          }
+          .sol__mobileAgentHeader {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--c);
+          }
+          .sol__mobileAgentNum {
+            font-size: 9px;
+            font-weight: 800;
+            color: var(--c);
+            background: rgba(255,255,255,0.08);
+            padding: 1px 4px;
+            border-radius: 4px;
+          }
+          .sol__mobileAgentLine {
+            font-size: 10.5px;
+            color: rgba(255, 255, 255, 0.55);
+            line-height: 1.35;
+          }
+          .sol__step { flex: 1 1 calc(50% - 12px); max-width: 140px; }
+          .sol__stepIcon { width: 44px; height: 44px; margin-bottom: 8px; }
+          .sol__strip { padding: 12px 14px; gap: 10px; border-radius: 16px; }
+          .sol__stripItem { gap: 8px; }
+          .sol__stripTitle { font-size: 11.5px; }
+          .sol__stripSub { font-size: 10px; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -756,9 +822,11 @@ export default function SolutionSection() {
                 <div
                   className={`sol__label sol__label--${a.side}`}
                   style={
-                    a.side === "right"
-                      ? { left: `calc(${leftPct}% + 42px)`, top: `${topPct}%` }
-                      : { right: `calc(${100 - leftPct}% + 42px)`, top: `${topPct}%` }
+                    a.side === "top"
+                      ? { left: `${leftPct}%`, top: `calc(${topPct}% - 38px)`, transform: "translate(-50%, -100%)", textAlign: "center", width: "220px" }
+                      : a.side === "right"
+                        ? { left: `calc(${leftPct}% + 42px)`, top: `${topPct}%` }
+                        : { right: `calc(${100 - leftPct}% + 42px)`, top: `${topPct}%` }
                   }
                 >
                   <div
@@ -778,6 +846,23 @@ export default function SolutionSection() {
           })}
         </div>
 
+        {/* Mobile 7-Agent Card Grid (Displayed on Mobile Screens) */}
+        <div className="sol__mobileAgentGrid">
+          {AGENTS.map((a) => {
+            const Icon = a.icon;
+            return (
+              <div key={a.name} className="sol__mobileAgentCard" style={{ ["--c" as string]: a.color }}>
+                <div className="sol__mobileAgentHeader">
+                  <span className="sol__mobileAgentNum">{a.num}</span>
+                  <Icon size={14} style={{ color: a.color }} />
+                  <span>{a.name}</span>
+                </div>
+                <div className="sol__mobileAgentLine">{a.lines[0]} {a.lines[1]}</div>
+              </div>
+            );
+          })}
+        </div>
+
         {/* ---------- Feature Strip ---------- */}
         <div className="sol__strip">
           {FEATURES.map((f, i) => {
@@ -785,11 +870,10 @@ export default function SolutionSection() {
             return (
               <div key={i} className="sol__stripItem">
                 <span
-                  className={`sol__stripIcon ${
-                    f.title.includes("Evolving") || f.title.includes("All Agents")
-                      ? "sol__stripIcon--spin"
-                      : ""
-                  }`}
+                  className={`sol__stripIcon ${f.title.includes("Evolving") || f.title.includes("All Agents")
+                    ? "sol__stripIcon--spin"
+                    : ""
+                    }`}
                 >
                   <Icon size={16} />
                 </span>

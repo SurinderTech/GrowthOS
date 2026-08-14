@@ -20,8 +20,23 @@ export function PanelShell({
 }) {
   return (
     <div style={ps.overlay} onClick={onClose}>
-      <div style={{ ...ps.panel, border: `1px solid ${accent}40`, boxShadow: `0 24px 80px rgba(0,0,0,0.7), 0 0 30px ${accent}15` }} onClick={e => e.stopPropagation()}>
-        <div style={ps.header}>
+      <style>{`
+        @media (max-width: 640px) {
+          .ps-panel {
+            width: 96vw !important;
+            max-height: 92vh !important;
+            border-radius: 16px !important;
+          }
+          .ps-header {
+            padding: 14px 16px !important;
+          }
+          .ps-content {
+            padding: 14px 16px !important;
+          }
+        }
+      `}</style>
+      <div className="ps-panel" style={{ ...ps.panel, border: `1px solid ${accent}40`, boxShadow: `0 24px 80px rgba(0,0,0,0.7), 0 0 30px ${accent}15` }} onClick={e => e.stopPropagation()}>
+        <div className="ps-header" style={ps.header}>
           <div style={ps.headerLeft}>
             <span style={{ fontSize: "1.6rem", display: "flex", alignItems: "center", justifyContent: "center" }}>{icon}</span>
             <div>
@@ -33,7 +48,7 @@ export function PanelShell({
             <X size={16} />
           </button>
         </div>
-        <div style={ps.content}>{children}</div>
+        <div className="ps-content" style={ps.content}>{children}</div>
       </div>
     </div>
   );

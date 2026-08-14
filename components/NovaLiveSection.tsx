@@ -1249,15 +1249,33 @@ export default function NovaLiveSection() {
         }
 
         @media (max-width: 1180px) {
-          .nv__grid { grid-template-columns: 1fr; }
-          .nv__orbCol { position: static; padding: 25px 0 0; }
+          .nv { padding: 40px 3vw 50px; }
+          .nv__grid { grid-template-columns: 1fr; gap: 28px; }
+          .nv__orbCol { position: static; padding: 20px 0; }
           .nv__raysSvg { display: none; }
           .nv__widgets { grid-template-columns: 1fr 1fr; }
+          .nv__banner { padding: 20px 24px; }
         }
 
-        @media (max-width: 620px) {
-          .nv__widgets { grid-template-columns: 1fr; }
-          .nv__insight { border-right: none; }
+        @media (max-width: 640px) {
+          .nv { padding: 32px 14px 40px; }
+          .nv__heading { font-size: 24px; margin-bottom: 8px; }
+          .nv__lede { font-size: 13.5px; margin-bottom: 24px; }
+          .nv__speechBubble { max-width: 90vw; padding: 10px 14px; margin-bottom: 16px; }
+          .nv__speechText { font-size: 12px; }
+          .nv__orbStage { width: 210px; height: 210px; }
+          .nv__core { inset: 40px; }
+          .nv__faceSvg { width: 80px; height: 80px; }
+          .nv__novaName { font-size: 22px; margin-top: 12px; }
+          .nv__stepCard { padding: 11px 12px; gap: 10px; }
+          .nv__stepIcon { margin-left: 18px; width: 32px; height: 32px; }
+          .nv__stepTitle { font-size: 13px; }
+          .nv__stepDesc { font-size: 11px; }
+          .nv__widgets { grid-template-columns: 1fr; gap: 12px; }
+          .nv__insight { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.07); padding: 14px 16px; }
+          .nv__banner { padding: 16px; flex-direction: column; align-items: flex-start; gap: 14px; }
+          .nv__bannerText { font-size: 15px; }
+          .nv__bannerRight { width: 100%; justify-content: flex-start; }
         }
 
         @media (prefers-reduced-motion: reduce) {

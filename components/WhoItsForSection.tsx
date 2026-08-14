@@ -171,6 +171,7 @@ const COMMUNITY: CommunityCard[] = [
   { name: "Vivaan", video: "/videos/Builder.mp4", badge: "Entrepreneur", badgeColor: "#f97316", dream: "Build Something Meaningful", focus: "MVP Development" },
   { name: "Kartik", video: "/videos/JEE.mp4", badge: "JEE Aspirant", badgeColor: "#a855f7", dream: "Top IIT", focus: "JEE Advanced" },
   { name: "Rahul", video: "/videos/Neet.mp4", badge: "NEET Aspirant", badgeColor: "#22d3ee", dream: "Crack NEET Exam", focus: "Biology & Chemistry" },
+  { name: "Sneha", video: "/videos/College_Student.mp4", badge: "UI/UX Designer", badgeColor: "#ec4899", dream: "Design Next-Gen UI", focus: "Product Case Studies" },
 ];
 
 const WHY_LEFT = [
@@ -761,20 +762,26 @@ export default function WhoItsForSection({ onCTA }: WhoItsForSectionProps = {}) 
           50% { transform: scale(1.018); }
         }
 
-        /* ================= FULL-WIDTH COMMUNITY VIDEO CAROUSEL ================= */
+        /* ================= FULL-WIDTH COMMUNITY VIDEO GRID ================= */
         .wif__commSection { margin-top: 56px; }
         .wif__commHeader { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 22px; }
-        .wif__commNav { display: flex; gap: 8px; }
-        .wif__commNavBtn { width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.04); color: white; display: grid; place-items: center; cursor: pointer; transition: background 160ms ease; }
-        .wif__commNavBtn:hover { background: rgba(255,255,255,0.12); }
+        .wif__commNav { display: none; }
 
-        .wif__carousel { display: flex; gap: 18px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 12px; scrollbar-width: none; }
-        .wif__carousel::-webkit-scrollbar { display: none; }
+        .wif__commGrid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 16px;
+          width: 100%;
+        }
 
         .wif__commCard {
-          position: relative; flex-shrink: 0; width: 215px; height: 290px;
-          border-radius: 18px; overflow: hidden; scroll-snap-align: start;
-          border: 1px solid rgba(255,255,255,0.12); background: #0d0e17;
+          position: relative;
+          width: 100%;
+          height: 270px;
+          border-radius: 18px;
+          overflow: hidden;
+          border: 1px solid rgba(255,255,255,0.12);
+          background: #0d0e17;
         }
 
         .wif__commVideo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.85; transition: transform 400ms ease, opacity 400ms ease; }
@@ -791,10 +798,6 @@ export default function WhoItsForSection({ onCTA }: WhoItsForSectionProps = {}) 
         .wif__commName { font-size: 15.5px; font-weight: 800; color: white; margin-bottom: 3px; }
         .wif__commDream { font-size: 11px; color: rgba(255,255,255,0.78); line-height: 1.38; }
         .wif__commFocus { font-size: 11px; color: rgba(255,255,255,0.48); line-height: 1.38; }
-
-        .wif__dots { display: flex; justify-content: center; gap: 6px; margin-top: 16px; }
-        .wif__dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.15); transition: background 200ms ease, width 200ms ease; }
-        .wif__dot--active { background: #a855f7; width: 18px; border-radius: 4px; }
 
         /* ---------- Banner: You Are Not Alone (Placed Directly Below Video Carousel) ---------- */
         .wif__tribeBanner {
@@ -897,8 +900,56 @@ export default function WhoItsForSection({ onCTA }: WhoItsForSectionProps = {}) 
         }
 
         @media (max-width: 800px) {
-          .wif__heroGrid { grid-template-columns: 1fr; }
+          .wif { padding: 40px 14px 50px; }
+          .wif__heroGrid { grid-template-columns: 1fr; gap: 32px; }
           .wif__whyRightGrid { grid-template-columns: repeat(2, 1fr); }
+          .wif__footerTrust { flex-direction: column; gap: 14px; }
+          .wif__footerBottom { flex-direction: column; align-items: center; text-align: center; gap: 14px; }
+        }
+
+        @media (max-width: 1024px) {
+          .wif__commGrid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .wif { padding: 30px 10px 40px; }
+          .wif__h1 { font-size: 26px; line-height: 1.25; }
+          .wif__heroSub { font-size: 14px; }
+          .wif__heroLede { font-size: 13.5px; }
+          .wif__miniCards { grid-template-columns: 1fr; gap: 10px; }
+          .wif__orbitWrap { scale: 0.85; transform-origin: center; margin: -20px 0; }
+          .wif__whyRightGrid { grid-template-columns: 1fr 1fr; gap: 12px; }
+          .wif__featureGrid { grid-template-columns: 1fr; gap: 10px; }
+          .wif__tribeBanner { padding: 16px; flex-direction: column; align-items: flex-start; gap: 12px; }
+          .wif__joinBtn { width: 100%; justify-content: center; }
+          .wif__commGrid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+          }
+          .wif__commCard {
+            height: 240px;
+            border-radius: 14px;
+          }
+          .wif__commBody {
+            padding: 10px 12px;
+          }
+          .wif__commName {
+            font-size: 13.5px;
+            margin-bottom: 2px;
+          }
+          .wif__commDream, .wif__commFocus {
+            font-size: 10px;
+            line-height: 1.3;
+          }
+          .wif__commBadge {
+            top: 8px;
+            left: 8px;
+            font-size: 8.5px;
+            padding: 3px 8px;
+          }
         }
       `}</style>
 
@@ -1138,7 +1189,7 @@ export default function WhoItsForSection({ onCTA }: WhoItsForSectionProps = {}) 
           </div>
         </div>
 
-        {/* ================= FULL-WIDTH COMMUNITY VIDEO CAROUSEL ================= */}
+        {/* ================= FULL-WIDTH COMMUNITY VIDEO GRID ================= */}
         <div className="wif__commSection">
           <div className="wif__commHeader">
             <div>
@@ -1147,13 +1198,9 @@ export default function WhoItsForSection({ onCTA }: WhoItsForSectionProps = {}) 
                 Different dreams. Same mindset. One GrowthOS.
               </div>
             </div>
-            <div className="wif__commNav">
-              <button type="button" className="wif__commNavBtn" onClick={() => scrollCarousel(-1)} aria-label="Previous"><ChevronLeft size={16} /></button>
-              <button type="button" className="wif__commNavBtn" onClick={() => scrollCarousel(1)} aria-label="Next"><ChevronRight size={16} /></button>
-            </div>
           </div>
 
-          <div className="wif__carousel" ref={carouselRef}>
+          <div className="wif__commGrid">
             {COMMUNITY.map((c) => (
               <div key={c.name} className="wif__commCard">
                 <video
@@ -1181,12 +1228,6 @@ export default function WhoItsForSection({ onCTA }: WhoItsForSectionProps = {}) 
                   <div className="wif__commFocus">Focus: {c.focus}</div>
                 </div>
               </div>
-            ))}
-          </div>
-
-          <div className="wif__dots">
-            {COMMUNITY.map((_, i) => (
-              <span key={i} className={`wif__dot ${i === activeCard ? "wif__dot--active" : ""}`} />
             ))}
           </div>
         </div>

@@ -190,7 +190,7 @@ export default function ProblemHero({ onStartTransformation, onComplete }: Probl
     if (!video) return;
     video.muted = true;
     video.loop = true; // Continuous loop
-    video.play().catch(() => {});
+    video.play().catch(() => { });
   }, []);
 
   // Typewriting ticker effect for the active milestone
@@ -263,7 +263,7 @@ export default function ProblemHero({ onStartTransformation, onComplete }: Probl
     video.currentTime = startT;
     setCurrentTime(startT);
     if (video.paused) {
-      video.play().catch(() => {});
+      video.play().catch(() => { });
     }
   }, []);
 
@@ -272,7 +272,7 @@ export default function ProblemHero({ onStartTransformation, onComplete }: Probl
     if (!video) return;
     stageRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     video.currentTime = 0;
-    video.play().catch(() => {});
+    video.play().catch(() => { });
   }, []);
 
   const handleCTAClick = useCallback(() => {
@@ -780,18 +780,105 @@ export default function ProblemHero({ onStartTransformation, onComplete }: Probl
         }
 
         @media (max-width: 1080px) {
-          .ph__grid { grid-template-columns: 1fr; }
-          .ph__stageCol { flex-direction: column; margin-top: 16px; }
+          .ph { padding: 48px 4vw 80px; }
+          .ph__grid { grid-template-columns: 1fr; gap: 32px; }
+          .ph__stageCol { flex-direction: column; margin-top: 16px; gap: 14px; }
           .ph__notifs {
             width: 100%;
+            display: flex;
             flex-direction: row;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            gap: 8px;
             padding-left: 0;
+            padding-bottom: 4px;
+            -webkit-overflow-scrolling: touch;
           }
           .ph__notifRail { display: none; }
-          .ph__notif { transform: translateY(10px); }
+          .ph__notif { flex: 0 0 auto; min-width: 115px; padding: 7px 10px; transform: translateY(10px); }
           .ph__notif--visible { transform: translateY(0); }
-          .ph__stage { aspect-ratio: 16 / 9; }
+          .ph__stage { aspect-ratio: 16 / 9; width: 100%; border-radius: 18px; background: #000; }
+          .ph__video { object-fit: contain; width: 100%; height: 100%; background: #000; }
+        }
+
+        @media (max-width: 640px) {
+          .ph { padding: 24px 14px 48px; }
+          .ph__heading { font-size: 26px; line-height: 1.2; margin-bottom: 14px; }
+          .ph__lede { font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
+          .ph__eyebrow { margin: 0 0 12px 0; }
+          .ph__ctas {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 94%;
+            max-width: 360px;
+            margin-left: 3%;
+            margin-right: auto;
+            gap: 12px;
+          }
+          .ph__ctaPrimary, .ph__ctaGhost {
+            width: 100%;
+            justify-content: center;
+            text-align: center;
+            padding: 14px 22px;
+            font-size: 14.5px;
+            box-sizing: border-box;
+          }
+          .ph__timeline { margin-bottom: 28px; }
+          .ph__rail { left: 17px; }
+          .ph__step { grid-template-columns: 36px 1fr; gap: 12px; padding: 10px 0; }
+          .ph__stepIcon { width: 36px; height: 36px; }
+          .ph__stepTitle { font-size: 14px; }
+          .ph__stepText { font-size: 12.5px; min-height: 36px; }
+          .ph__fiveRowsContainer { padding: 14px 12px; gap: 10px; margin-top: 14px; border-radius: 16px; }
+          .ph__fiveRowsTitle { font-size: 10px; letter-spacing: 0.16em; }
+          .ph__iconRow { padding: 8px 10px; border-radius: 12px; gap: 6px; }
+          .ph__iconRowTime { font-size: 10.5px; }
+          .ph__iconRowTitle { font-size: 11.5px; }
+          .ph__iconRowRail {
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 4px;
+          }
+          .ph__railPill { padding: 4px 10px; font-size: 10.5px; gap: 5px; }
+          .ph__railLine { width: 12px; margin: 0 3px; }
+          .ph__stage {
+            aspect-ratio: 16 / 9;
+            width: 94%;
+            max-width: 360px;
+            margin-left: 3%;
+            margin-right: auto;
+            border-radius: 16px;
+            background: #000;
+            box-shadow: 0 0 24px rgba(124,58,237,0.35);
+          }
+          .ph__video { object-fit: contain; width: 100%; height: 100%; background: #000; }
+          .ph__notif { flex: 0 0 auto; min-width: 105px; padding: 6px 8px; }
+          .ph__notifIcon { width: 24px; height: 24px; border-radius: 6px; }
+          .ph__notifName { font-size: 10.5px; }
+          .ph__notifAgo { font-size: 9px; }
+        }
+
+        @media (max-width: 480px) {
+          .ph__ctas {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 94%;
+            max-width: 360px;
+            margin-left: 3%;
+            margin-right: auto;
+            gap: 10px;
+          }
+          .ph__ctaPrimary, .ph__ctaGhost {
+            width: 100%;
+            justify-content: center;
+            text-align: center;
+            padding: 13px 20px;
+            font-size: 14px;
+          }
+          .ph__notif { flex: 1 1 100%; }
         }
       `}</style>
 
@@ -821,9 +908,8 @@ export default function ProblemHero({ onStartTransformation, onComplete }: Probl
               return (
                 <div
                   key={m.title}
-                  className={`ph__step ${
-                    state === "active" ? "ph__step--active" : state === "past" ? "ph__step--past" : ""
-                  }`}
+                  className={`ph__step ${state === "active" ? "ph__step--active" : state === "past" ? "ph__step--past" : ""
+                    }`}
                   style={{ ["--step-color" as string]: m.color }}
                 >
                   <div className="ph__stepIcon">
@@ -922,9 +1008,8 @@ export default function ProblemHero({ onStartTransformation, onComplete }: Probl
               return (
                 <div
                   key={m.title}
-                  className={`ph__iconRow ${
-                    isRowActive ? "ph__iconRow--active" : isRowPast ? "ph__iconRow--past" : ""
-                  }`}
+                  className={`ph__iconRow ${isRowActive ? "ph__iconRow--active" : isRowPast ? "ph__iconRow--past" : ""
+                    }`}
                 >
                   <div className="ph__iconRowHeader">
                     <span className="ph__iconRowTime" style={{ color: m.color }}>{m.time}</span>
@@ -939,9 +1024,8 @@ export default function ProblemHero({ onStartTransformation, onComplete }: Probl
                           <button
                             type="button"
                             onClick={() => handleSeekToMilestone(m.startT)}
-                            className={`ph__railPill ${
-                              isRowActive ? "ph__railPill--active" : isRowPast ? "ph__railPill--past" : ""
-                            }`}
+                            className={`ph__railPill ${isRowActive ? "ph__railPill--active" : isRowPast ? "ph__railPill--past" : ""
+                              }`}
                             style={{ ["--node-color" as string]: b.color, ["--node-glow" as string]: b.glowColor }}
                           >
                             <BIcon size={14} style={{ color: isRowActive || isRowPast ? b.color : "rgba(255,255,255,0.4)" }} />

@@ -281,9 +281,11 @@ export default function Navbar() {
 
         .gos-nav__drawerPanel {
           position: fixed;
-          top: 106px;
-          left: 16px;
-          right: 16px;
+          top: 88px;
+          left: 12px;
+          right: 12px;
+          max-height: calc(100vh - 104px);
+          overflow-y: auto;
           z-index: 49;
           padding: 16px;
           border-radius: 24px;

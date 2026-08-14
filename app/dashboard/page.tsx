@@ -540,6 +540,7 @@ export default function DashboardPage() {
     }
   }, []);
   const [userName, setUserName]     = useState("");
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [userAvatarUrl, setUserAvatarUrl] = useState<string | null>(null);
   const [planTier, setPlanTier]     = useState<string>("Student");
   const [userLevel, setUserLevel]   = useState<number>(1);
@@ -899,10 +900,31 @@ export default function DashboardPage() {
       {/* Wide Settings & Profile Modal */}
       <ProfileSettingsModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
 
+      {/* Mobile Backdrop Overlay */}
+      {mobileSidebarOpen && (
+        <div
+          onClick={() => setMobileSidebarOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.65)",
+            backdropFilter: "blur(4px)",
+            zIndex: 55,
+          }}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside style={s.sidebar}>
-        <div style={{ padding: "0 4px 24px" }}>
+      <aside style={s.sidebar} className={`dash-sidebar ${mobileSidebarOpen ? "dash-sidebar--open" : ""}`}>
+        <div style={{ padding: "0 4px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <BrandLogo size="md" />
+          <button
+            onClick={() => setMobileSidebarOpen(false)}
+            style={{ display: "none", background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}
+            className="dash-close-btn"
+          >
+            <X size={20} />
+          </button>
         </div>
         <nav style={s.nav}>
           {[
@@ -963,15 +985,33 @@ export default function DashboardPage() {
       </aside>
 
       {/* Main */}
-      <main style={{ ...s.main, opacity: loaded ? 1 : 0, transform: loaded ? "none" : "translateY(16px)", transition: "all 0.6s ease" }}>
+      <main style={{ ...s.main, opacity: loaded ? 1 : 0, transform: loaded ? "none" : "translateY(16px)", transition: "all 0.6s ease" }} className="dash-main">
 
         {/* Topbar */}
-        <div style={s.topbar}>
-          <div style={s.searchWrap}>
-            <Search size={15} style={{ color: "#475569" }} />
-            <input placeholder="Search anything..." style={s.searchInput} />
+        <div style={s.topbar} className="dash-topbar">
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              style={{
+                display: "none",
+                background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: "8px",
+                padding: "8px",
+                color: "white",
+                cursor: "pointer",
+              }}
+              className="dash-menu-btn"
+              aria-label="Open Mobile Menu"
+            >
+              <LayoutDashboard size={18} />
+            </button>
+            <div style={s.searchWrap} className="dash-search-wrap">
+              <Search size={15} style={{ color: "#475569" }} />
+              <input placeholder="Search anything..." style={s.searchInput} />
+            </div>
           </div>
-          <div style={s.topbarRight}>
+          <div style={s.topbarRight} className="dash-topbar-right">
             <div style={s.statusPill}><div style={s.statusDot}/><span>All agents synced</span></div>
             <div style={s.clock}>{timeLeft.clock}</div>
             <button style={s.iconBtn}><Bell size={17} /></button>
@@ -990,7 +1030,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ══ COMMAND CENTER HERO ══════════════════════════════════════════ */}
-        <section style={s.heroWrap}>
+        <section style={s.heroWrap} className="dash-hero-grid">
           <div style={s.heroLeft}>
             <div style={s.heroGreetTag}>
               <Shield size={11} style={{ color: "#6366f1" }} />
@@ -1389,7 +1429,7 @@ export default function DashboardPage() {
         </section>
 
         {/* ══ AI INSIGHT + TODAY'S ACTION PLAN ═════════════════════════════ */}
-        <section style={s.twoCol}>
+        <section style={s.twoCol} className="dash-two-col">
           <div style={{ ...s.card, flex: 1 }}>
             <div style={s.cardHeader}>
               <div style={s.cardTitleWrap}>
@@ -2012,6 +2052,47 @@ export default function DashboardPage() {
         ::-webkit-scrollbar-thumb { background:#1e293b; border-radius:2px; }
         input::placeholder { color:#334155; }
         textarea { outline:none; }
+
+        @media (max-width: 1024px) {
+          .dash-sidebar {
+            transform: translateX(-100%) !important;
+            transition: transform 0.3s ease !important;
+            z-index: 60 !important;
+          }
+          .dash-sidebar--open {
+            transform: translateX(0) !important;
+          }
+          .dash-main {
+            margin-left: 0 !important;
+            max-width: 100% !important;
+            padding: 0 14px 20px !important;
+          }
+          .dash-hero-grid {
+            grid-template-columns: 1fr !important;
+            min-height: auto !important;
+          }
+          .dash-two-col {
+            flex-direction: column !important;
+          }
+          .dash-menu-btn, .dash-close-btn {
+            display: inline-flex !important;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .dash-topbar {
+            flex-wrap: wrap;
+            gap: 10px;
+          }
+          .dash-search-wrap {
+            width: 100% !important;
+          }
+          .dash-topbar-right {
+            width: 100%;
+            justify-content: space-between;
+          }
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .straight-cycling-track { animation: none !important; }
         }
