@@ -28,8 +28,10 @@ import {
   FileSearch, Bot, Pickaxe,
   Zap, Target, Trophy, Rocket, CalendarClock, CalendarDays, Wand2,
 } from "lucide-react";
-import { LearningAgentWorkspace } from "./LearningAgentWorkspace";
+import { LearningStudio } from "./LearningStudio";
 import { CareerDiscoveryExplorer } from "./CareerDiscoveryExplorer";
+import { BuildRoadmapScreen, type BuildContext } from "./BuildRoadmapScreen";
+import { detectField } from "./fieldDatasets";
 import { getRoadmapStatus } from "@/lib/learning-agent-api";
 
 // ── API plumbing (mirrors the pattern already used in dashboard/page.tsx) ───
@@ -137,7 +139,7 @@ const QUESTIONS: QuestionDef[] = [
 ];
 
 // ── Component ─────────────────────────────────────────────────────────────
-type Phase = "loading" | "intro" | "question" | "saving" | "complete" | "discovery" | "workspace";
+type Phase = "loading" | "intro" | "question" | "saving" | "complete" | "discovery" | "building" | "workspace";
 
 export function LearningAgentPanel({ onClose }: { onClose: () => void }) {
   const [phase, setPhase] = useState<Phase>("loading");
@@ -148,6 +150,7 @@ export function LearningAgentPanel({ onClose }: { onClose: () => void }) {
   const [memory, setMemory] = useState<LearningMemory | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
+  const [chosenPathId, setChosenPathId] = useState<string | null>(null);
 
   // Mount animation
   useEffect(() => {
@@ -249,6 +252,21 @@ export function LearningAgentPanel({ onClose }: { onClose: () => void }) {
 
   const beginCalibration = () => setPhase("question");
 
+  // Context shown on the "Building your roadmap" screen — pulled from the
+  // shared onboarding profile plus whichever path the learner just committed
+  // to in CareerDiscoveryExplorer.
+  const buildContext: BuildContext = useMemo(() => {
+    const dataset = detectField(profile.career_goal);
+    const pathTitle = chosenPathId ? dataset.pathTemplates[chosenPathId]?.title : null;
+    return {
+      goal: profile.career_goal || "Your Goal",
+      level: profile.current_level || "Beginner",
+      time: profile.daily_study_hours ? `${profile.daily_study_hours} hours / day` : "Flexible",
+      target: profile.target_timeline || "Not set",
+      focus: pathTitle || "Personalized Path",
+    };
+  }, [profile, chosenPathId]);
+
   // Derive the conversational intro sentence from the shared onboarding profile
   const introLines = useMemo(() => {
     const name = profile.name || "there";
@@ -282,7 +300,7 @@ export function LearningAgentPanel({ onClose }: { onClose: () => void }) {
       <div
         style={{
           ...ov.panel,
-          ...((phase === "workspace" || phase === "discovery") ? ov.panelWorkspace : {}),
+          ...((phase === "workspace" || phase === "discovery" || phase === "building") ? ov.panelWorkspace : {}),
           opacity: visible ? 1 : 0,
           transform: visible ? "translateY(0) scale(1)" : "translateY(14px) scale(0.98)",
         }}
@@ -304,7 +322,7 @@ export function LearningAgentPanel({ onClose }: { onClose: () => void }) {
             <div>
               <div style={ov.headerTitle}>Learning Agent</div>
               <div style={ov.headerSub}>
-                {phase === "workspace" ? "Calibrated · Workspace" : phase === "discovery" ? "Mapping Your Journey" : "First-Time Calibration"}
+                {phase === "workspace" ? "Learning Studio" : phase === "building" ? "Building Your Roadmap" : phase === "discovery" ? "Mapping Your Journey" : "First-Time Calibration"}
               </div>
             </div>
           </div>
@@ -348,10 +366,19 @@ export function LearningAgentPanel({ onClose }: { onClose: () => void }) {
           {phase === "complete" && <CompleteState onDone={routePostCalibration} />}
 
           {phase === "discovery" && (
-            <CareerDiscoveryExplorer onComplete={() => setPhase("workspace")} />
+            <CareerDiscoveryExplorer
+              onComplete={(pathId) => {
+                setChosenPathId(pathId);
+                setPhase("building");
+              }}
+            />
           )}
 
-          {phase === "workspace" && <LearningAgentWorkspace onClose={onClose} />}
+          {phase === "building" && (
+            <BuildRoadmapScreen context={buildContext} onDone={() => setPhase("workspace")} />
+          )}
+
+          {phase === "workspace" && <LearningStudio onClose={onClose} />}
         </div>
 
         {/* Footer nav (question phase only) */}
