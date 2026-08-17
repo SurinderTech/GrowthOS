@@ -278,7 +278,7 @@ Identity shift
 
 Landing page
 
-<img src="Screenshot (48).png" width="90%" /> </td> <td align="center" width="50%">
+<img src="Screenshot (524).png" width="90%" /> </td> <td align="center" width="50%">
 ❄️Reality of Internet
 
 
