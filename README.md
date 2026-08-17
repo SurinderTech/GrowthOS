@@ -279,10 +279,10 @@ Identity shift
 Landing page
 
 <img src="Screenshot (524).png" width="90%" /> </td> <td align="center" width="50%">
-❄️Reality of Internet
+One system
 
 
-<img src="Screenshot (49).png" width="90%" /> </td> </tr> <tr> <td align="center" width="50%">
+<img src="Screenshot (525).png" width="90%" /> </td> </tr> <tr> <td align="center" width="50%">
 📊 Execution Tracking
 
 Visual progress system
