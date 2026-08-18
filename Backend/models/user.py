@@ -21,12 +21,18 @@ class User(Base):
     image = Column(String, nullable=True)
 
     is_active = Column(Boolean, default=True)
+    is_2fa_enabled = Column(Boolean, default=False)
+    two_factor_method = Column(String(20), default="email")  # "email", "phone"
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
     bio   = Column(String(500), nullable=True)
     phone = Column(String(50),  nullable=True)
+    phone_verified = Column(Boolean, default=False, nullable=False)
+    phone_verified_at = Column(DateTime, nullable=True)
+
     onboarding = relationship("UserOnboarding", back_populates="user", uselist=False)
+
 
     growth_plans = relationship(
         "GrowthPlan", back_populates="user", cascade="all, delete-orphan"

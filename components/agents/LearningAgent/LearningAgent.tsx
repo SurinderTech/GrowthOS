@@ -279,11 +279,50 @@ export function LearningAgentPanel({ onClose }: { onClose: () => void }) {
     const knowsHours = Boolean(hours);
     const knowsTimeline = Boolean(timeline);
 
+    const formatGoalStr = (g?: string) => {
+      if (!g) return "";
+      const map: Record<string, string> = {
+        get_job: "landing a job",
+        crack_exam: "cracking your target exam",
+        earn_online: "earning online",
+        build_startup: "building your startup",
+        grow_audience: "growing your audience",
+        become_disciplined: "building self-discipline",
+        grow_career: "career growth",
+        learn_skills: "mastering new skills",
+        build_projects: "building real-world projects",
+        prepare_exams: "exam preparation",
+        build_business: "building your business",
+        financial_independence: "financial independence",
+        improve_discipline: "improving discipline",
+      };
+      if (map[g]) return map[g];
+      return g.includes("_") ? g.replace(/_/g, " ") : g;
+    };
+
+    const formatBlockStr = (b?: string) => {
+      if (!b) return "session";
+      const map: Record<string, string> = {
+        deep_focus: "deep focus session",
+        short_bursts: "short burst session",
+        structured: "structured schedule",
+        flexible: "flexible session",
+        evening: "evening session",
+        morning: "morning session",
+        afternoon: "afternoon session",
+      };
+      if (map[b]) return map[b];
+      return b.includes("_") ? b.replace(/_/g, " ") : b;
+    };
+
+    const formattedGoal = formatGoalStr(goal);
+    const formattedBlock = formatBlockStr(block);
+
     let line2 = "";
     if (knowsGoal || knowsHours || knowsTimeline) {
       const parts: string[] = [];
-      if (knowsGoal) parts.push(`you're preparing for ${goal}`);
-      if (knowsHours) parts.push(`have about ${hours} hour${hours === 1 ? "" : "s"} available each ${block || "day"}`);
+      if (knowsGoal) parts.push(`you're preparing for ${formattedGoal}`);
+      if (knowsHours) parts.push(`have about ${hours} hour${String(hours) === "1" ? "" : "s"} available each ${formattedBlock}`);
       if (knowsTimeline) parts.push(`want to achieve your goal within ${timeline}`);
       line2 = `I know ${parts.join(", ")}.`;
     }
@@ -292,6 +331,8 @@ export function LearningAgentPanel({ onClose }: { onClose: () => void }) {
       greeting: `Hi ${name}. I've already synced with Nova and reviewed your learning profile.`,
       summary: line2,
       closing: "I just need a few learning preferences before I build your personalized learning system.",
+      formattedGoal,
+      formattedBlock,
     };
   }, [profile]);
 
@@ -349,7 +390,7 @@ export function LearningAgentPanel({ onClose }: { onClose: () => void }) {
           {phase === "loading" && <LoadingState />}
 
           {phase === "intro" && (
-            <IntroState lines={introLines} hasProfile={Boolean(profile.career_goal)} onBegin={beginCalibration} />
+            <IntroState lines={introLines} profile={profile} hasProfile={Boolean(profile.career_goal || profile.daily_study_hours)} onBegin={beginCalibration} />
           )}
 
           {(phase === "question" || phase === "saving") && (
@@ -413,7 +454,17 @@ function LoadingState() {
   );
 }
 
-function IntroState({ lines, hasProfile, onBegin }: { lines: { greeting: string; summary: string; closing: string }; hasProfile: boolean; onBegin: () => void }) {
+function IntroState({
+  lines,
+  profile,
+  hasProfile,
+  onBegin,
+}: {
+  lines: { greeting: string; summary: string; closing: string; formattedGoal?: string };
+  profile: OnboardingProfile;
+  hasProfile: boolean;
+  onBegin: () => void;
+}) {
   return (
     <div style={{ padding: "8px 4px 4px" }}>
       <div style={intro.novaRow}>
@@ -434,9 +485,18 @@ function IntroState({ lines, hasProfile, onBegin }: { lines: { greeting: string;
       )}
 
       <div style={intro.metaRow}>
-        <div style={intro.metaPill}><CheckCircle2 size={12} style={{ color: "#22c55e" }} /> Career goal synced</div>
-        <div style={intro.metaPill}><CheckCircle2 size={12} style={{ color: "#22c55e" }} /> Study hours synced</div>
-        <div style={intro.metaPill}><CheckCircle2 size={12} style={{ color: "#22c55e" }} /> Timeline synced</div>
+        <div style={intro.metaPill}>
+          <CheckCircle2 size={12} style={{ color: profile.career_goal ? "#22c55e" : "#64748b" }} />
+          {profile.career_goal ? `Goal: ${lines.formattedGoal || profile.career_goal}` : "Career goal synced"}
+        </div>
+        <div style={intro.metaPill}>
+          <CheckCircle2 size={12} style={{ color: profile.daily_study_hours ? "#22c55e" : "#64748b" }} />
+          {profile.daily_study_hours ? `${profile.daily_study_hours} hrs/day` : "Study hours synced"}
+        </div>
+        <div style={intro.metaPill}>
+          <CheckCircle2 size={12} style={{ color: profile.target_timeline ? "#22c55e" : "#64748b" }} />
+          {profile.target_timeline ? `Timeline: ${profile.target_timeline}` : "Timeline synced"}
+        </div>
       </div>
 
       <button style={intro.startBtn} onClick={onBegin}>

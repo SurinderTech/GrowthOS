@@ -4,6 +4,7 @@ FastAPI router — all 7 onboarding step endpoints + status + complete + profile
 Protected by JWT auth (get_current_user dependency).
 """
 
+from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -52,14 +53,110 @@ def get_onboarding_profile(
 ):
     """Return key onboarding profile summary fields to Nova and specialized agents."""
     record = get_or_create_onboarding(current_user.id, db)
-    name = getattr(current_user, "full_name", None) or getattr(current_user, "email", "User").split("@")[0]
+    
+    # Try fetching existing learning plan target_role if available
+    plan = None
+    try:
+        from Backend.models.learning_agent import UserLearningPlan
+        plan = db.query(UserLearningPlan).filter(UserLearningPlan.user_id == current_user.id).first()
+    except Exception:
+        pass
+
+    name = (
+        getattr(current_user, "full_name", None) or
+        getattr(record, "full_name", None) or
+        (getattr(current_user, "email", "User").split("@")[0] if getattr(current_user, "email", None) else "User")
+    )
+
+    GOAL_TITLE_MAP = {
+        "get_job": "landing a job",
+        "crack_exam": "cracking your target exam",
+        "earn_online": "earning online",
+        "build_startup": "building your startup",
+        "grow_audience": "growing your audience",
+        "become_disciplined": "building self-discipline",
+        "grow_career": "career growth",
+        "learn_skills": "mastering new skills",
+        "build_projects": "building real-world projects",
+        "prepare_exams": "exam preparation",
+        "build_business": "building a business",
+        "financial_independence": "financial independence",
+        "improve_discipline": "improving discipline",
+    }
+
+    def format_goal_value(val: Any) -> str | None:
+        if not val:
+            return None
+        s_val = str(val).strip()
+        if not s_val:
+            return None
+        if s_val in GOAL_TITLE_MAP:
+            return GOAL_TITLE_MAP[s_val]
+        if "_" in s_val:
+            return s_val.replace("_", " ").title()
+        return s_val
+
+    raw_goal = (
+        getattr(plan, "target_role", None) or
+        getattr(record, "career_goal", None) or
+        getattr(record, "primary_skill", None) or
+        getattr(record, "field_of_study", None) or
+        (f"Clearing {record.exam_type.upper()} Exam" if getattr(record, "exam_type", None) else None) or
+        getattr(record, "business_goal", None) or
+        getattr(record, "creator_growth_goal", None) or
+        getattr(record, "twelve_month_goal", None) or
+        getattr(record, "primary_goal", None)
+    )
+
+    career_goal = format_goal_value(raw_goal) or "landing a job"
+
+    STYLE_MAP = {
+        "deep_focus": "deep focus session",
+        "short_bursts": "short burst session",
+        "structured": "structured schedule",
+        "flexible": "flexible session",
+        "evening": "evening session",
+        "morning": "morning session",
+        "afternoon": "afternoon session",
+    }
+    raw_style = getattr(record, "productivity_style", None)
+    preferred_time_blocks = STYLE_MAP.get(raw_style, raw_style.replace("_", " ") if raw_style else "deep focus session")
+
+    LEVEL_MAP = {
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "expert": "Expert",
+        "advanced": "Advanced",
+        "school": "Student",
+        "college": "College Student",
+    }
+    raw_level = getattr(record, "experience_level", None) or getattr(record, "degree_level", None) or getattr(record, "education_level", None)
+    current_level = LEVEL_MAP.get(raw_level, raw_level.title() if raw_level else "Beginner")
+
+    raw_hours = getattr(record, "study_hours_daily", None) or getattr(record, "daily_commitment_hours", None) or getattr(record, "daily_time", None) or 2
+    raw_hours_str = str(raw_hours).strip()
+    if raw_hours_str == "30min":
+        daily_study_hours = "0.5"
+    elif raw_hours_str == "1hour":
+        daily_study_hours = "1"
+    elif raw_hours_str == "2-3hours":
+        daily_study_hours = "2 to 3"
+    elif raw_hours_str == "4+hours":
+        daily_study_hours = "4+"
+    elif "hour" in raw_hours_str:
+        daily_study_hours = raw_hours_str.replace("hours", "").replace("hour", "").strip()
+    else:
+        daily_study_hours = raw_hours_str
+
+    target_timeline = getattr(record, "target_timeline", None) or "6 months"
+
     return {
         "name": name,
-        "career_goal": getattr(record, "target_role", None) or getattr(record, "twelve_month_goal", None) or getattr(record, "field_of_study", None),
-        "current_level": getattr(record, "experience_level", None) or getattr(record, "degree_level", None),
-        "daily_study_hours": getattr(record, "study_hours_daily", None) or getattr(record, "daily_commitment_hours", None) or 2,
-        "preferred_time_blocks": getattr(record, "productivity_style", None) or "evening",
-        "target_timeline": getattr(record, "target_timeline", None) or "6 months",
+        "career_goal": career_goal,
+        "current_level": current_level,
+        "daily_study_hours": daily_study_hours,
+        "preferred_time_blocks": preferred_time_blocks,
+        "target_timeline": target_timeline,
         "timezone": "UTC"
     }
 

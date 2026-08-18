@@ -9,6 +9,9 @@ class UserResponse(BaseModel):
     email: str
     name: str | None
     image: str | None
+    phone: str | None = None
+    phone_verified: bool = False
+    phone_verified_at: datetime | None = None
     onboarding_completed: bool = False
 
     model_config = {

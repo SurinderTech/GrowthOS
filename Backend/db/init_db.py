@@ -10,6 +10,7 @@ import Backend.models.practice
 import Backend.models.practice_arena    # ← ADD THIS LINE
 import Backend.models.agents_data       # Resume / Interview / Project / Networking agents
 import Backend.models.learning_agent    # ← Learning Agent ORM models
+import Backend.models.otp               # ← User OTP ORM models
 
 
 def init_db():
@@ -17,6 +18,15 @@ def init_db():
     Base.metadata.create_all(bind=engine, checkfirst=True)
 
     with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_2fa_enabled BOOLEAN DEFAULT FALSE;"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_method VARCHAR(20) DEFAULT 'email';"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE;"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMP NULL;"))
+        except Exception as e:
+            print(f"Skipping users column migration add: {e}")
+
+
         # Some SQL dialects (like SQLite) don't support ADD COLUMN IF NOT EXISTS.
         # We wrap these in try-except to prevent the server from hanging or crashing.
         try:
@@ -69,6 +79,4 @@ def init_db():
         conn.commit()
 
 
-if __name__ == "__main__":
-    init_db()
-    print("✅ Database tables created and schema verified.")
+    print("[SUCCESS] Database tables created and schema verified.")

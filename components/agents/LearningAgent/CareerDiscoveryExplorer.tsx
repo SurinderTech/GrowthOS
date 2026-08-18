@@ -18,69 +18,12 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Sparkles, Clock, Rocket, Star, Layers, Wrench, Loader2 } from "lucide-react";
 import { getGoalBoard, commitWeek1, type ExplorationSignal, type GoalBoardData } from "@/lib/learning-agent-api";
+import { detectField, type BranchNode, type PathTemplateInfo } from "./fieldDatasets";
 
 // ── Dataset ─────────────────────────────────────────────────────────────
 
-interface BranchNode {
-  id: string;
-  label: string;
-  x: number; // 0-1000 viewBox coords
-  creates: string[];
-  needs: string[];
-  learningWeeks: number;
-  projects: string[];
-  rating: number; // 1-5
-}
-
 const ROOT_Y = 70;
 const BRANCH_Y = 300;
-
-const BRANCH_NODES: BranchNode[] = [
-  { id: "frontend", label: "Frontend", x: 90, creates: ["Websites", "Dashboards", "Landing Pages", "Admin Panels"], needs: ["HTML", "CSS", "JavaScript", "React", "Next.js"], learningWeeks: 8, projects: ["Netflix Clone", "Spotify UI", "GrowthOS UI"], rating: 5 },
-  { id: "backend", label: "Backend", x: 233, creates: ["Servers", "APIs", "Authentication", "Database Logic"], needs: ["Python", "Node.js", "SQL", "REST APIs"], learningWeeks: 9, projects: ["Instagram Backend", "GrowthOS Backend", "Payment System"], rating: 5 },
-  { id: "database", label: "Database", x: 376, creates: ["Data Models", "Query Layers", "Schemas"], needs: ["SQL", "PostgreSQL", "Indexing", "Normalization"], learningWeeks: 4, projects: ["Inventory System", "Analytics Warehouse"], rating: 4 },
-  { id: "git", label: "Git & Version Control", x: 519, creates: ["Change History", "Branch Workflows", "Team Collaboration"], needs: ["Git CLI", "GitHub", "Pull Requests"], learningWeeks: 1, projects: ["Open Source Contribution"], rating: 5 },
-  { id: "dsa", label: "DSA", x: 662, creates: ["Problem-Solving Skill", "Interview Readiness"], needs: ["Arrays", "Trees", "Graphs", "Big-O"], learningWeeks: 10, projects: ["LeetCode 150", "Mock Interviews"], rating: 5 },
-  { id: "cloud", label: "Cloud & DevOps", x: 805, creates: ["Deployments", "CI/CD Pipelines", "Scalable Infra"], needs: ["AWS/GCP", "Docker", "CI/CD"], learningWeeks: 6, projects: ["Deploy GrowthOS", "Dockerized Microservice"], rating: 4 },
-  { id: "ai_ml", label: "AI & Machine Learning", x: 910, creates: ["Predictive Models", "LLM Apps", "Automation"], needs: ["Python", "NumPy", "PyTorch", "LLM APIs"], learningWeeks: 12, projects: ["Recommendation Engine", "AI Chat App"], rating: 5 },
-];
-
-interface PathTemplate {
-  id: string;
-  title: string;
-  novaLine: string;
-  nodes: string[]; // rendered top-to-bottom
-}
-
-const PATH_TEMPLATES: Record<string, PathTemplate> = {
-  frontend: {
-    id: "frontend", title: "Frontend-First Path",
-    novaLine: "Frontend-first it is. This path gets you shipping visible, real UI fast.",
-    nodes: ["Programming Basics", "Git", "HTML & CSS", "JavaScript", "React", "Portfolio Project", "Job Ready"],
-  },
-  backend: {
-    id: "backend", title: "Backend-First Path",
-    novaLine: "Backend-first it is. This path builds the systems everything else runs on.",
-    nodes: ["Programming Basics", "Git", "Python", "Databases", "APIs & Auth", "Deployment", "Job Ready"],
-  },
-  full_stack: {
-    id: "full_stack", title: "Full-Stack Path",
-    novaLine: "Full stack — the broadest path. You'll own the whole product, end to end.",
-    nodes: ["Programming", "Python", "Git", "Frontend", "Backend", "Database", "Projects", "Deployment", "Interview Prep", "Job Ready"],
-  },
-  ai_ml: {
-    id: "ai_ml", title: "AI & ML Path",
-    novaLine: "AI it is. This path takes you from fundamentals straight into building with LLMs.",
-    nodes: ["Python", "Programming Basics", "DSA", "Machine Learning", "Deep Learning", "LLMs", "AI Projects", "Deployment"],
-  },
-};
-
-function templateForNode(nodeId: string): string {
-  if (nodeId === "frontend") return "frontend";
-  if (nodeId === "backend" || nodeId === "database") return "backend";
-  if (nodeId === "ai_ml") return "ai_ml";
-  return "full_stack"; // git / dsa / cloud fold into the broad path
-}
 
 // ── Typewriter hook ─────────────────────────────────────────────────────
 
@@ -133,6 +76,16 @@ export function CareerDiscoveryExplorer({ onComplete }: { onComplete: (pathId: s
 
   useEffect(() => { getGoalBoard().then(setGoalBoard); }, []);
 
+  const dataset = useMemo(() => detectField(goalBoard?.career_goal), [goalBoard?.career_goal]);
+  const BRANCH_NODES = dataset.branchNodes;
+  const PATH_TEMPLATES = dataset.pathTemplates;
+
+  const templateForNode = useCallback((nodeId: string): string => {
+    if (PATH_TEMPLATES[nodeId]) return nodeId;
+    const keys = Object.keys(PATH_TEMPLATES);
+    return keys[0] || dataset.defaultTemplateId;
+  }, [PATH_TEMPLATES, dataset.defaultTemplateId]);
+
   // intro → drawing
   useEffect(() => {
     if (stage === "intro" && novaDone) {
@@ -151,7 +104,7 @@ export function CareerDiscoveryExplorer({ onComplete }: { onComplete: (pathId: s
       setStage("exploring");
     }, totalDrawTime);
     return () => clearTimeout(t);
-  }, [stage]);
+  }, [stage, BRANCH_NODES]);
 
   const openNode = useCallback((id: string) => {
     // close previous, bank its dwell time
@@ -177,7 +130,6 @@ export function CareerDiscoveryExplorer({ onComplete }: { onComplete: (pathId: s
   }, [expandedNode, showQuestion, stage]);
 
   const topTwoByDwell = useMemo(() => {
-    // include the currently-open node's live elapsed time in the ranking
     const live = { ...dwellRef.current };
     if (expandedNode && openedAtRef.current) {
       live[expandedNode] = (live[expandedNode] || 0) + (Date.now() - openedAtRef.current) / 1000;
@@ -199,14 +151,14 @@ export function CareerDiscoveryExplorer({ onComplete }: { onComplete: (pathId: s
       seconds_spent: Math.round((live[n.id] || 0) * 10) / 10,
       expanded: exploredNodes.has(n.id),
     }));
-  }, [exploredNodes, expandedNode]);
+  }, [exploredNodes, expandedNode, BRANCH_NODES]);
 
   const answerQuestion = (answer: "yes" | "no" | "full_stack") => {
     setChosenAnswer(answer);
     if (answer === "yes" && topTwoByDwell[0]) {
       commitToPath(templateForNode(topTwoByDwell[0]));
     } else if (answer === "full_stack") {
-      commitToPath("full_stack");
+      commitToPath(dataset.defaultTemplateId);
     } else {
       setShowPicker(true);
     }
@@ -219,9 +171,11 @@ export function CareerDiscoveryExplorer({ onComplete }: { onComplete: (pathId: s
     setShowPicker(false);
     setExpandedNode(null);
     setPathReady(false);
-    setNovaLine(PATH_TEMPLATES[templateId].novaLine);
+    const template = PATH_TEMPLATES[templateId];
+    setNovaLine(template?.novaLine || `Selected ${dataset.domainName} path.`);
     setStage("path");
-    const drawTime = 500 + PATH_TEMPLATES[templateId].nodes.length * 150 + 400;
+    const nodeCount = template?.nodes.length || 6;
+    const drawTime = 500 + nodeCount * 150 + 400;
     setTimeout(() => setPathReady(true), drawTime);
   };
 
@@ -235,7 +189,7 @@ export function CareerDiscoveryExplorer({ onComplete }: { onComplete: (pathId: s
     setTimeout(() => onComplete(chosenPathId), 2400);
   };
 
-  const destination = goalBoard?.career_goal || "Software Engineer";
+  const destination = goalBoard?.career_goal || dataset.domainName || "Software Engineer";
   const weeks = goalBoard?.estimated_journey_weeks ?? 28;
   const expandedDetail = expandedNode ? BRANCH_NODES.find(n => n.id === expandedNode) : null;
 
@@ -276,18 +230,19 @@ export function CareerDiscoveryExplorer({ onComplete }: { onComplete: (pathId: s
 
       {/* Graph canvas */}
       <div style={cd.canvas}>
-        {stage !== "path" && stage !== "committing" && (
+        {(stage === "drawing" || stage === "exploring") && (
           <OverviewGraph
             destination={destination}
             graphReady={graphReady}
             expandedNode={expandedNode}
             exploredNodes={exploredNodes}
+            branchNodes={BRANCH_NODES}
             onNodeClick={openNode}
             interactive={stage === "exploring"}
           />
         )}
 
-        {(stage === "path" || stage === "committing") && chosenPathId && (
+        {(stage === "path" || stage === "committing") && chosenPathId && PATH_TEMPLATES[chosenPathId] && (
           <PathGraph template={PATH_TEMPLATES[chosenPathId]} />
         )}
 
@@ -351,12 +306,13 @@ export function CareerDiscoveryExplorer({ onComplete }: { onComplete: (pathId: s
 // ── Overview graph (root + 7 branches) ─────────────────────────────────
 
 function OverviewGraph({
-  destination, graphReady, expandedNode, exploredNodes, onNodeClick, interactive,
+  destination, graphReady, expandedNode, exploredNodes, branchNodes, onNodeClick, interactive,
 }: {
   destination: string;
   graphReady: boolean;
   expandedNode: string | null;
   exploredNodes: Set<string>;
+  branchNodes: BranchNode[];
   onNodeClick: (id: string) => void;
   interactive: boolean;
 }) {
@@ -369,7 +325,7 @@ function OverviewGraph({
             <feComposite in="SourceGraphic" in2="b" operator="over" />
           </filter>
         </defs>
-        {BRANCH_NODES.map((n, i) => (
+        {branchNodes.map((n, i) => (
           <path
             key={n.id}
             d={`M 500,${ROOT_Y + 26} C 500,${ROOT_Y + 100} ${n.x},${BRANCH_Y - 100} ${n.x},${BRANCH_Y - 34}`}
@@ -396,7 +352,7 @@ function OverviewGraph({
       </div>
 
       {/* Branch nodes */}
-      {BRANCH_NODES.map((n, i) => {
+      {branchNodes.map((n, i) => {
         const isOpen = expandedNode === n.id;
         const isExplored = exploredNodes.has(n.id);
         return (
@@ -463,10 +419,10 @@ function DetailBlock({ icon: Icon, label, items }: { icon: any; label: string; i
 
 // ── Committed path graph (linear, top-to-bottom) ────────────────────────
 
-function PathGraph({ template }: { template: PathTemplate }) {
+function PathGraph({ template }: { template: PathTemplateInfo }) {
   return (
     <div style={cd.pathWrap}>
-      {template.nodes.map((label, i) => (
+      {template.nodes.map((label: string, i: number) => (
         <div key={label} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div
             style={{

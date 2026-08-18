@@ -46,14 +46,94 @@ class TutorChatRequest(BaseModel):
 # ── Helper: Fetch Onboarding Profile Summary ──────────────────────────────────
 def get_user_onboarding_profile(user_id: Any, current_user: Any, db: Session) -> Dict[str, Any]:
     ob = db.query(UserOnboarding).filter(UserOnboarding.user_id == user_id).first()
-    name = current_user.name or current_user.email.split("@")[0]
+    name = (
+        getattr(current_user, "full_name", None) or
+        getattr(current_user, "name", None) or
+        (getattr(current_user, "email", "User").split("@")[0] if getattr(current_user, "email", None) else "User")
+    )
+
+    GOAL_TITLE_MAP = {
+        "get_job": "landing a job",
+        "crack_exam": "cracking your target exam",
+        "earn_online": "earning online",
+        "build_startup": "building your startup",
+        "grow_audience": "growing your audience",
+        "become_disciplined": "building self-discipline",
+        "grow_career": "career growth",
+        "learn_skills": "mastering new skills",
+        "build_projects": "building real-world projects",
+        "prepare_exams": "exam preparation",
+        "build_business": "building a business",
+        "financial_independence": "financial independence",
+        "improve_discipline": "improving discipline",
+    }
+
+    raw_goal = (
+        getattr(ob, "career_goal", None) or
+        getattr(ob, "primary_skill", None) or
+        getattr(ob, "field_of_study", None) or
+        (f"Clearing {ob.exam_type.upper()} Exam" if ob and getattr(ob, "exam_type", None) else None) or
+        getattr(ob, "business_goal", None) or
+        getattr(ob, "creator_growth_goal", None) or
+        getattr(ob, "twelve_month_goal", None) or
+        getattr(ob, "primary_goal", None) if ob else None
+    )
+
+    if raw_goal and str(raw_goal).strip() in GOAL_TITLE_MAP:
+        career_goal = GOAL_TITLE_MAP[str(raw_goal).strip()]
+    elif raw_goal and "_" in str(raw_goal):
+        career_goal = str(raw_goal).replace("_", " ").title()
+    else:
+        career_goal = str(raw_goal) if raw_goal else "landing a job"
+
+    STYLE_MAP = {
+        "deep_focus": "deep focus session",
+        "short_bursts": "short burst session",
+        "structured": "structured schedule",
+        "flexible": "flexible session",
+        "evening": "evening session",
+    }
+    raw_style = getattr(ob, "productivity_style", None) if ob else None
+    preferred_time_blocks = STYLE_MAP.get(raw_style, raw_style.replace("_", " ") if raw_style else "deep focus session")
+
+    raw_hours = (
+        getattr(ob, "study_hours_daily", None) or
+        getattr(ob, "daily_commitment_hours", None) or
+        getattr(ob, "daily_time", None) or 2
+    ) if ob else 2
+
+    raw_hours_str = str(raw_hours).strip()
+    if raw_hours_str == "30min":
+        daily_study_hours = "0.5"
+    elif raw_hours_str == "1hour":
+        daily_study_hours = "1"
+    elif raw_hours_str == "2-3hours":
+        daily_study_hours = "2 to 3"
+    elif raw_hours_str == "4+hours":
+        daily_study_hours = "4+"
+    elif "hour" in raw_hours_str:
+        daily_study_hours = raw_hours_str.replace("hours", "").replace("hour", "").strip()
+    else:
+        daily_study_hours = raw_hours_str
+
+    LEVEL_MAP = {
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "expert": "Expert",
+        "advanced": "Advanced",
+        "school": "Student",
+        "college": "College Student",
+    }
+    raw_level = (getattr(ob, "experience_level", None) or getattr(ob, "degree_level", None) or getattr(ob, "education_level", None)) if ob else None
+    current_level = LEVEL_MAP.get(raw_level, raw_level.title() if raw_level else "Beginner")
+
     return {
         "name": name,
-        "career_goal": (ob.career_goal or ob.primary_goal or ob.field_of_study if ob else "Software Engineering"),
-        "current_level": (ob.experience_level if ob else "Intermediate"),
-        "daily_study_hours": 2,
-        "preferred_time_blocks": (ob.productivity_style if ob else "evening"),
-        "target_timeline": "6 months",
+        "career_goal": career_goal,
+        "current_level": current_level,
+        "daily_study_hours": daily_study_hours,
+        "preferred_time_blocks": preferred_time_blocks,
+        "target_timeline": (getattr(ob, "target_timeline", None) if ob and getattr(ob, "target_timeline", None) else "6 months"),
         "timezone": "UTC"
     }
 
@@ -516,6 +596,7 @@ def recalibrate_learning_agent(
     mem = db.query(UserLearningMemory).filter(UserLearningMemory.user_id == current_user.id).first()
     if mem:
         mem.calibration_completed = False
+        mem.target_topic = None
         db.commit()
 
     # Delete existing plan so a new curriculum can be generated
@@ -554,7 +635,7 @@ def get_roadmap_status_endpoint(
     mem = db.query(UserLearningMemory).filter(UserLearningMemory.user_id == current_user.id).first()
     plan = db.query(UserLearningPlan).filter(UserLearningPlan.user_id == current_user.id).first()
     profile = get_user_onboarding_profile(current_user.id, current_user, db)
-    committed = bool(plan and mem and mem.calibration_completed)
+    committed = bool(plan and mem and mem.calibration_completed and mem.target_topic)
     return {
         "week1_committed": committed,
         "destination": profile.get("career_goal", "Software Engineer"),
@@ -582,6 +663,134 @@ def commit_roadmap_endpoint(
     return {"status": "success", "message": "Week 1 committed successfully"}
 
 
+def get_domain_default_content(career_goal: str) -> Dict[str, Any]:
+    norm = (career_goal or "").lower()
+
+    # JEE / Engineering Entrance
+    if "jee" in norm or "iit" in norm or "crack_exam" in norm or "physics" in norm or "chemistry" in norm:
+        return {
+            "week_theme": f"{career_goal} Foundations & PYQ Drills",
+            "objectives": [
+                "Master Mechanics & Newton's Laws of Motion in Physics",
+                "Solve Organic Reaction Mechanisms & NCERT Chemistry Drills",
+                "Practice NTA Previous Year Questions (PYQs) & Speed Tests",
+            ],
+            "default_tasks": [
+                {"id": "m1", "type": "topic", "title": "Mechanics & Laws of Motion (Physics)", "estimated_minutes": 45, "completed": True, "topic_id": "physics_mechanics"},
+                {"id": "m2", "type": "topic", "title": "Organic Reaction Mechanisms (Chemistry)", "estimated_minutes": 45, "completed": False, "topic_id": "organic_chem"},
+                {"id": "m3", "type": "practice", "title": "Solve 15 NTA JEE Previous Year Questions (PYQs)", "estimated_minutes": 30, "completed": False},
+                {"id": "m4", "type": "project", "title": "Full 3-Hour NTA Mock Test Drill", "estimated_minutes": 60, "completed": False},
+            ],
+            "topic_explanation": "Newton's laws govern mechanical motion. Master free-body diagrams (FBD), work-energy theorem, and momentum conservation for numerical problem solving.",
+            "code_snippet": {"language": "formula", "code": "// Key Physics Formulas:\nF_net = m * a\nWork = ∫ F · dx = ΔK (Work-Energy Theorem)\nImpulse = ∫ F dt = Δp"},
+            "practice_questions": [
+                {"id": "q1", "kind": "mcq", "prompt": "What is the condition for a body to be in translational equilibrium?", "options": ["ΣF = 0", "ΣF = m*a", "Work = 0", "Impulse = 0"]}
+            ],
+            "resource_video": {"title": "JEE Physics Mechanics & PYQ Problem Solving Guide", "url": "https://youtube.com", "source": "GrowthOS Academy", "duration": "25 min"},
+            "resource_article": {"title": "NCERT Chemistry Organic Reactions Formula Sheet", "url": "https://docs.growthos.io", "source": "GrowthOS Notes"},
+            "resource_docs": {"title": "Official NTA JEE Syllabus & PYQ Archive", "url": "https://nta.ac.in", "source": "NTA Official"},
+        }
+
+    # NEET / Medical / Doctor
+    if "neet" in norm or "doctor" in norm or "medical" in norm or "biology" in norm or "mbbs" in norm:
+        return {
+            "week_theme": f"{career_goal} Human Physiology & Bio Mastery",
+            "objectives": [
+                "Master NCERT Human Physiology & Circulatory Systems",
+                "Understand Cell Structure & Biomolecules for NEET Biology",
+                "Practice 50 High-Yield NEET Diagram & Assertion-Reason Questions",
+            ],
+            "default_tasks": [
+                {"id": "m1", "type": "topic", "title": "Human Physiology & Circulatory System", "estimated_minutes": 45, "completed": True, "topic_id": "human_physio"},
+                {"id": "m2", "type": "topic", "title": "Cell Biology & Biomolecules", "estimated_minutes": 45, "completed": False, "topic_id": "cell_bio"},
+                {"id": "m3", "type": "practice", "title": "Practice 30 NEET Bio Assertion-Reason Questions", "estimated_minutes": 30, "completed": False},
+                {"id": "m4", "type": "project", "title": "NEET 700+ Score Mock Drill", "estimated_minutes": 60, "completed": False},
+            ],
+            "topic_explanation": "Human physiology forms ~30% of NEET Biology. Master cardiac cycle timing, blood circulation pathways, and NCERT terminology line-by-line.",
+            "code_snippet": {"language": "concept", "code": "// Cardiac Cycle Breakdown:\nAtrial Systole: 0.1s\nVentricular Systole: 0.3s\nJoint Diastole: 0.4s\nTotal Cycle Duration: 0.8s (72 beats/min)"},
+            "practice_questions": [
+                {"id": "q1", "kind": "mcq", "prompt": "Which organelle is known as the powerhouse of the cell?", "options": ["Mitochondria", "Ribosome", "Golgi Apparatus", "Nucleus"]}
+            ],
+            "resource_video": {"title": "NEET Human Physiology Line-by-Line NCERT Guide", "url": "https://youtube.com", "source": "GrowthOS Medical", "duration": "30 min"},
+            "resource_article": {"title": "NCERT Biology Master Revision Notes", "url": "https://docs.growthos.io", "source": "GrowthOS Medical"},
+            "resource_docs": {"title": "Official NTA NEET Medical Syllabus", "url": "https://neet.nta.nic.in", "source": "NTA Official"},
+        }
+
+    # UPSC / Civil Services
+    if "upsc" in norm or "civil" in norm or "ias" in norm or "governance" in norm:
+        return {
+            "week_theme": f"{career_goal} Indian Polity & Mains Preparation",
+            "objectives": [
+                "Master Fundamental Rights, Preamble & Constitutional Framework",
+                "Understand Modern Indian History & Freedom Struggle",
+                "Practice Mains Answer Writing & CSAT Quantitative Reasoning",
+            ],
+            "default_tasks": [
+                {"id": "m1", "type": "topic", "title": "Indian Constitution & Fundamental Rights", "estimated_minutes": 45, "completed": True, "topic_id": "indian_polity"},
+                {"id": "m2", "type": "topic", "title": "Modern History & Freedom Movement", "estimated_minutes": 45, "completed": False, "topic_id": "modern_history"},
+                {"id": "m3", "type": "practice", "title": "Write 2 GS Mains Answer Writing Drafts", "estimated_minutes": 30, "completed": False},
+                {"id": "m4", "type": "project", "title": "UPSC Prelims Mock Paper 1", "estimated_minutes": 60, "completed": False},
+            ],
+            "topic_explanation": "The Indian Constitution is the bedrock of GS Paper 2. Focus on Fundamental Rights (Articles 12-35), Directive Principles, and Landmark Supreme Court judgments.",
+            "code_snippet": {"language": "concept", "code": "// Key Constitutional Articles:\nArticle 14: Equality before law\nArticle 19: Freedom of Speech & Expression\nArticle 21: Right to Life & Personal Liberty\nArticle 32: Constitutional Remedies (Writs)"},
+            "practice_questions": [
+                {"id": "q1", "kind": "mcq", "prompt": "Which Article of the Indian Constitution provides the Right to Constitutional Remedies?", "options": ["Article 32", "Article 21", "Article 14", "Article 370"]}
+            ],
+            "resource_video": {"title": "UPSC Indian Polity & Constitution Masterclass", "url": "https://youtube.com", "source": "GrowthOS UPSC", "duration": "25 min"},
+            "resource_article": {"title": "Laxmikanth Polity Mind Maps & Notes", "url": "https://docs.growthos.io", "source": "GrowthOS Academy"},
+            "resource_docs": {"title": "Official UPSC Civil Services Examination Syllabus", "url": "https://upsc.gov.in", "source": "UPSC Official"},
+        }
+
+    # Business / Entrepreneur
+    if "business" in norm or "startup" in norm or "entrepreneur" in norm:
+        return {
+            "week_theme": f"{career_goal} Validation & MVP Launch",
+            "objectives": [
+                "Validate Customer Pain Points & Value Proposition",
+                "Build & Launch a Minimum Viable Product (MVP)",
+                "Establish Customer Acquisition & Unit Economics",
+            ],
+            "default_tasks": [
+                {"id": "m1", "type": "topic", "title": "Customer Problem Validation & Lean Canvas", "estimated_minutes": 45, "completed": True, "topic_id": "customer_validation"},
+                {"id": "m2", "type": "topic", "title": "MVP Launch & Product Architecture", "estimated_minutes": 45, "completed": False, "topic_id": "mvp_launch"},
+                {"id": "m3", "type": "practice", "title": "Conduct 5 Customer Discovery Interviews", "estimated_minutes": 30, "completed": False},
+                {"id": "m4", "type": "project", "title": "Launch Landing Page & Early Access Waitlist", "estimated_minutes": 60, "completed": False},
+            ],
+            "topic_explanation": "90% of startups fail due to building products nobody wants. Customer interviews and Lean Canvas validation de-risk your business model before scaling.",
+            "code_snippet": {"language": "strategy", "code": "// Lean Startup Loop:\nBuild MVP -> Measure Customer Feedback -> Learn & Pivot\nUnit Economics: CAC < LTV / 3"},
+            "practice_questions": [
+                {"id": "q1", "kind": "mcq", "prompt": "What is the primary objective of a Minimum Viable Product (MVP)?", "options": ["Test core hypotheses with minimal effort", "Generate maximum revenue", "Hire a large team", "File patents"]}
+            ],
+            "resource_video": {"title": "Zero to One Startup Validation Playbook", "url": "https://youtube.com", "source": "GrowthOS Business", "duration": "20 min"},
+            "resource_article": {"title": "Lean Canvas 1-Page Business Model Template", "url": "https://docs.growthos.io", "source": "GrowthOS Business"},
+            "resource_docs": {"title": "Official GrowthOS Entrepreneurship Guide", "url": "https://docs.growthos.io", "source": "GrowthOS Docs"},
+        }
+
+    # Default Software Engineering / Tech
+    return {
+        "week_theme": f"{career_goal} Architecture & Engineering",
+        "objectives": [
+            "Master core system architecture and execution models",
+            "Build robust modular component systems",
+            "Deploy and test production-ready applications",
+        ],
+        "default_tasks": [
+            {"id": "m1", "type": "topic", "title": "System Architecture & Execution Flow", "estimated_minutes": 45, "completed": True, "topic_id": "arch_flow"},
+            {"id": "m2", "type": "topic", "title": "Modular Component Design", "estimated_minutes": 45, "completed": False, "topic_id": "modular_design"},
+            {"id": "m3", "type": "practice", "title": "Solve 5 Algorithmic Challenges", "estimated_minutes": 30, "completed": False},
+            {"id": "m4", "type": "project", "title": "Build Modular Production App", "estimated_minutes": 60, "completed": False},
+        ],
+        "topic_explanation": "Clean architecture decouples core logic from external dependencies, ensuring maintainable, testable, and scalable software systems.",
+        "code_snippet": {"language": "typescript", "code": "// Clean Architecture Pattern Example\nexport class ModuleService {\n  async process(): Promise<boolean> {\n    return true;\n  }\n}"},
+        "practice_questions": [
+            {"id": "q1", "kind": "mcq", "prompt": "Why is separation of concerns important in system design?", "options": ["Reduces complexity & improves testability", "Makes code run 100x faster", "Removes need for databases", "Prevents all bugs"]}
+        ],
+        "resource_video": {"title": "System Architecture & Engineering Guide", "url": "https://youtube.com", "source": "GrowthOS Academy", "duration": "20 min"},
+        "resource_article": {"title": "Clean Code Architecture Patterns", "url": "https://docs.growthos.io", "source": "GrowthOS Docs"},
+        "resource_docs": {"title": "Official GrowthOS Engineering Docs", "url": "https://docs.growthos.io", "source": "GrowthOS Docs"},
+    }
+
+
 # ── GET /api/learning-agent/roadmap/current-week ─────────────────────────────
 @router.get("/roadmap/current-week")
 def get_current_week_roadmap_endpoint(
@@ -594,6 +803,8 @@ def get_current_week_roadmap_endpoint(
         db.add(mem)
         db.commit()
     plan = ensure_learning_plan_exists(current_user.id, current_user, mem, db)
+    profile = get_user_onboarding_profile(current_user.id, current_user, db)
+    domain_defaults = get_domain_default_content(profile["career_goal"])
     missions = db.query(LearningMission).filter(LearningMission.plan_id == plan.id).order_by(LearningMission.day_number).all()
 
     days = []
@@ -607,17 +818,13 @@ def get_current_week_roadmap_endpoint(
             "is_today": i == plan.current_day,
             "is_locked": i > plan.current_day,
             "mission_item_ids": [f"m{i}"],
-            "topic_titles": ["Core Foundations", "Hands-on Implementation"] if i <= 2 else ["Practice"],
+            "topic_titles": ["Core Foundations", "Hands-on Practice"] if i <= 2 else ["Practice"],
         })
 
     return {
         "week_number": plan.current_week,
-        "week_theme": plan.title or "Python Foundations",
-        "objectives": [
-            "Understand core data types and variables",
-            "Get comfortable with lists and control flow",
-            "Ship a small calculator project",
-        ],
+        "week_theme": plan.title or domain_defaults["week_theme"],
+        "objectives": domain_defaults["objectives"],
         "days": days,
         "next_week_locked": True,
     }
@@ -635,6 +842,9 @@ def get_today_mission_endpoint(
         db.add(mem)
         db.commit()
     plan = ensure_learning_plan_exists(current_user.id, current_user, mem, db)
+    profile = get_user_onboarding_profile(current_user.id, current_user, db)
+    domain_defaults = get_domain_default_content(profile["career_goal"])
+
     mission = db.query(LearningMission).filter(LearningMission.plan_id == plan.id, LearningMission.day_number == plan.current_day).first()
     if not mission:
         mission = db.query(LearningMission).filter(LearningMission.plan_id == plan.id).first()
@@ -650,16 +860,17 @@ def get_today_mission_endpoint(
             "title": t.text,
             "estimated_minutes": 30,
             "completed": t.completed,
-            "topic_id": t.topic_key or "variables",
+            "topic_id": t.topic_key or "t1",
         })
 
     if not items:
-        items = [
-            {"id": "m1", "type": "topic", "title": "Learn Variables & Memory Models", "estimated_minutes": 30, "completed": True, "topic_id": "variables"},
-            {"id": "m2", "type": "topic", "title": "Practice Data Structures & Lists", "estimated_minutes": 30, "completed": False, "topic_id": "lists"},
-            {"id": "m3", "type": "practice", "title": "Solve 5 Algorithmic Challenges", "estimated_minutes": 30, "completed": False},
-            {"id": "m4", "type": "project", "title": "Build Mini Calculator Project", "estimated_minutes": 50, "completed": False},
-        ]
+        items = domain_defaults["default_tasks"]
+
+    return {
+        "date": datetime.utcnow().isoformat(),
+        "estimated_minutes_total": sum(x["estimated_minutes"] for x in items),
+        "items": items,
+    }
 
     return {
         "date": datetime.utcnow().isoformat(),
@@ -693,45 +904,43 @@ def get_topic_detail_endpoint(
 ):
     topic = db.query(LearningTopic).filter(LearningTopic.topic_key == topic_id, LearningTopic.user_id == current_user.id).first()
     note = db.query(LearningNote).filter(LearningNote.topic_key == topic_id, LearningNote.user_id == current_user.id).first()
+    profile = get_user_onboarding_profile(current_user.id, current_user, db)
+    domain_defaults = get_domain_default_content(profile["career_goal"])
 
     if topic:
         cs = topic.code_snippet
-        code_text = cs.get("code") if isinstance(cs, dict) else (cs or "name = \"Surinder\"\nprint(f'Hello {name}')")
-        code_lang = cs.get("language") if isinstance(cs, dict) else "python"
+        code_text = cs.get("code") if isinstance(cs, dict) else (cs or domain_defaults["code_snippet"]["code"])
+        code_lang = cs.get("language") if isinstance(cs, dict) else domain_defaults["code_snippet"]["language"]
         return {
             "id": topic.topic_key,
             "title": topic.title,
             "week_number": 1,
-            "explanation_md": topic.explanation or "A variable is a named reference to a value stored in memory.",
+            "explanation_md": topic.explanation or domain_defaults["topic_explanation"],
             "examples": [
-                {"title": "Assigning variables", "body": "age = 24\nname = \"Surinder\""},
-                {"title": "Reassigning variables", "body": "score = 10\nscore += 5"}
+                {"title": f"Mastering {topic.title}", "body": topic.summary or domain_defaults["topic_explanation"]}
             ],
             "code_snippets": [
-                {"language": code_lang, "code": code_text, "caption": "Code example"}
+                {"language": code_lang, "code": code_text, "caption": "Key Reference / Practice Formula"}
             ],
-            "practice_questions": [
-                {"id": "q1", "kind": "mcq", "prompt": "What will type(5.0) return in Python?", "options": ["int", "float", "str", "bool"]}
-            ],
+            "practice_questions": topic.practice_questions or domain_defaults["practice_questions"],
             "notes": note.note_text if note else "",
             "completed": topic.completed,
             "estimated_minutes": 30,
         }
 
+    formatted_title = topic_id.replace("_", " ").title()
     return {
         "id": topic_id,
-        "title": topic_id.capitalize(),
+        "title": formatted_title,
         "week_number": 1,
-        "explanation_md": "A variable is a named reference to a value stored in memory in Python.",
+        "explanation_md": domain_defaults["topic_explanation"],
         "examples": [
-            {"title": "Assigning variables", "body": "age = 24\nname = \"Surinder\""}
+            {"title": f"Key Guide for {formatted_title}", "body": domain_defaults["topic_explanation"]}
         ],
         "code_snippets": [
-            {"language": "python", "code": "x = 10\ny = 20\nprint(x + y)", "caption": "Basic operation"}
+            domain_defaults["code_snippet"]
         ],
-        "practice_questions": [
-            {"id": "q1", "kind": "mcq", "prompt": "What is the result of 10 + 20 in Python?", "options": ["30", "1020", "Error"]}
-        ],
+        "practice_questions": domain_defaults["practice_questions"],
         "notes": note.note_text if note else "",
         "completed": False,
         "estimated_minutes": 30,
@@ -772,16 +981,18 @@ def get_topic_resources_endpoint(
     db: Session = Depends(get_db)
 ):
     res_list = db.query(LearningResource).filter(LearningResource.user_id == current_user.id, LearningResource.topic_key == topic_id).all()
+    profile = get_user_onboarding_profile(current_user.id, current_user, db)
+    domain_defaults = get_domain_default_content(profile["career_goal"])
 
     v = next((r for r in res_list if r.type == "video"), None)
     a = next((r for r in res_list if r.type == "article"), None)
     d = next((r for r in res_list if r.type in ["doc", "documentation"]), None)
 
     return {
-        "best_video": {"title": v.title if v else f"Python {topic_id.capitalize()} in 10 Minutes", "url": v.url if v else "https://youtube.com", "source": v.source if v else "YouTube", "duration": v.duration_or_time if v else "10:12"},
-        "best_article": {"title": a.title if a else f"Practical Guide to {topic_id.capitalize()}", "url": a.url if a else "https://realpython.com", "source": a.source if a else "Real Python"},
-        "official_docs": {"title": d.title if d else f"Python {topic_id.capitalize()} Documentation", "url": d.url if d else "https://docs.python.org", "source": d.source if d else "docs.python.org"},
-        "project": {"title": f"Build a project using {topic_id.capitalize()}", "url": "https://github.com", "source": "GrowthOS Projects"},
+        "best_video": {"title": v.title if v else domain_defaults["resource_video"]["title"], "url": v.url if v else domain_defaults["resource_video"]["url"], "source": v.source if v else domain_defaults["resource_video"]["source"], "duration": v.duration_or_time if v else domain_defaults["resource_video"]["duration"]},
+        "best_article": {"title": a.title if a else domain_defaults["resource_article"]["title"], "url": a.url if a else domain_defaults["resource_article"]["url"], "source": a.source if a else domain_defaults["resource_article"]["source"]},
+        "official_docs": {"title": d.title if d else domain_defaults["resource_docs"]["title"], "url": d.url if d else domain_defaults["resource_docs"]["url"], "source": d.source if d else domain_defaults["resource_docs"]["source"]},
+        "project": {"title": f"Hands-on Drill for {topic_id.replace('_', ' ').title()}", "url": "https://github.com", "source": "GrowthOS Practice"},
         "more": [],
     }
 

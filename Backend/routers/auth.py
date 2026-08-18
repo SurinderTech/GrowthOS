@@ -19,16 +19,24 @@ from starlette.config import Config
 import os
 import httpx
 from dotenv import load_dotenv
-from Backend.schemas.auth import RegisterRequest, AuthResponse
+from datetime import datetime, timedelta
+from Backend.schemas.auth import (
+    RegisterRequest, AuthResponse, RequestOTPRequest, VerifyOTPRequest,
+    ResetPasswordWithOTPRequest, OTPResponse, PhoneVerifyRequest, PhoneVerifyResponse
+)
 from Backend.schemas.user import UserResponse
 
 from Backend.db.session import get_db
 from Backend.models.onboarding import UserOnboarding
-from datetime import datetime
 from Backend.models.user import User
+from Backend.models.otp import UserOTP
+from Backend.services.email_service import send_otp_email
+from Backend.services.msg91 import verify_msg91_access_token
 from Backend.auth import hash_password, verify_password, create_access_token, get_current_user
 
+
 load_dotenv()
+
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -424,3 +432,256 @@ def update_profile(
             "avatar_url": avatar_url,
         }
     }
+
+
+# ─────────────────────────────────────────────
+# FORGOT PASSWORD & 2FA OTP ENDPOINTS
+# ─────────────────────────────────────────────
+
+@router.post("/forgot-password/request-otp", response_model=OTPResponse)
+async def request_forgot_password_otp(data: RequestOTPRequest, db: Session = Depends(get_db)):
+    email = data.email.strip().lower()
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        # Fail gracefully without revealing user existence
+        return OTPResponse(message="If an account with this email exists, a 6-digit OTP code has been sent.", success=True)
+
+    # Invalidate previous unused OTPs for this email and purpose
+    db.query(UserOTP).filter(
+        UserOTP.email == email,
+        UserOTP.purpose == data.purpose,
+        UserOTP.is_used == False
+    ).update({"is_used": True})
+
+    otp_code = UserOTP.generate_otp_code()
+    otp_record = UserOTP(
+        email=email,
+        user_id=user.id,
+        otp_code=otp_code,
+        purpose=data.purpose,
+        expires_at=datetime.utcnow() + timedelta(minutes=10)
+    )
+    db.add(otp_record)
+    db.commit()
+
+    sent = await send_otp_email(email, otp_code, purpose="Password Reset")
+    if not sent:
+        raise HTTPException(status_code=500, detail="Failed to send OTP email via Brevo. Please try again later.")
+
+    return OTPResponse(message="A 6-digit verification code has been sent to your email.", success=True)
+
+
+@router.post("/forgot-password/verify-otp", response_model=OTPResponse)
+async def verify_forgot_password_otp(data: VerifyOTPRequest, db: Session = Depends(get_db)):
+    email = data.email.strip().lower()
+    otp_code = data.otp_code.strip()
+
+    otp_record = db.query(UserOTP).filter(
+        UserOTP.email == email,
+        UserOTP.otp_code == otp_code,
+        UserOTP.purpose == data.purpose,
+        UserOTP.is_used == False
+    ).order_by(UserOTP.created_at.desc()).first()
+
+    if not otp_record or not otp_record.is_valid():
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP verification code.")
+
+    return OTPResponse(message="OTP verification code is valid.", success=True)
+
+
+@router.post("/forgot-password/reset-password", response_model=OTPResponse)
+async def reset_password_with_otp(data: ResetPasswordWithOTPRequest, db: Session = Depends(get_db)):
+    email = data.email.strip().lower()
+    otp_code = data.otp_code.strip()
+    new_password = data.new_password.strip()
+
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters long.")
+
+    otp_record = db.query(UserOTP).filter(
+        UserOTP.email == email,
+        UserOTP.otp_code == otp_code,
+        UserOTP.purpose == "password_reset",
+        UserOTP.is_used == False
+    ).order_by(UserOTP.created_at.desc()).first()
+
+    if not otp_record or not otp_record.is_valid():
+        raise HTTPException(status_code=400, detail="Invalid or expired OTP code. Please request a new code.")
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User account not found.")
+
+    user.hashed_password = hash_password(new_password)
+    otp_record.is_used = True
+    db.commit()
+
+    return OTPResponse(message="Password reset successfully! You can now log in with your new password.", success=True)
+
+
+@router.post("/2fa/verify", response_model=AuthResponse)
+async def verify_2fa_otp(data: VerifyOTPRequest, db: Session = Depends(get_db)):
+    email = data.email.strip().lower()
+    otp_code = data.otp_code.strip()
+
+    otp_record = db.query(UserOTP).filter(
+        UserOTP.email == email,
+        UserOTP.otp_code == otp_code,
+        UserOTP.purpose == "2fa_login",
+        UserOTP.is_used == False
+    ).order_by(UserOTP.created_at.desc()).first()
+
+    if not otp_record or not otp_record.is_valid():
+        raise HTTPException(status_code=400, detail="Invalid or expired 2FA code.")
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    otp_record.is_used = True
+    db.commit()
+
+    token = create_access_token(str(user.id), user.email)
+    try:
+        user_resp = UserResponse.model_validate(user)
+        return AuthResponse(access_token=token, user=user_resp)
+    except Exception:
+        user_data = {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "image": user.image,
+            "onboarding_completed": user.onboarding_completed
+        }
+        return AuthResponse(access_token=token, user=UserResponse(**user_data))
+
+
+@router.post("/2fa/toggle")
+async def toggle_2fa(
+    enable: bool,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    current_user.is_2fa_enabled = enable
+    db.commit()
+    return {"message": f"2FA has been {'enabled' if enable else 'disabled'}.", "is_2fa_enabled": enable}
+
+
+# ─────────────────────────────────────────────
+# MSG91 PHONE VERIFICATION ENDPOINTS
+# ─────────────────────────────────────────────
+
+@router.post("/phone/verify", response_model=PhoneVerifyResponse)
+async def verify_phone_with_msg91(data: PhoneVerifyRequest, db: Session = Depends(get_db)):
+    """
+    Verifies an MSG91 access token with MSG91's server endpoint.
+    If a user exists matching the verified phone number, marks phone_verified=True,
+    issues GrowthOS JWT, and returns full authentication data.
+    """
+    access_token = data.access_token.strip()
+    if not access_token:
+        raise HTTPException(status_code=400, detail="MSG91 access token is required.")
+
+    # 1. Verify access token with MSG91
+    result = await verify_msg91_access_token(access_token)
+    if not result.get("valid"):
+        raise HTTPException(
+            status_code=400,
+            detail=result.get("error") or "Invalid or expired MSG91 access token."
+        )
+
+    verified_phone = result.get("phone", "")
+    if not verified_phone:
+        raise HTTPException(status_code=400, detail="Verified phone identity missing from provider response.")
+
+    # 2. Flexible match GrowthOS user by phone number
+    clean_digits = re.sub(r"\D", "", verified_phone)
+    last_10 = clean_digits[-10:] if len(clean_digits) >= 10 else clean_digits
+
+    user = db.query(User).filter(
+        (User.phone == verified_phone) |
+        (User.phone == clean_digits) |
+        (User.phone.endswith(last_10))
+    ).first()
+
+    if user:
+        # Mark phone as verified
+        user.phone = verified_phone  # store normalized E.164 phone
+        user.phone_verified = True
+        user.phone_verified_at = datetime.utcnow()
+        db.commit()
+        db.refresh(user)
+
+        # Issue GrowthOS JWT
+        token = create_access_token(str(user.id), user.email)
+        user_resp = UserResponse.model_validate(user)
+
+        return PhoneVerifyResponse(
+            success=True,
+            verified_phone=verified_phone,
+            account_found=True,
+            message="Phone authentication successful.",
+            access_token=token,
+            user=user_resp
+        )
+
+    # 3. User does not exist yet for this phone number
+    return PhoneVerifyResponse(
+        success=True,
+        verified_phone=verified_phone,
+        account_found=False,
+        message="Phone verified successfully. No GrowthOS account is linked to this phone number yet.",
+        access_token=None,
+        user=None
+    )
+
+
+@router.post("/phone/link")
+async def link_phone_with_msg91(
+    data: PhoneVerifyRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Links a verified MSG91 phone number to the logged-in user's account.
+    """
+    access_token = data.access_token.strip()
+    if not access_token:
+        raise HTTPException(status_code=400, detail="MSG91 access token is required.")
+
+    result = await verify_msg91_access_token(access_token)
+    if not result.get("valid"):
+        raise HTTPException(
+            status_code=400,
+            detail=result.get("error") or "Invalid or expired MSG91 access token."
+        )
+
+    verified_phone = result.get("phone", "")
+    if not verified_phone:
+        raise HTTPException(status_code=400, detail="Verified phone identity missing from provider response.")
+
+    clean_digits = re.sub(r"\D", "", verified_phone)
+    last_10 = clean_digits[-10:] if len(clean_digits) >= 10 else clean_digits
+
+    # Check if another user is using this phone
+    existing = db.query(User).filter(
+        (User.id != current_user.id) &
+        ((User.phone == verified_phone) | (User.phone == clean_digits) | (User.phone.endswith(last_10)))
+    ).first()
+
+    if existing:
+        raise HTTPException(status_code=409, detail="This phone number is already linked to another GrowthOS account.")
+
+    current_user.phone = verified_phone
+    current_user.phone_verified = True
+    current_user.phone_verified_at = datetime.utcnow()
+    db.commit()
+    db.refresh(current_user)
+
+    return {
+        "success": True,
+        "message": "Phone number successfully linked and verified.",
+        "user": UserResponse.model_validate(current_user)
+    }
+
+

@@ -5,9 +5,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { Eye, EyeOff, Mail, Lock, Loader2, Brain } from "lucide-react";
-import { apiLogin, saveToken, saveUser, loginWithGoogle, loginWithFacebook, loginWithLinkedIn } from "@/lib/api";
+import { Eye, EyeOff, Mail, Lock, Loader2, Brain, Phone, KeyRound } from "lucide-react";
+import { apiLogin, saveToken, saveUser, loginWithGoogle, loginWithFacebook, loginWithLinkedIn, verify2FAOTP, apiVerifyPhoneWithMSG91 } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { MSG91OTPWidget } from "@/components/auth/MSG91OTPWidget";
 
 /* ── Animated Neon Brain Orb ── */
 function BrainOrb() {
@@ -57,10 +58,17 @@ export default function LoginPage() {
   const router = useRouter();
   const { setUser } = useAuth();
 
+  const [authMode, setAuthMode]       = useState<"email" | "phone">("email");
   const [email, setEmail]           = useState("");
+  const [phone, setPhone]           = useState("");
   const [password, setPassword]     = useState("");
   const [showPassword, setShowPwd]  = useState(false);
   const [loading, setLoading]       = useState(false);
+
+  // 2FA Modal states
+  const [show2FAModal, setShow2FA]  = useState(false);
+  const [otp2FA, setOtp2FA]         = useState("");
+  const [verifying2FA, setVerifying2FA] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,6 +76,11 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const data = await apiLogin(email, password);
+      if (data.require_2fa) {
+        toast.success("Two-Factor Authentication code sent to your email!");
+        setShow2FA(true);
+        return;
+      }
       saveToken(data.access_token);
       saveUser(data.user);
       setUser(data.user);
@@ -79,6 +92,49 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  const handleMSG91Success = async (msg91AccessToken: string) => {
+    setLoading(true);
+    try {
+      const data = await apiVerifyPhoneWithMSG91(msg91AccessToken);
+      if (data.account_found && data.access_token && data.user) {
+        saveToken(data.access_token);
+        saveUser(data.user);
+        setUser(data.user);
+        toast.success("Phone authentication successful! Welcome back 🎉");
+        router.push("/dashboard");
+      } else {
+        toast.error(data.message || "No GrowthOS account is linked to this phone number.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Phone authentication failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const handleVerify2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otp2FA || otp2FA.trim().length !== 6) {
+      toast.error("Please enter the complete 6-digit code.");
+      return;
+    }
+    setVerifying2FA(true);
+    try {
+      const data = await verify2FAOTP(email, otp2FA.trim());
+      saveToken(data.access_token);
+      saveUser(data.user);
+      setUser(data.user);
+      toast.success("2FA verified! Welcome back 🎉");
+      router.push("/dashboard");
+    } catch (err: any) {
+      toast.error(err.message || "Invalid or expired 2FA code.");
+    } finally {
+      setVerifying2FA(false);
+    }
+  };
+
 
   return (
     <>
@@ -451,53 +507,128 @@ export default function LoginPage() {
             <h2 className="gos-title">Welcome back 👋</h2>
             <p className="gos-desc">Sign in to your GrowthOS account</p>
 
-            <form onSubmit={handleSubmit} className="gos-form">
-              <div className="gos-field">
-                <label className="gos-lbl">EMAIL ADDRESS</label>
-                <div className="gos-wrap">
-                  <Mail size={16} className="gos-icon" style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", color:"#1565c0", opacity:.5, pointerEvents:"none" }} />
-                  <input
-                    type="email"
-                    placeholder="you@company.com"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    className="gos-input"
-                    autoComplete="email"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="gos-field">
-                <label className="gos-lbl">PASSWORD</label>
-                <div className="gos-wrap">
-                  <Lock size={16} style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", color:"#1565c0", opacity:.5, pointerEvents:"none" }} />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••••"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    className="gos-input"
-                    style={{ paddingRight:"42px" }}
-                    autoComplete="current-password"
-                    required
-                  />
-                  <button type="button" onClick={() => setShowPwd(!showPassword)} className="gos-eye-btn">
-                    {showPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ textAlign:"right" }}>
-                <Link href="/forgot-password" className="gos-forgot">Forgot password?</Link>
-              </div>
-
-              <button type="submit" className="gos-btn-main" disabled={loading}>
-                {loading
-                  ? <span className="gos-row"><Loader2 size={17} className="gos-spin"/> Signing in...</span>
-                  : "SIGN IN TO GROWTHOS"}
+            {/* Sub-toggle: Email vs Phone OTP */}
+            <div style={{ display: "flex", gap: "8px", background: "rgba(255, 255, 255, 0.03)", padding: "4px", borderRadius: "10px", marginBottom: "20px", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+              <button
+                type="button"
+                onClick={() => setAuthMode("email")}
+                style={{
+                  flex: 1,
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  border: "none",
+                  background: authMode === "email" ? "rgba(99, 102, 241, 0.2)" : "transparent",
+                  color: authMode === "email" ? "#818cf8" : "#64748b",
+                  fontSize: "0.78rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px"
+                }}
+              >
+                <Mail size={14} /> Email & Password
               </button>
-            </form>
+              <button
+                type="button"
+                onClick={() => setAuthMode("phone")}
+                style={{
+                  flex: 1,
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  border: "none",
+                  background: authMode === "phone" ? "rgba(6, 182, 212, 0.2)" : "transparent",
+                  color: authMode === "phone" ? "#22d3ee" : "#64748b",
+                  fontSize: "0.78rem",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px"
+                }}
+              >
+                <Phone size={14} /> MSG91 Phone OTP
+              </button>
+            </div>
+
+            {authMode === "email" ? (
+              <form onSubmit={handleSubmit} className="gos-form">
+                <div className="gos-field">
+                  <label className="gos-lbl">EMAIL ADDRESS</label>
+                  <div className="gos-wrap">
+                    <Mail size={16} className="gos-icon" style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", color:"#1565c0", opacity:.5, pointerEvents:"none" }} />
+                    <input
+                      type="email"
+                      placeholder="you@company.com"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      className="gos-input"
+                      autoComplete="email"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="gos-field">
+                  <label className="gos-lbl">PASSWORD</label>
+                  <div className="gos-wrap">
+                    <Lock size={16} style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", color:"#1565c0", opacity:.5, pointerEvents:"none" }} />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="••••••••••"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      className="gos-input"
+                      style={{ paddingRight:"42px" }}
+                      autoComplete="current-password"
+                      required
+                    />
+                    <button type="button" onClick={() => setShowPwd(!showPassword)} className="gos-eye-btn">
+                      {showPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ textAlign:"right" }}>
+                  <Link href="/forgot-password" className="gos-forgot">Forgot password?</Link>
+                </div>
+
+                <button type="submit" className="gos-btn-main" disabled={loading}>
+                  {loading
+                    ? <span className="gos-row"><Loader2 size={17} className="gos-spin"/> Signing in...</span>
+                    : "SIGN IN TO GROWTHOS"}
+                </button>
+              </form>
+            ) : (
+              <div className="gos-form">
+                <div className="gos-field">
+                  <label className="gos-lbl">MOBILE PHONE NUMBER (OPTIONAL PRE-FILL)</label>
+                  <div className="gos-wrap">
+                    <Phone size={16} className="gos-icon" style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", color:"#06b6d4", opacity:.5, pointerEvents:"none" }} />
+                    <input
+                      type="tel"
+                      placeholder="+919876543210"
+                      value={phone}
+                      onChange={e => setPhone(e.target.value)}
+                      className="gos-input"
+                      autoComplete="tel"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginTop: "12px" }}>
+                  <MSG91OTPWidget
+                    phone={phone}
+                    buttonText="VERIFY & SIGN IN WITH MSG91 OTP"
+                    onSuccess={handleMSG91Success}
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+            )}
+
 
             <div className="gos-divider">
               <div className="gos-line"/><span className="gos-or">or continue with</span><div className="gos-line"/>
@@ -536,6 +667,90 @@ export default function LoginPage() {
         </div>
 
       </div>
+
+      {/* ── 2FA OTP Verification Modal ── */}
+      {show2FAModal && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(2, 6, 23, 0.85)",
+          backdropFilter: "blur(8px)",
+          zIndex: 9999,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "20px"
+        }}>
+          <div style={{
+            width: "100%",
+            maxWidth: "420px",
+            background: "#0f172a",
+            border: "1px solid rgba(34, 211, 238, 0.3)",
+            borderRadius: "20px",
+            padding: "32px 24px",
+            boxShadow: "0 25px 50px rgba(0,0,0,0.7)"
+          }}>
+            <h3 style={{ fontSize: "1.3rem", fontWeight: 800, color: "#fff", margin: "0 0 8px", textAlign: "center" }}>
+              Two-Factor Authentication
+            </h3>
+            <p style={{ fontSize: "0.84rem", color: "#94a3b8", textAlign: "center", marginBottom: "20px" }}>
+              Please enter the 6-digit OTP code sent to <strong>{email}</strong>
+            </p>
+
+            <form onSubmit={handleVerify2FA} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <input
+                type="text"
+                maxLength={6}
+                placeholder="123456"
+                value={otp2FA}
+                onChange={(e) => setOtp2FA(e.target.value.replace(/\D/g, ""))}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  fontSize: "1.2rem",
+                  fontWeight: "bold",
+                  letterSpacing: "6px",
+                  textAlign: "center",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(34, 211, 238, 0.3)",
+                  borderRadius: "12px",
+                  color: "#22d3ee"
+                }}
+                required
+              />
+
+              <button
+                type="submit"
+                disabled={verifying2FA || otp2FA.length !== 6}
+                className="gos-btn-main"
+              >
+                {verifying2FA ? (
+                  <span className="gos-row">
+                    <Loader2 size={17} className="gos-spin"/> Verifying...
+                  </span>
+                ) : (
+                  "VERIFY 2FA & LOGIN"
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShow2FA(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#64748b",
+                  fontSize: "0.8rem",
+                  cursor: "pointer",
+                  marginTop: "4px"
+                }}
+              >
+                Cancel
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

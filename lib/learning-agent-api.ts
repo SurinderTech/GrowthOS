@@ -166,11 +166,11 @@ export interface CommitWeek1Payload {
 // ── Mocks (fallback only — real data should come from the backend) ────────
 
 const MOCK_GOAL_BOARD: GoalBoardData = {
-  name: "Surinder",
-  career_goal: "Software Engineer",
-  current_level: "Python Foundations",
-  target_timeline: "January 2027",
-  daily_study_hours: 3,
+  name: "Learner",
+  career_goal: "Personalized Mastery Plan",
+  current_level: "Intermediate",
+  target_timeline: "6 months",
+  daily_study_hours: 2,
   current_week: 1,
   today_completion_pct: 25,
   estimated_journey_weeks: 28,
@@ -180,27 +180,27 @@ const MOCK_TODAY_MISSION: TodayMission = {
   date: new Date().toISOString(),
   estimated_minutes_total: 140,
   items: [
-    { id: "m1", type: "topic", title: "Learn Variables", estimated_minutes: 30, completed: true, topic_id: "variables" },
-    { id: "m2", type: "topic", title: "Practice Lists", estimated_minutes: 30, completed: false, topic_id: "lists" },
-    { id: "m3", type: "practice", title: "Solve 5 Questions", estimated_minutes: 30, completed: false },
-    { id: "m4", type: "project", title: "Build Mini Calculator", estimated_minutes: 50, completed: false },
+    { id: "m1", type: "topic", title: "Domain Foundations", estimated_minutes: 30, completed: true, topic_id: "t1" },
+    { id: "m2", type: "topic", title: "Core Concepts & Practice", estimated_minutes: 30, completed: false, topic_id: "t2" },
+    { id: "m3", type: "practice", title: "Solve High-Yield Questions", estimated_minutes: 30, completed: false },
+    { id: "m4", type: "project", title: "Hands-on Mastery Drill", estimated_minutes: 50, completed: false },
   ],
 };
 
 const MOCK_ROADMAP: WeeklyRoadmap = {
   week_number: 1,
-  week_theme: "Python Foundations",
+  week_theme: "Core Domain Foundations",
   objectives: [
-    "Understand core data types and variables",
-    "Get comfortable with lists and control flow",
-    "Ship a small calculator project",
+    "Master essential domain concepts and principles",
+    "Apply high-yield problem solving techniques",
+    "Complete practical drills and assessments",
   ],
   days: [
-    { day_label: "Mon", date: "", theme: "Variables & Data Types", is_today: true, is_locked: false, mission_item_ids: ["m1"], topic_titles: ["Variables", "Data Types"] },
-    { day_label: "Tue", date: "", theme: "Lists & Loops", is_today: false, is_locked: false, mission_item_ids: ["m2"], topic_titles: ["Lists", "Loops"] },
-    { day_label: "Wed", date: "", theme: "Functions", is_today: false, is_locked: false, mission_item_ids: [], topic_titles: ["Functions"] },
+    { day_label: "Mon", date: "", theme: "Core Concepts", is_today: true, is_locked: false, mission_item_ids: ["m1"], topic_titles: ["Foundations", "Principles"] },
+    { day_label: "Tue", date: "", theme: "Practice & Drills", is_today: false, is_locked: false, mission_item_ids: ["m2"], topic_titles: ["Problem Solving", "Drills"] },
+    { day_label: "Wed", date: "", theme: "Deep Dive", is_today: false, is_locked: false, mission_item_ids: [], topic_titles: ["Advanced Concepts"] },
     { day_label: "Thu", date: "", theme: "Practice Day", is_today: false, is_locked: false, mission_item_ids: [], topic_titles: ["Mixed Practice"] },
-    { day_label: "Fri", date: "", theme: "Mini Project", is_today: false, is_locked: false, mission_item_ids: [], topic_titles: ["Calculator Project"] },
+    { day_label: "Fri", date: "", theme: "Mastery Project", is_today: false, is_locked: false, mission_item_ids: [], topic_titles: ["Mastery Project"] },
     { day_label: "Sat", date: "", theme: "Revision", is_today: false, is_locked: false, mission_item_ids: [], topic_titles: ["Review"] },
     { day_label: "Sun", date: "", theme: "Rest / Buffer", is_today: false, is_locked: false, mission_item_ids: [], topic_titles: [] },
   ],
@@ -208,62 +208,33 @@ const MOCK_ROADMAP: WeeklyRoadmap = {
 };
 
 const MOCK_TOPICS: Record<string, TopicDetail> = {
-  variables: {
-    id: "variables",
-    title: "Variables",
+  t1: {
+    id: "t1",
+    title: "Domain Fundamentals",
     week_number: 1,
     explanation_md:
-      "A variable is a named reference to a value stored in memory. In Python, you don't declare a type — the type is inferred from the value you assign, and it can change if you reassign the variable to something else.",
+      "Core principles and step-by-step breakdown of key domain concepts.",
     examples: [
-      { title: "Assigning a variable", body: "age = 24\nname = \"Surinder\"\nis_active = True" },
-      { title: "Reassigning a variable", body: "score = 10\nscore = score + 5  # score is now 15" },
+      { title: "Core Principle Overview", body: "Detailed explanation of key principles and methodology." },
     ],
     code_snippets: [
-      { language: "python", code: "name = \"Surinder\"\nage = 24\nprint(f\"{name} is {age} years old\")", caption: "String, int, and an f-string together" },
+      { language: "concept", code: "// Key Reference / Formula / Strategy\nConcept = Core Domain Pattern", caption: "Key Reference Formula" },
     ],
     practice_questions: [
-      { id: "q1", kind: "mcq", prompt: "What will `type(5.0)` return in Python?", options: ["int", "float", "str", "bool"] },
-      { id: "q2", kind: "short_answer", prompt: "Write one line of code that swaps the values of two variables `a` and `b`." },
+      { id: "q1", kind: "mcq", prompt: "What is the primary condition for core domain success?", options: ["Deep understanding & practice", "Random guessing", "Ignoring fundamentals"] },
     ],
     notes: "",
     completed: true,
     estimated_minutes: 30,
   },
-  lists: {
-    id: "lists",
-    title: "Lists",
-    week_number: 1,
-    explanation_md:
-      "A list is an ordered, mutable collection. You can hold mixed types, index into it, slice it, and change it in place — which is what separates it from a tuple.",
-    examples: [
-      { title: "Creating and indexing", body: "fruits = [\"apple\", \"banana\", \"cherry\"]\nfruits[0]  # \"apple\"" },
-      { title: "Slicing", body: "fruits[0:2]  # [\"apple\", \"banana\"]" },
-    ],
-    code_snippets: [
-      { language: "python", code: "numbers = [4, 2, 9, 1]\nnumbers.sort()\nprint(numbers)  # [1, 2, 4, 9]" },
-    ],
-    practice_questions: [
-      { id: "q1", kind: "coding", prompt: "Write a function that returns the largest number in a list without using `max()`." },
-    ],
-    notes: "",
-    completed: false,
-    estimated_minutes: 30,
-  },
 };
 
 const MOCK_RESOURCES: Record<string, TopicResources> = {
-  variables: {
-    best_video: { title: "Python Variables in 10 Minutes", url: "#", source: "YouTube", duration: "10:12" },
-    best_article: { title: "A Practical Guide to Python Variables", url: "#", source: "Real Python" },
-    official_docs: { title: "Python Data Model — Objects & Values", url: "#", source: "docs.python.org" },
-    project: { title: "Build a BMI Calculator using variables", url: "#", source: "GrowthOS Projects" },
-    more: [],
-  },
-  lists: {
-    best_video: { title: "Python Lists Explained Visually", url: "#", source: "YouTube", duration: "14:03" },
-    best_article: { title: "Everything You Can Do With a Python List", url: "#", source: "Real Python" },
-    official_docs: { title: "Python Lists — Data Structures", url: "#", source: "docs.python.org" },
-    project: { title: "Build a To-Do List manager", url: "#", source: "GrowthOS Projects" },
+  t1: {
+    best_video: { title: "In-Depth Masterclass", url: "https://youtube.com", source: "GrowthOS Academy", duration: "20:00" },
+    best_article: { title: "Comprehensive Study Notes & Guide", url: "#", source: "GrowthOS Notes" },
+    official_docs: { title: "Official Reference Guide", url: "#", source: "GrowthOS Docs" },
+    project: { title: "Hands-on Mastery Drill", url: "#", source: "GrowthOS Projects" },
     more: [],
   },
 };
@@ -280,7 +251,7 @@ const MOCK_PROGRESS: ProgressSummary = {
 
 const MOCK_ROADMAP_STATUS: RoadmapStatus = {
   week1_committed: false,
-  destination: "Software Engineer",
+  destination: "Personalized Mastery Plan",
   estimated_journey_weeks: 28,
 };
 

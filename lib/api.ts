@@ -142,3 +142,89 @@ export function loginWithFacebook() {
 export function loginWithLinkedIn() {
   window.location.href = `${API_URL}/auth/linkedin`;
 }
+
+// ─────────────────────────────────────────
+// OTP & FORGOT PASSWORD API CALLS
+// ─────────────────────────────────────────
+
+// POST /auth/forgot-password/request-otp
+export async function requestForgotPasswordOTP(email: string) {
+  const res = await fetchWithTimeout(`${API_URL}/auth/forgot-password/request-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, purpose: "password_reset" }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.detail || "Failed to request OTP code");
+  return json;
+}
+
+// POST /auth/forgot-password/verify-otp
+export async function verifyForgotPasswordOTP(email: string, otpCode: string) {
+  const res = await fetchWithTimeout(`${API_URL}/auth/forgot-password/verify-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, otp_code: otpCode, purpose: "password_reset" }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.detail || "Invalid OTP code");
+  return json;
+}
+
+// POST /auth/forgot-password/reset-password
+export async function resetPasswordWithOTP(email: string, otpCode: string, newPassword: string) {
+  const res = await fetchWithTimeout(`${API_URL}/auth/forgot-password/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, otp_code: otpCode, new_password: newPassword }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.detail || "Failed to reset password");
+  return json;
+}
+
+// POST /auth/2fa/verify
+export async function verify2FAOTP(email: string, otpCode: string) {
+  const res = await fetchWithTimeout(`${API_URL}/auth/2fa/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, otp_code: otpCode, purpose: "2fa_login" }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.detail || "2FA verification failed");
+  return json;
+}
+
+// ─────────────────────────────────────────
+// MSG91 PHONE VERIFICATION API CALLS
+// ─────────────────────────────────────────
+
+// POST /auth/phone/verify — verify MSG91 access token & log in if user exists
+export async function apiVerifyPhoneWithMSG91(accessToken: string) {
+  const res = await fetchWithTimeout(`${API_URL}/auth/phone/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ access_token: accessToken }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.detail || "MSG91 phone verification failed.");
+  return json; // returns { success, verified_phone, account_found, message, access_token, user }
+}
+
+// POST /auth/phone/link — link verified phone to authenticated account
+export async function apiLinkPhoneWithMSG91(accessToken: string) {
+  const token = getToken();
+  if (!token) throw new Error("Not logged in.");
+
+  const res = await fetchWithTimeout(`${API_URL}/auth/phone/link`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ access_token: accessToken }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.detail || "Failed to link phone number.");
+  return json;
+}

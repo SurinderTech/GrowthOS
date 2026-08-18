@@ -67,10 +67,70 @@ class OpenRouterError(RuntimeError):
     pass
 
 
+_cached_free_models: list[str] = []
+_last_free_models_fetch: float = 0.0
+
+
+def fetch_live_free_models() -> list[str]:
+    """Dynamically fetches active free model slugs directly from OpenRouter API."""
+    global _cached_free_models, _last_free_models_fetch
+    now = time.monotonic()
+    if _cached_free_models and (now - _last_free_models_fetch < 1800):
+        return _cached_free_models
+
+    fallback_free_defaults = [
+        "openrouter/auto",
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "qwen/qwen-2.5-coder-32b-instruct:free",
+        "google/gemma-2-9b-it:free",
+        "mistralai/mistral-small-24b-instruct-2501:free",
+    ]
+
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            res = client.get("https://openrouter.ai/api/v1/models")
+            if res.status_code == 200:
+                data = res.json()
+                models_data = data.get("data", [])
+                free_list = []
+                for m in models_data:
+                    m_id = m.get("id", "")
+                    pricing = m.get("pricing", {})
+                    is_free_pricing = (
+                        str(pricing.get("prompt", "")).strip() in ("0", "0.0", "0.00") and
+                        str(pricing.get("completion", "")).strip() in ("0", "0.0", "0.00")
+                    )
+                    if is_free_pricing or m_id.endswith(":free"):
+                        free_list.append(m_id)
+                
+                if free_list:
+                    priority_order = [
+                        "openrouter/auto",
+                        "meta-llama/llama-3.3-70b-instruct:free",
+                        "qwen/qwen-2.5-coder-32b-instruct:free",
+                        "google/gemma-2-9b-it:free",
+                        "mistralai/mistral-small-24b-instruct-2501:free",
+                    ]
+                    ordered = [m for m in priority_order if m in free_list]
+                    for m in free_list:
+                        if m not in ordered:
+                            ordered.append(m)
+                    _cached_free_models = ordered
+                    _last_free_models_fetch = now
+                    logger.info("Auto-discovered %d active free OpenRouter models", len(ordered))
+                    return ordered
+    except Exception as exc:
+        logger.warning("Could not fetch live free models list from OpenRouter: %s", exc)
+
+    _cached_free_models = fallback_free_defaults
+    _last_free_models_fetch = now
+    return fallback_free_defaults
+
+
 class OpenRouterClient:
     """
     Thin, dependable wrapper around OpenRouter's OpenAI-compatible
-    /chat/completions endpoint.
+    /chat/completions endpoint. Automatically auto-discovers and falls back across free models.
     """
 
     def __init__(
@@ -111,7 +171,7 @@ class OpenRouterClient:
         extra_body: dict[str, Any] | None = None,
     ) -> LLMResponse:
         """
-        Non-streaming chat completion. Raises OpenRouterError on total failure.
+        Non-streaming chat completion. Auto-falls back to active free models on error.
         """
         if not model:
             from Backend.ai.model_router import get_model_router, TaskType
@@ -122,30 +182,33 @@ class OpenRouterClient:
                 f"{OPENROUTER_API_KEY_ENV} is not set. Add it to Backend/.env."
             )
 
-        models_to_try = [model] + [m for m in (fallback_models or []) if m != model]
+        live_free = fetch_live_free_models()
+        raw_candidates = [model] + (fallback_models or []) + live_free
+        models_to_try: list[str] = []
+        for m in raw_candidates:
+            if m and m not in models_to_try:
+                models_to_try.append(m)
+
         timeout = timeout or self.default_timeout
-
-        payload: dict[str, Any] = {
-            "messages": messages,
-            "temperature": temperature,
-        }
-        if max_tokens:
-            payload["max_tokens"] = max_tokens
-        if json_mode:
-            payload["response_format"] = {"type": "json_object"}
-        if extra_body:
-            payload.update(extra_body)
-
-        # OpenRouter natively supports an ordered `models` list with
-        # automatic fallback — pass it, and ALSO manually retry below in
-        # case the whole request errors before OpenRouter can fall back
-        # (e.g. malformed request, transient network failure).
-        if len(models_to_try) > 1:
-            payload["models"] = models_to_try
-        payload["model"] = models_to_try[0]
-
         last_error: Exception | None = None
-        for attempt in range(self.max_retries + 1):
+
+        for idx, target_model in enumerate(models_to_try):
+            payload: dict[str, Any] = {
+                "messages": messages,
+                "temperature": temperature,
+                "model": target_model,
+            }
+            remaining_models = models_to_try[idx:idx+3]
+            if len(remaining_models) > 1:
+                payload["models"] = remaining_models
+
+            if max_tokens:
+                payload["max_tokens"] = max_tokens
+            if json_mode:
+                payload["response_format"] = {"type": "json_object"}
+            if extra_body:
+                payload.update(extra_body)
+
             try:
                 start = time.monotonic()
                 with httpx.Client(timeout=timeout) as client:
@@ -157,8 +220,8 @@ class OpenRouterClient:
                 elapsed = time.monotonic() - start
                 if response.status_code >= 400:
                     logger.warning(
-                        "OpenRouter %s error on attempt %d: %s",
-                        response.status_code, attempt + 1, response.text[:500],
+                        "OpenRouter model '%s' error (HTTP %s): %s",
+                        target_model, response.status_code, response.text[:300],
                     )
                     response.raise_for_status()
 
@@ -173,12 +236,14 @@ class OpenRouterClient:
 
             except (httpx.HTTPError, OpenRouterError) as exc:
                 last_error = exc
-                logger.warning("OpenRouter attempt %d failed: %s", attempt + 1, exc)
-                if attempt < self.max_retries:
-                    time.sleep(min(2 ** attempt, 8))
+                logger.warning(
+                    "OpenRouter candidate '%s' failed (%s). Retrying with next available free model...",
+                    target_model, exc
+                )
+                time.sleep(0.3)
                 continue
 
-        raise OpenRouterError(f"OpenRouter request failed after retries: {last_error}")
+        raise OpenRouterError(f"All OpenRouter candidate models failed. Last error: {last_error}")
 
     def stream(
         self,
@@ -202,38 +267,58 @@ class OpenRouterClient:
                 f"{OPENROUTER_API_KEY_ENV} is not set. Add it to Backend/.env."
             )
 
-        models_to_try = [model] + [m for m in (fallback_models or []) if m != model]
-        payload: dict[str, Any] = {
-            "model": models_to_try[0],
-            "messages": messages,
-            "temperature": temperature,
-            "stream": True,
-        }
-        if len(models_to_try) > 1:
-            payload["models"] = models_to_try
-        if max_tokens:
-            payload["max_tokens"] = max_tokens
+        live_free = fetch_live_free_models()
+        raw_candidates = [model] + (fallback_models or []) + live_free
+        models_to_try: list[str] = []
+        for m in raw_candidates:
+            if m and m not in models_to_try:
+                models_to_try.append(m)
 
-        with httpx.Client(timeout=timeout or self.default_timeout) as client:
-            with client.stream(
-                "POST", f"{self.base_url}/chat/completions",
-                headers=self._headers, json=payload,
-            ) as response:
-                response.raise_for_status()
-                for line in response.iter_lines():
-                    if not line or not line.startswith("data: "):
-                        continue
-                    chunk = line[len("data: "):]
-                    if chunk.strip() == "[DONE]":
-                        break
-                    try:
-                        event = json.loads(chunk)
-                    except json.JSONDecodeError:
-                        continue
-                    delta = event.get("choices", [{}])[0].get("delta", {})
-                    text = delta.get("content")
-                    if text:
-                        yield text
+        for idx, target_model in enumerate(models_to_try):
+            payload: dict[str, Any] = {
+                "model": target_model,
+                "messages": messages,
+                "temperature": temperature,
+                "stream": True,
+            }
+            remaining_models = models_to_try[idx:idx+3]
+            if len(remaining_models) > 1:
+                payload["models"] = remaining_models
+            if max_tokens:
+                payload["max_tokens"] = max_tokens
+
+            try:
+                with httpx.Client(timeout=timeout or self.default_timeout) as client:
+                    with client.stream(
+                        "POST", f"{self.base_url}/chat/completions",
+                        headers=self._headers, json=payload,
+                    ) as response:
+                        if response.status_code >= 400:
+                            logger.warning(
+                                "OpenRouter stream model '%s' error (HTTP %s)",
+                                target_model, response.status_code
+                            )
+                            response.raise_for_status()
+
+                        for line in response.iter_lines():
+                            if not line or not line.startswith("data: "):
+                                continue
+                            chunk = line[len("data: "):]
+                            if chunk.strip() == "[DONE]":
+                                break
+                            try:
+                                event = json.loads(chunk)
+                            except json.JSONDecodeError:
+                                continue
+                            delta = event.get("choices", [{}])[0].get("delta", {})
+                            text = delta.get("content")
+                            if text:
+                                yield text
+                        return
+            except Exception as exc:
+                logger.warning("Streaming candidate '%s' failed: %s. Retrying next...", target_model, exc)
+                time.sleep(0.3)
+                continue
 
     # ------------------------------------------------------------------ #
     # Internals

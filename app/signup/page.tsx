@@ -21,30 +21,30 @@ function BrainOrb() {
         @keyframes conicSpin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
       `}</style>
 
-      <div style={{ animation:"orbFloat 4s ease-in-out infinite", display:"flex", alignItems:"center", justifyContent:"center" }}>
-        <div style={{ position:"relative", width:"clamp(80px,28vw,160px)", height:"clamp(80px,28vw,160px)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+      <div style={{ animation: "orbFloat 4s ease-in-out infinite", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ position: "relative", width: "clamp(80px,28vw,160px)", height: "clamp(80px,28vw,160px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
 
           {/* Ambient bloom */}
-          <div style={{ position:"absolute", inset:"clamp(-10px,-4vw,-18px)", borderRadius:"50%", background:"radial-gradient(circle, rgba(99,102,241,0.45) 0%, rgba(59,130,246,0.22) 45%, transparent 70%)", animation:"orbPulse 3s ease-in-out infinite", zIndex:0 }} />
+          <div style={{ position: "absolute", inset: "clamp(-10px,-4vw,-18px)", borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.45) 0%, rgba(59,130,246,0.22) 45%, transparent 70%)", animation: "orbPulse 3s ease-in-out infinite", zIndex: 0 }} />
 
           {/* Cyan glow */}
-          <div style={{ position:"absolute", inset:"clamp(-5px,-2vw,-8px)", borderRadius:"50%", background:"radial-gradient(circle, rgba(6,182,212,0.2) 0%, transparent 65%)", zIndex:0 }} />
+          <div style={{ position: "absolute", inset: "clamp(-5px,-2vw,-8px)", borderRadius: "50%", background: "radial-gradient(circle, rgba(6,182,212,0.2) 0%, transparent 65%)", zIndex: 0 }} />
 
           {/* Conic ring */}
-          <div style={{ position:"absolute", inset:0, borderRadius:"50%", background:"conic-gradient(from 0deg, #6366f1 0deg, #3b82f6 60deg, #06b6d4 120deg, #818cf8 180deg, transparent 181deg, transparent 360deg)", animation:"conicSpin 3s linear infinite", zIndex:1, filter:"blur(0.5px)" }} />
+          <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "conic-gradient(from 0deg, #6366f1 0deg, #3b82f6 60deg, #06b6d4 120deg, #818cf8 180deg, transparent 181deg, transparent 360deg)", animation: "conicSpin 3s linear infinite", zIndex: 1, filter: "blur(0.5px)" }} />
 
           {/* Dark mask */}
-          <div style={{ position:"absolute", inset:"clamp(2px,0.8vw,4px)", borderRadius:"50%", background:"#0d1f3c", zIndex:1 }} />
+          <div style={{ position: "absolute", inset: "clamp(2px,0.8vw,4px)", borderRadius: "50%", background: "#0d1f3c", zIndex: 1 }} />
 
           {/* Orbit ring 1 */}
-          <div style={{ position:"absolute", inset:"clamp(6px,2vw,10px)", borderRadius:"50%", border:"1.5px solid transparent", borderTopColor:"#818cf8", borderRightColor:"#3b82f6", animation:"spinSlow 2.8s linear infinite", filter:"drop-shadow(0 0 5px rgba(129,140,248,0.85))", zIndex:2 }} />
+          <div style={{ position: "absolute", inset: "clamp(6px,2vw,10px)", borderRadius: "50%", border: "1.5px solid transparent", borderTopColor: "#818cf8", borderRightColor: "#3b82f6", animation: "spinSlow 2.8s linear infinite", filter: "drop-shadow(0 0 5px rgba(129,140,248,0.85))", zIndex: 2 }} />
 
           {/* Orbit ring 2 */}
-          <div style={{ position:"absolute", inset:"clamp(16px,5vw,24px)", borderRadius:"50%", border:"1.5px solid transparent", borderBottomColor:"#06b6d4", borderLeftColor:"rgba(6,182,212,0.4)", animation:"spinRev 2s linear infinite", filter:"drop-shadow(0 0 5px rgba(6,182,212,0.8))", zIndex:2 }} />
+          <div style={{ position: "absolute", inset: "clamp(16px,5vw,24px)", borderRadius: "50%", border: "1.5px solid transparent", borderBottomColor: "#06b6d4", borderLeftColor: "rgba(6,182,212,0.4)", animation: "spinRev 2s linear infinite", filter: "drop-shadow(0 0 5px rgba(6,182,212,0.8))", zIndex: 2 }} />
 
           {/* Core */}
-          <div style={{ position:"relative", zIndex:3, width:"clamp(40px,14vw,72px)", height:"clamp(40px,14vw,72px)", borderRadius:"50%", background:"radial-gradient(circle at 38% 35%, rgba(147,197,253,0.22) 0%, rgba(13,31,60,0.97) 65%)", border:"1.5px solid rgba(129,140,248,0.55)", display:"flex", alignItems:"center", justifyContent:"center", animation:"orbPulse 2.2s ease-in-out infinite", backdropFilter:"blur(12px)", boxShadow:"0 0 32px rgba(99,102,241,0.6), 0 0 12px rgba(59,130,246,0.4), inset 0 0 22px rgba(99,102,241,0.18)" }}>
-            <Brain style={{ width:"clamp(16px,5vw,30px)", height:"clamp(16px,5vw,30px)", color:"#a5b4fc", filter:"drop-shadow(0 0 8px rgba(165,180,252,0.9))" }} />
+          <div style={{ position: "relative", zIndex: 3, width: "clamp(40px,14vw,72px)", height: "clamp(40px,14vw,72px)", borderRadius: "50%", background: "radial-gradient(circle at 38% 35%, rgba(147,197,253,0.22) 0%, rgba(13,31,60,0.97) 65%)", border: "1.5px solid rgba(129,140,248,0.55)", display: "flex", alignItems: "center", justifyContent: "center", animation: "orbPulse 2.2s ease-in-out infinite", backdropFilter: "blur(12px)", boxShadow: "0 0 32px rgba(99,102,241,0.6), 0 0 12px rgba(59,130,246,0.4), inset 0 0 22px rgba(99,102,241,0.18)" }}>
+            <Brain style={{ width: "clamp(16px,5vw,30px)", height: "clamp(16px,5vw,30px)", color: "#a5b4fc", filter: "drop-shadow(0 0 8px rgba(165,180,252,0.9))" }} />
           </div>
 
         </div>
@@ -434,13 +434,13 @@ export default function SignupPage() {
 
             <div style={{ marginBottom: 8 }}>
               <div className="gos-brand-name">
-                Growth<span style={{ background:"linear-gradient(135deg,#818cf8,#38bdf8)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>OS</span>
+                Growth<span style={{ background: "linear-gradient(135deg,#818cf8,#38bdf8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>OS</span>
               </div>
               <div className="gos-brand-sub">Digital Silicon Valley</div>
             </div>
 
             <h1 className="gos-headline">
-              Your Digital Silicon <span style={{ color:"#ff6b00" }}>Valley.</span>
+              Your Digital Silicon <span style={{ color: "#ff6b00" }}>Valley.</span>
             </h1>
             <p className="gos-sub">
               Turn Potential Into Progress — power your digital growth journey.
@@ -471,7 +471,7 @@ export default function SignupPage() {
               <Link href="/signup" className="gos-tab gos-tab-on">Sign Up</Link>
             </div>
 
-            <h2 className="gos-title">Get started free 🚀</h2>
+            <h2 className="gos-title">Get started free</h2>
             <p className="gos-desc">Create your GrowthOS account today</p>
 
             <form onSubmit={handleSubmit} className="gos-form">
@@ -479,7 +479,7 @@ export default function SignupPage() {
                 <div className="gos-field">
                   <label className="gos-lbl">FIRST NAME</label>
                   <div className="gos-wrap">
-                    <User size={16} className="gos-icon" style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", color:"#1565c0", opacity:.5, pointerEvents:"none" }} />
+                    <User size={16} className="gos-icon" style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#1565c0", opacity: .5, pointerEvents: "none" }} />
                     <input
                       type="text"
                       placeholder="John"
@@ -494,7 +494,7 @@ export default function SignupPage() {
                 <div className="gos-field">
                   <label className="gos-lbl">LAST NAME</label>
                   <div className="gos-wrap">
-                    <User size={16} className="gos-icon" style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", color:"#1565c0", opacity:.5, pointerEvents:"none" }} />
+                    <User size={16} className="gos-icon" style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#1565c0", opacity: .5, pointerEvents: "none" }} />
                     <input
                       type="text"
                       placeholder="Doe"
@@ -510,7 +510,7 @@ export default function SignupPage() {
               <div className="gos-field">
                 <label className="gos-lbl">EMAIL ADDRESS</label>
                 <div className="gos-wrap">
-                  <Mail size={16} className="gos-icon" style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", color:"#1565c0", opacity:.5, pointerEvents:"none" }} />
+                  <Mail size={16} className="gos-icon" style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#1565c0", opacity: .5, pointerEvents: "none" }} />
                   <input
                     type="email"
                     placeholder="you@company.com"
@@ -526,87 +526,87 @@ export default function SignupPage() {
               <div className="gos-field">
                 <label className="gos-lbl">PASSWORD</label>
                 <div className="gos-wrap">
-                  <Lock size={16} style={{ position:"absolute", left:13, top:"50%", transform:"translateY(-50%)", color:"#1565c0", opacity:.5, pointerEvents:"none" }} />
+                  <Lock size={16} style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#1565c0", opacity: .5, pointerEvents: "none" }} />
                   <input
                     type={showPassword ? "text" : "password"}
                     placeholder="Min. 8 characters"
                     value={form.password}
                     onChange={e => set("password", e.target.value)}
                     className="gos-input"
-                    style={{ paddingRight:"42px" }}
+                    style={{ paddingRight: "42px" }}
                     autoComplete="new-password"
                     required
                   />
                   <button type="button" onClick={() => setShowPwd(!showPassword)} className="gos-eye-btn">
-                    {showPassword ? <EyeOff size={16}/> : <Eye size={16}/>}
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
                 {form.password.length > 0 && (
-                  <div style={{ display:"flex", alignItems:"center", gap:"8px", marginTop:"6px" }}>
-                    <div style={{ display:"flex", gap:"4px", flex:1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px" }}>
+                    <div style={{ display: "flex", gap: "4px", flex: 1 }}>
                       {[1, 2, 3, 4].map(i => (
                         <div
                           key={i}
                           style={{
-                            height:"4px",
-                            flex:1,
-                            borderRadius:"2px",
-                            transition:"background 0.3s ease",
+                            height: "4px",
+                            flex: 1,
+                            borderRadius: "2px",
+                            transition: "background 0.3s ease",
                             background: i <= strength ? strColors[strength] : "#d0dbe8"
                           }}
                         />
                       ))}
                     </div>
-                    <span style={{ fontSize:"0.72rem", fontWeight:600, color:strColors[strength] }}>
+                    <span style={{ fontSize: "0.72rem", fontWeight: 600, color: strColors[strength] }}>
                       {strLabels[strength]}
                     </span>
                   </div>
                 )}
               </div>
 
-              <div style={{ display:"flex", alignItems:"flex-start", gap:"9px", marginTop:"2px" }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "9px", marginTop: "2px" }}>
                 <input
                   type="checkbox"
                   id="terms"
                   checked={agreed}
                   onChange={e => setAgreed(e.target.checked)}
-                  style={{ accentColor:"#1565c0", width:"15px", height:"15px", flexShrink:0, marginTop:"2px", cursor:"pointer" }}
+                  style={{ accentColor: "#1565c0", width: "15px", height: "15px", flexShrink: 0, marginTop: "2px", cursor: "pointer" }}
                 />
-                <label htmlFor="terms" style={{ fontSize:"0.78rem", color:"#6b7a99", lineHeight:1.5, cursor:"pointer" }}>
-                  I agree to the <Link href="/terms" style={{ color:"#1565c0", textDecoration:"none", fontWeight:600 }}>Terms of Service</Link> and <Link href="/privacy" style={{ color:"#1565c0", textDecoration:"none", fontWeight:600 }}>Privacy Policy</Link>
+                <label htmlFor="terms" style={{ fontSize: "0.78rem", color: "#6b7a99", lineHeight: 1.5, cursor: "pointer" }}>
+                  I agree to the <Link href="/terms" style={{ color: "#1565c0", textDecoration: "none", fontWeight: 600 }}>Terms of Service</Link> and <Link href="/privacy" style={{ color: "#1565c0", textDecoration: "none", fontWeight: 600 }}>Privacy Policy</Link>
                 </label>
               </div>
 
               <button type="submit" className="gos-btn-main" disabled={loading}>
                 {loading
-                  ? <span className="gos-row"><Loader2 size={17} className="gos-spin"/> Creating account...</span>
+                  ? <span className="gos-row"><Loader2 size={17} className="gos-spin" /> Creating account...</span>
                   : "CREATE MY ACCOUNT"}
               </button>
             </form>
 
             <div className="gos-divider">
-              <div className="gos-line"/><span className="gos-or">or sign up with</span><div className="gos-line"/>
+              <div className="gos-line" /><span className="gos-or">or sign up with</span><div className="gos-line" />
             </div>
 
             <div className="gos-socials">
               <button className="gos-social-btn" onClick={loginWithGoogle}>
                 <svg width="18" height="18" viewBox="0 0 24 24">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                 </svg>
                 <span>Google</span>
               </button>
               <button className="gos-social-btn" onClick={loginWithFacebook}>
                 <svg width="18" height="18" viewBox="0 0 24 24">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" fill="#1877F2"/>
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" fill="#1877F2" />
                 </svg>
                 <span>Facebook</span>
               </button>
               <button className="gos-social-btn" onClick={loginWithLinkedIn}>
                 <svg width="18" height="18" viewBox="0 0 24 24">
-                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" fill="#0A66C2"/>
+                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" fill="#0A66C2" />
                 </svg>
                 <span>LinkedIn</span>
               </button>
