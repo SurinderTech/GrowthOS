@@ -1,7 +1,8 @@
 "use client";
 // app/signup/page.tsx — fully responsive (mobile-first), matches login page design
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Script from "next/script";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -61,6 +62,13 @@ export default function SignupPage() {
   const [showPassword, setShowPwd] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string>("");
+
+  useEffect(() => {
+    (window as any).onTurnstileSuccess = (token: string) => {
+      setTurnstileToken(token);
+    };
+  }, []);
 
   const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
 
@@ -86,12 +94,13 @@ export default function SignupPage() {
         last_name: form.lastName,
         email: form.email,
         password: form.password,
+        turnstile_token: turnstileToken,
       });
       saveToken(registerData.access_token);
       saveUser(registerData.user);
       setUser(registerData.user);
-      toast.success("Welcome to GrowthOS! 🚀");
-      router.push("/onboarding");
+      toast.success("Account created! Please verify your email 📩");
+      router.push(`/verify-email?registered=true&email=${encodeURIComponent(form.email)}`);
     } catch (err: any) {
       toast.error(err.message || "Registration failed");
     } finally {
@@ -577,12 +586,27 @@ export default function SignupPage() {
                 </label>
               </div>
 
+              {/* Cloudflare Turnstile CAPTCHA Widget */}
+              <div style={{ margin: "10px 0 4px", display: "flex", justifyContent: "center" }}>
+                <div
+                  className="cf-turnstile"
+                  data-sitekey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
+                  data-callback="onTurnstileSuccess"
+                  data-theme="light"
+                />
+              </div>
+
               <button type="submit" className="gos-btn-main" disabled={loading}>
                 {loading
                   ? <span className="gos-row"><Loader2 size={17} className="gos-spin" /> Creating account...</span>
                   : "CREATE MY ACCOUNT"}
               </button>
             </form>
+
+            <Script
+              src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+              strategy="lazyOnload"
+            />
 
             <div className="gos-divider">
               <div className="gos-line" /><span className="gos-or">or sign up with</span><div className="gos-line" />

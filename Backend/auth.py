@@ -70,9 +70,8 @@ def decode_token(token: str) -> dict:
         )
 
 
-# ── Dependency: use in any route that requires login
-# Usage: async def my_route(current_user = Depends(get_current_user)):
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+# ── Dependency: get logged in user (unverified allowed for auth checks)
+def get_current_user_allow_unverified(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     payload = decode_token(token)
     user_id = payload.get("sub")
 
@@ -87,4 +86,16 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is disabled")
 
+    return user
+
+
+# ── Dependency: use in any protected route (requires verified email)
+# Usage: async def my_route(current_user = Depends(get_current_user)):
+def get_current_user(user: User = Depends(get_current_user_allow_unverified)) -> User:
+    if not getattr(user, "email_verified", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email verification required before accessing GrowthOS features.",
+            headers={"X-Error-Code": "EMAIL_NOT_VERIFIED"}
+        )
     return user

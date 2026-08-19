@@ -22,7 +22,8 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from Backend.schemas.auth import (
     RegisterRequest, AuthResponse, RequestOTPRequest, VerifyOTPRequest,
-    ResetPasswordWithOTPRequest, OTPResponse, PhoneVerifyRequest, PhoneVerifyResponse
+    ResetPasswordWithOTPRequest, OTPResponse, PhoneVerifyRequest, PhoneVerifyResponse,
+    VerifyEmailRequest, ResendVerificationRequest
 )
 from Backend.schemas.user import UserResponse
 
@@ -30,9 +31,12 @@ from Backend.db.session import get_db
 from Backend.models.onboarding import UserOnboarding
 from Backend.models.user import User
 from Backend.models.otp import UserOTP
-from Backend.services.email_service import send_otp_email
+from Backend.models.user_verification import UserVerificationToken
+from Backend.services.email_service import send_otp_email, send_verification_email
+from Backend.services.rate_limiter import rate_limiter
+from Backend.services.turnstile import verify_turnstile_token
 from Backend.services.msg91 import verify_msg91_access_token
-from Backend.auth import hash_password, verify_password, create_access_token, get_current_user
+from Backend.auth import hash_password, verify_password, create_access_token, get_current_user, get_current_user_allow_unverified
 
 
 load_dotenv()
@@ -83,10 +87,23 @@ oauth.register(
 
 # ─────────────────────────────────────────────
 # POST /auth/register
-# Creates a new user with hashed password
+# Creates a new user with hashed password (unverified by default)
 # ─────────────────────────────────────────────
 @router.post("/register", response_model=AuthResponse, status_code=201)
-async def register(data: RegisterRequest, db: Session = Depends(get_db)):
+async def register(data: RegisterRequest, request: Request, db: Session = Depends(get_db)):
+    client_ip = request.client.host if (request.client and request.client.host) else "127.0.0.1"
+
+    # 1. Rate Limiting (max 5 signup requests per hour per IP)
+    rate_limiter.check_rate_limit(f"signup:{client_ip}", max_requests=5, window_seconds=3600)
+
+    # 2. Cloudflare Turnstile CAPTCHA verification
+    is_captcha_valid = await verify_turnstile_token(data.turnstile_token, client_ip)
+    if not is_captcha_valid:
+        raise HTTPException(
+            status_code=400,
+            detail="Cloudflare Turnstile verification failed. Please complete bot verification."
+        )
+
     # Trim whitespace and lowercase email
     email = data.email.strip().lower()
     password = data.password.strip()
@@ -99,19 +116,33 @@ async def register(data: RegisterRequest, db: Session = Depends(get_db)):
     if len(password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
 
-    # Create user
+    # Create unverified user
     user = User(
         email=email,
         name=f"{data.first_name.strip()} {data.last_name.strip()}",
         hashed_password=hash_password(password),
         provider="credentials",
+        email_verified=False,
     )
 
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    print(f"User registered: {user.email} (ID: {user.id})")
+    print(f"User registered (unverified): {user.email} (ID: {user.id})")
+
+    # Create secure verification token valid for 24 hours
+    verification_token = UserVerificationToken.generate_token()
+    ver_token_record = UserVerificationToken(
+        user_id=user.id,
+        token=verification_token,
+        expires_at=datetime.utcnow() + timedelta(hours=24)
+    )
+    db.add(ver_token_record)
+    db.commit()
+
+    # Send verification email asynchronously
+    await send_verification_email(user.email, verification_token, user.name or "User")
 
     token = create_access_token(str(user.id), user.email)
 
@@ -120,15 +151,124 @@ async def register(data: RegisterRequest, db: Session = Depends(get_db)):
         return AuthResponse(access_token=token, user=user_resp)
     except Exception as e:
         print(f"DEBUG: Registration validation failed for {user.email}: {e}")
-        # Fallback to dictionary mapping if validation fails
         user_data = {
             "id": user.id,
             "email": user.email,
             "name": user.name,
             "image": user.image,
+            "email_verified": user.email_verified,
             "onboarding_completed": user.onboarding_completed
         }
         return AuthResponse(access_token=token, user=UserResponse(**user_data))
+
+
+# ─────────────────────────────────────────────
+# POST /auth/verify-email
+# Verifies a secure verification token and marks email_verified = True
+# ─────────────────────────────────────────────
+@router.post("/verify-email", response_model=AuthResponse)
+async def verify_email(data: VerifyEmailRequest, request: Request, db: Session = Depends(get_db)):
+    client_ip = request.client.host if (request.client and request.client.host) else "127.0.0.1"
+
+    # Rate limiting (max 10 verification attempts per minute per IP)
+    rate_limiter.check_rate_limit(f"verify_email:{client_ip}", max_requests=10, window_seconds=60)
+
+    token_str = data.token.strip()
+    if not token_str:
+        raise HTTPException(status_code=400, detail="Verification token is required.")
+
+    ver_token = db.query(UserVerificationToken).filter(
+        UserVerificationToken.token == token_str,
+        UserVerificationToken.is_used == False
+    ).order_by(UserVerificationToken.created_at.desc()).first()
+
+    if not ver_token or not ver_token.is_valid():
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid or expired verification link. Please request a new verification email."
+        )
+
+    user = db.query(User).filter(User.id == ver_token.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User account not found.")
+
+    user.email_verified = True
+    user.email_verified_at = datetime.utcnow()
+    ver_token.is_used = True
+    db.commit()
+    db.refresh(user)
+
+    print(f"Email verified successfully for user: {user.email}")
+    access_token = create_access_token(str(user.id), user.email)
+    user_resp = UserResponse.model_validate(user)
+    return AuthResponse(access_token=access_token, user=user_resp)
+
+
+# ─────────────────────────────────────────────
+# POST /auth/resend-verification
+# Resends verification email to unverified user
+# ─────────────────────────────────────────────
+@router.post("/resend-verification", response_model=OTPResponse)
+async def resend_verification_email(
+    data: ResendVerificationRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    client_ip = request.client.host if (request.client and request.client.host) else "127.0.0.1"
+
+    # Rate limiting (max 3 resend attempts per 15 minutes per IP)
+    rate_limiter.check_rate_limit(f"resend_verification:{client_ip}", max_requests=3, window_seconds=900)
+
+    user = None
+
+    # Option A: Get user from Bearer Token if present
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        try:
+            token = auth_header.split(" ")[1]
+            from Backend.auth import decode_token
+            payload = decode_token(token)
+            user_id = payload.get("sub")
+            if user_id:
+                user = db.query(User).filter(User.id == user_id).first()
+        except Exception:
+            pass
+
+    # Option B: Get user by provided email
+    if not user and data.email:
+        email_clean = data.email.strip().lower()
+        user = db.query(User).filter(User.email == email_clean).first()
+
+    if not user:
+        return OTPResponse(
+            message="If an unverified account exists for this email, a verification link has been sent.",
+            success=True
+        )
+
+    if user.email_verified:
+        return OTPResponse(message="Your email address is already verified.", success=True)
+
+    # Invalidate previous unused verification tokens for this user
+    db.query(UserVerificationToken).filter(
+        UserVerificationToken.user_id == user.id,
+        UserVerificationToken.is_used == False
+    ).update({"is_used": True})
+
+    new_token = UserVerificationToken.generate_token()
+    ver_token = UserVerificationToken(
+        user_id=user.id,
+        token=new_token,
+        expires_at=datetime.utcnow() + timedelta(hours=24)
+    )
+    db.add(ver_token)
+    db.commit()
+
+    await send_verification_email(user.email, new_token, user.name or "User")
+
+    return OTPResponse(
+        message=f"Verification email sent to {user.email}. Please check your inbox.",
+        success=True
+    )
 
 # ─────────────────────────────────────────────
 # POST /auth/login
@@ -193,7 +333,7 @@ async def dev_reset_password(email: str, new_password: str, db: Session = Depend
 # Returns current logged-in user's info
 # ─────────────────────────────────────────────
 @router.get("/me", response_model=UserResponse)
-async def get_me(current_user: User = Depends(get_current_user)):
+async def get_me(current_user: User = Depends(get_current_user_allow_unverified)):
     try:
         return UserResponse.model_validate(current_user)
     except Exception:
@@ -202,6 +342,7 @@ async def get_me(current_user: User = Depends(get_current_user)):
             email=current_user.email,
             name=current_user.name,
             image=current_user.image,
+            email_verified=getattr(current_user, "email_verified", False),
             onboarding_completed=current_user.onboarding_completed
         )
 
@@ -267,6 +408,8 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             image=picture,
             provider="google",
             provider_id=sub,
+            email_verified=True,
+            email_verified_at=datetime.utcnow()
         )
         db.add(user)
         db.commit()
@@ -277,6 +420,9 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             user.image = picture
         if sub and not getattr(user, "provider_id", None):
             user.provider_id = sub
+        if not user.email_verified:
+            user.email_verified = True
+            user.email_verified_at = datetime.utcnow()
         db.commit()
 
     access_token = create_access_token(str(user.id), user.email)
@@ -310,10 +456,17 @@ async def facebook_callback(request: Request, db: Session = Depends(get_db)):
             image=info.get("picture", {}).get("data", {}).get("url"),
             provider="facebook",
             provider_id=info["id"],
+            email_verified=True,
+            email_verified_at=datetime.utcnow()
         )
         db.add(user)
         db.commit()
         db.refresh(user)
+    else:
+        if not user.email_verified:
+            user.email_verified = True
+            user.email_verified_at = datetime.utcnow()
+            db.commit()
 
     access_token = create_access_token(str(user.id), user.email)
     return RedirectResponse(f"{FRONTEND_URL}/auth/callback?token={access_token}")
@@ -352,10 +505,17 @@ async def linkedin_callback(request: Request, db: Session = Depends(get_db)):
             name=name,
             provider="linkedin",
             provider_id=profile.get("id"),
+            email_verified=True,
+            email_verified_at=datetime.utcnow()
         )
         db.add(user)
         db.commit()
         db.refresh(user)
+    else:
+        if not user.email_verified:
+            user.email_verified = True
+            user.email_verified_at = datetime.utcnow()
+            db.commit()
 
     access_token = create_access_token(str(user.id), user.email)
 
@@ -374,7 +534,7 @@ class ProfileUpdateRequest(BaseModel):
 
 @router.get("/me")
 def get_current_user_profile(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_allow_unverified),
     db: Session = Depends(get_db)
 ):
     ob = db.query(UserOnboarding).filter(UserOnboarding.user_id == current_user.id).first()
@@ -387,6 +547,7 @@ def get_current_user_profile(
         "full_name": clean_name,
         "image": avatar_url,
         "avatar_url": avatar_url,
+        "email_verified": getattr(current_user, "email_verified", False),
         "plan_tier": ob.user_type.title() if (ob and ob.user_type) else "Free Plan",
         "onboarding_completed": ob.onboarding_completed if ob else False,
     }

@@ -13,6 +13,8 @@ export interface User {
   image?: string;
   avatar_url?: string;
   full_name?: string;
+  email_verified?: boolean;
+  onboarding_completed?: boolean;
   plan?: string;
   plan_tier?: string;
   user_type?: string;
@@ -51,6 +53,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!token) return;
 
     try {
+      // Fetch /auth/me for user status including verification
+      const meRes = await fetch(`${API}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      let meData: any = null;
+      if (meRes.ok) {
+        meData = await meRes.json();
+      }
+
       const res = await fetch(`${API}/dashboard/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -63,15 +74,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           return {
             ...base,
-            name: data.user_name || data.full_name || base.name,
+            name: meData?.name || data.user_name || data.full_name || base.name,
             full_name: data.full_name || data.user_name || base.name,
-            image: data.avatar_url || data.image || base.image,
-            avatar_url: data.avatar_url || data.image || base.image,
+            image: meData?.image || data.avatar_url || data.image || base.image,
+            avatar_url: meData?.avatar_url || data.avatar_url || data.image || base.image,
+            email_verified: meData ? meData.email_verified : base.email_verified,
             plan: formattedPlan,
             plan_tier: formattedPlan,
             user_type: data.user_type,
             level: data.level || 1,
             xp: data.current_xp || 0,
+          };
+        });
+      } else if (meData) {
+        setUser((prev) => {
+          const base = prev || getUser() || { id: "", email: "", name: "" };
+          return {
+            ...base,
+            id: meData.id || base.id,
+            email: meData.email || base.email,
+            name: meData.name || base.name,
+            email_verified: meData.email_verified,
           };
         });
       }

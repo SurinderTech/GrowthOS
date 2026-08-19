@@ -70,6 +70,7 @@ export async function apiRegister(data: {
   last_name: string;
   email: string;
   password: string;
+  turnstile_token?: string;
 }) {
   try {
     const res = await fetchWithTimeout(`${API_URL}/auth/register`, {
@@ -87,6 +88,36 @@ export async function apiRegister(data: {
     }
     throw err;
   }
+}
+
+// POST /auth/verify-email — verify token and mark email_verified = true
+export async function apiVerifyEmail(token: string) {
+  const res = await fetchWithTimeout(`${API_URL}/auth/verify-email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.detail || "Email verification failed.");
+  return json;
+}
+
+// POST /auth/resend-verification — resend verification email link
+export async function apiResendVerification(email?: string) {
+  const token = getToken();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const res = await fetchWithTimeout(`${API_URL}/auth/resend-verification`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ email }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.detail || "Failed to resend verification email.");
+  return json;
 }
 
 // POST /auth/login — sign in with email + password

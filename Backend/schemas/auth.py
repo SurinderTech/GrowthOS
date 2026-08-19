@@ -9,6 +9,15 @@ class RegisterRequest(BaseModel):
     last_name: str
     email: EmailStr
     password: str
+    turnstile_token: Optional[str] = None
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+
+class ResendVerificationRequest(BaseModel):
+    email: Optional[EmailStr] = None
 
 
 class LoginRequest(BaseModel):

@@ -11,6 +11,7 @@ import Backend.models.practice_arena    # ← ADD THIS LINE
 import Backend.models.agents_data       # Resume / Interview / Project / Networking agents
 import Backend.models.learning_agent    # ← Learning Agent ORM models
 import Backend.models.otp               # ← User OTP ORM models
+import Backend.models.user_verification # ← Email Verification Token ORM models
 
 
 def init_db():
@@ -23,6 +24,8 @@ def init_db():
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS two_factor_method VARCHAR(20) DEFAULT 'email';"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE;"))
             conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMP NULL;"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;"))
+            conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP NULL;"))
         except Exception as e:
             print(f"Skipping users column migration add: {e}")
 

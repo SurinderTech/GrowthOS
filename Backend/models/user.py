@@ -30,6 +30,8 @@ class User(Base):
     phone = Column(String(50),  nullable=True)
     phone_verified = Column(Boolean, default=False, nullable=False)
     phone_verified_at = Column(DateTime, nullable=True)
+    email_verified = Column(Boolean, default=False, nullable=False)
+    email_verified_at = Column(DateTime, nullable=True)
 
     onboarding = relationship("UserOnboarding", back_populates="user", uselist=False)
 

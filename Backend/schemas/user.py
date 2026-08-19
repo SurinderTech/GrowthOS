@@ -12,6 +12,7 @@ class UserResponse(BaseModel):
     phone: str | None = None
     phone_verified: bool = False
     phone_verified_at: datetime | None = None
+    email_verified: bool = False
     onboarding_completed: bool = False
 
     model_config = {

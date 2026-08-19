@@ -84,6 +84,13 @@ export default function LoginPage() {
       saveToken(data.access_token);
       saveUser(data.user);
       setUser(data.user);
+
+      if (data.user && data.user.email_verified === false) {
+        toast.error("Please verify your email address to continue.");
+        router.push(`/verify-email?unverified=true&email=${encodeURIComponent(email)}`);
+        return;
+      }
+
       toast.success("Welcome back! 🎉");
       router.push("/dashboard");
     } catch (err: any) {

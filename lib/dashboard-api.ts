@@ -43,6 +43,9 @@ async function get<T>(path: string): Promise<T> {
     const res = await fetchWithTimeout(`${API}${path}`, { headers: authHeaders() });
     if (!res.ok) {
       const text = await res.text();
+      if (res.status === 403 && typeof window !== "undefined" && (text.includes("Email verification") || text.includes("EMAIL_NOT_VERIFIED"))) {
+        window.location.href = "/verify-email?unverified=true";
+      }
       console.error("API error:", text);
       throw new Error(text || "API Request failed");
     }
