@@ -68,7 +68,7 @@ When they are accountable in real-time
 
 # What is GrowhtOs
 <img src="Screenshot_24-4-2026_192338_.jpeg" width="90%" /> </td> </tr> </table>
-## ⚙️ Features of the system
+##  Features of the system
 
 ## 1. Practice Arena (The Heart of GrowthOS)
 
