@@ -494,7 +494,6 @@ vercel --prod
 - **Location:** Punjab, India
 
 
-
 ## 📦 Packages Used
 - `next` 14.2.3
 - `framer-motion` 11.2.10
