@@ -80,9 +80,9 @@ oauth.register(
     authorize_url="https://www.linkedin.com/oauth/v2/authorization",
     api_base_url="https://api.linkedin.com/v2/",
     client_kwargs={
-    "scope": "r_liteprofile r_emailaddress",
-    "token_endpoint_auth_method": "client_secret_post",
-},
+        "scope": "openid profile email",
+        "token_endpoint_auth_method": "client_secret_post",
+    },
 )
 
 # ─────────────────────────────────────────────
@@ -434,28 +434,36 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 # ─────────────────────────────────────────────
 @router.get("/facebook")
 async def facebook_login(request: Request):
-    redirect_uri = f"{request.base_url}auth/facebook/callback"
+    redirect_uri = f"{str(request.base_url).rstrip('/')}/auth/facebook/callback"
     return await oauth.facebook.authorize_redirect(request, redirect_uri)
 
 
 @router.get("/facebook/callback")
 async def facebook_callback(request: Request, db: Session = Depends(get_db)):
-    token = await oauth.facebook.authorize_access_token(request)
-    resp  = await oauth.facebook.get("me?fields=id,name,email,picture", token=token)
-    info  = resp.json()
+    try:
+        token = await oauth.facebook.authorize_access_token(request)
+        resp  = await oauth.facebook.get("me?fields=id,name,email,picture.type(large)", token=token)
+        info  = resp.json()
+    except Exception as err:
+        return RedirectResponse(f"{FRONTEND_URL}/login?error=Facebook+authentication+failed.+Please+try+again.")
 
     email = info.get("email")
     if not email:
-        return RedirectResponse(f"{FRONTEND_URL}/login?error=Facebook+did+not+return+email")
+        return RedirectResponse(f"{FRONTEND_URL}/login?error=Facebook+did+not+return+a+valid+email+address.")
 
-    user = db.query(User).filter(User.email == email.lower()).first()
+    email_clean = email.lower()
+    name = info.get("name") or email_clean.split("@")[0]
+    picture = info.get("picture", {}).get("data", {}).get("url")
+    sub = str(info.get("id"))
+
+    user = db.query(User).filter(User.email == email_clean).first()
     if not user:
         user = User(
-            email=email.lower(),
-            name=info.get("name"),
-            image=info.get("picture", {}).get("data", {}).get("url"),
+            email=email_clean,
+            name=name,
+            image=picture,
             provider="facebook",
-            provider_id=info["id"],
+            provider_id=sub,
             email_verified=True,
             email_verified_at=datetime.utcnow()
         )
@@ -463,10 +471,14 @@ async def facebook_callback(request: Request, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(user)
     else:
+        if picture and not user.image:
+            user.image = picture
+        if sub and not getattr(user, "provider_id", None):
+            user.provider_id = sub
         if not user.email_verified:
             user.email_verified = True
             user.email_verified_at = datetime.utcnow()
-            db.commit()
+        db.commit()
 
     access_token = create_access_token(str(user.id), user.email)
     return RedirectResponse(f"{FRONTEND_URL}/auth/callback?token={access_token}")
@@ -475,36 +487,48 @@ async def facebook_callback(request: Request, db: Session = Depends(get_db)):
 # ─────────────────────────────────────────────
 # LINKEDIN OAUTH
 # ─────────────────────────────────────────────
+@router.get("/linkedin")
+async def linkedin_login(request: Request):
+    redirect_uri = f"{str(request.base_url).rstrip('/')}/auth/linkedin/callback"
+    return await oauth.linkedin.authorize_redirect(request, redirect_uri)
+
+
 @router.get("/linkedin/callback")
 async def linkedin_callback(request: Request, db: Session = Depends(get_db)):
-    token = await oauth.linkedin.authorize_access_token(request)
+    info = None
+    try:
+        token = await oauth.linkedin.authorize_access_token(request)
+        # Try fetching userinfo from LinkedIn OpenID Connect endpoint
+        resp = await oauth.linkedin.get("https://api.linkedin.com/v2/userinfo", token=token)
+        if resp.status_code == 200:
+            info = resp.json()
+        elif "access_token" in token:
+            async with httpx.AsyncClient() as client:
+                res = await client.get(
+                    "https://api.linkedin.com/v2/userinfo",
+                    headers={"Authorization": f"Bearer {token['access_token']}"}
+                )
+                if res.status_code == 200:
+                    info = res.json()
+    except Exception as err:
+        return RedirectResponse(f"{FRONTEND_URL}/login?error=LinkedIn+authentication+failed.+Please+try+again.")
 
-    # Get profile
-    profile_resp = await oauth.linkedin.get(
-        "me",
-        token=token
-    )
-    profile = profile_resp.json()
+    if not info or not info.get("email"):
+        return RedirectResponse(f"{FRONTEND_URL}/login?error=LinkedIn+did+not+return+a+valid+email+address.")
 
-    # Get email
-    email_resp = await oauth.linkedin.get(
-        "emailAddress?q=members&projection=(elements*(handle~))",
-        token=token
-    )
-    email_data = email_resp.json()
+    email_clean = info["email"].lower()
+    name = info.get("name") or (info.get("given_name", "") + " " + info.get("family_name", "")).strip() or email_clean.split("@")[0]
+    picture = info.get("picture")
+    sub = str(info.get("sub") or info.get("id"))
 
-    email = email_data["elements"][0]["handle~"]["emailAddress"]
-
-    name = profile.get("localizedFirstName", "") + " " + profile.get("localizedLastName", "")
-
-    user = db.query(User).filter(User.email == email.lower()).first()
-
+    user = db.query(User).filter(User.email == email_clean).first()
     if not user:
         user = User(
-            email=email.lower(),
+            email=email_clean,
             name=name,
+            image=picture,
             provider="linkedin",
-            provider_id=profile.get("id"),
+            provider_id=sub,
             email_verified=True,
             email_verified_at=datetime.utcnow()
         )
@@ -512,13 +536,16 @@ async def linkedin_callback(request: Request, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(user)
     else:
+        if picture and not user.image:
+            user.image = picture
+        if sub and not getattr(user, "provider_id", None):
+            user.provider_id = sub
         if not user.email_verified:
             user.email_verified = True
             user.email_verified_at = datetime.utcnow()
-            db.commit()
+        db.commit()
 
     access_token = create_access_token(str(user.id), user.email)
-
     return RedirectResponse(f"{FRONTEND_URL}/auth/callback?token={access_token}")
 from pydantic import BaseModel
 from typing import Optional
