@@ -14,16 +14,16 @@ export function Footer({ onCTA }: FooterProps) {
       title: "Product",
       links: [
         { label: "How it Works", href: "/#HowItWorks" },
-        { label: "Features", href: "/#features" },
+        { label: "AI Agents", href: "/#features" },
         { label: "Pricing", href: "/pricing" },
       ],
     },
     {
-      title: "Account",
+      title: "Resources",
       links: [
-        { label: "Login", href: "/login" },
-        { label: "Sign up", href: "/signup" },
-        { label: "Dashboard", href: "/dashboard" },
+        { label: "Documentation", href: "/#documentation" },
+        { label: "Help Center", href: "/contact" },
+        { label: "Contact Support", href: "/contact" },
       ],
     },
     {
@@ -31,7 +31,16 @@ export function Footer({ onCTA }: FooterProps) {
       links: [
         { label: "About", href: "/#about" },
         { label: "Community", href: "/#community" },
-        { label: "Home", href: "/" },
+        { label: "Sign up", href: "/signup" },
+      ],
+    },
+    {
+      title: "Legal & Trust",
+      links: [
+        { label: "Privacy Policy", href: "/privacy" },
+        { label: "Terms of Service", href: "/terms" },
+        { label: "AI Disclaimer", href: "/ai-disclaimer" },
+        { label: "Contact Privacy", href: "/contact" },
       ],
     },
   ];
@@ -72,13 +81,12 @@ export function Footer({ onCTA }: FooterProps) {
         </div>
 
         <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 24, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>© 2025 GrowthOS. All rights reserved.</span>
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.2)" }}>© 2026 GrowthOS. All rights reserved.</span>
           <div style={{ display: "flex", gap: 16 }}>
-            {["X","LinkedIn","GitHub"].map(s => (
-              <Link key={s} href="#" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textDecoration: "none" }}>
-                {s}
-              </Link>
-            ))}
+            <Link href="/privacy" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textDecoration: "none" }}>Privacy</Link>
+            <Link href="/terms" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textDecoration: "none" }}>Terms</Link>
+            <Link href="/ai-disclaimer" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textDecoration: "none" }}>AI Disclaimer</Link>
+            <Link href="/contact" style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textDecoration: "none" }}>Contact</Link>
           </div>
         </div>
       </div>
