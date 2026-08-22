@@ -54,13 +54,22 @@ app.add_middleware(
 )
 
 # Step 2: Add CORSMiddleware LAST (will run FIRST, handles OPTIONS preflight)
+allowed_origins = list({
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://growthosai.tech",
+    "https://www.growthosai.tech",
+    os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+})
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # TEMPORARY FOR DEBUGGING
-    allow_credentials=False,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # ─────────────────────────────────
 # Register API Routers

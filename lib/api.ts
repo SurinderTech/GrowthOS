@@ -159,9 +159,41 @@ export async function apiGetMe() {
   return json;
 }
 
-// GET /auth/google — redirect to Google OAuth
+// Google OAuth — redirect directly to Google OAuth endpoint (never to backend directly)
 export function loginWithGoogle() {
-  window.location.href = `${API_URL}/auth/google`;
+  const clientId =
+    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+    "152168838416-hsqvd9ph168d6r5c5djitepan7ldqeu2.apps.googleusercontent.com";
+  const redirectUri = `${window.location.origin}/auth/callback`;
+  const scope = encodeURIComponent("openid email profile");
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(
+    redirectUri
+  )}&response_type=code&scope=${scope}&prompt=select_account`;
+
+  window.location.href = authUrl;
+}
+
+// POST /auth/google/verify — verify Google auth code with FastAPI backend
+export async function apiVerifyGoogleCode(code: string, redirectUri: string) {
+  try {
+    const res = await fetchWithTimeout(`${API_URL}/auth/google/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, redirect_uri: redirectUri }),
+      timeout: 45000, // 45 second timeout to handle Render cold-start wake-up
+    });
+
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json.detail || "Google authentication failed.");
+    }
+    return json; // returns { access_token, token_type, user }
+  } catch (err: any) {
+    if (err.name === "AbortError") {
+      throw new Error("Backend verification timed out while waking up cloud resources.");
+    }
+    throw err;
+  }
 }
 
 // GET /auth/facebook — redirect to Facebook OAuth
@@ -173,6 +205,7 @@ export function loginWithFacebook() {
 export function loginWithLinkedIn() {
   window.location.href = `${API_URL}/auth/linkedin`;
 }
+
 
 // ─────────────────────────────────────────
 // OTP & FORGOT PASSWORD API CALLS

@@ -125,8 +125,21 @@ async def send_verification_email(to_email: str, token: str, user_name: str = "U
     Sends a styled HTML email containing the verification link using the Brevo API.
     Fallback prints the link in dev logs if Brevo key is missing or fails.
     """
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+    env_url = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+    is_render = (
+        os.getenv("RENDER") is not None or 
+        os.getenv("RENDER_SERVICE_ID") is not None or
+        os.getenv("ENVIRONMENT", "").lower() in ["production", "prod"]
+    )
+    if env_url and "localhost" not in env_url and "127.0.0.1" not in env_url:
+        frontend_url = env_url
+    elif is_render:
+        frontend_url = "https://growthosai.tech"
+    else:
+        frontend_url = env_url or "http://localhost:3000"
+
     verification_link = f"{frontend_url}/verify-email?token={token}"
+
 
     api_key = get_brevo_api_key()
     sender_email = get_sender_email()

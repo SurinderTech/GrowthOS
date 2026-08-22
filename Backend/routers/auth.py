@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 from Backend.schemas.auth import (
     RegisterRequest, AuthResponse, RequestOTPRequest, VerifyOTPRequest,
     ResetPasswordWithOTPRequest, OTPResponse, PhoneVerifyRequest, PhoneVerifyResponse,
-    VerifyEmailRequest, ResendVerificationRequest
+    VerifyEmailRequest, ResendVerificationRequest, GoogleAuthVerifyRequest
 )
 from Backend.schemas.user import UserResponse
 
@@ -39,12 +39,44 @@ from Backend.services.msg91 import verify_msg91_access_token
 from Backend.auth import hash_password, verify_password, create_access_token, get_current_user, get_current_user_allow_unverified
 
 
-load_dotenv()
-
-
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+def get_frontend_url(request: Request = None) -> str:
+
+    # 1. Explicit env var if set to non-localhost
+    env = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+    if env and "localhost" not in env and "127.0.0.1" not in env:
+        return env
+
+    # 2. Inspect incoming request headers (Origin / Referer)
+    if request:
+        origin = request.headers.get("origin") or request.headers.get("referer")
+        if origin:
+            from urllib.parse import urlparse
+            parsed = urlparse(origin)
+            if parsed.scheme and parsed.netloc:
+                host_url = f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
+                if "localhost" not in host_url and "127.0.0.1" not in host_url:
+                    return host_url
+
+    # 3. Automatic Render Cloud Environment Detection
+    is_render = (
+        os.getenv("RENDER") is not None or 
+        os.getenv("RENDER_SERVICE_ID") is not None or
+        os.getenv("ENVIRONMENT", "").lower() in ["production", "prod"]
+    )
+    if is_render:
+        return "https://growthosai.tech"
+
+    # 4. Local development default
+    return env or "http://localhost:3000"
+
+
+FRONTEND_URL = get_frontend_url()
+
+
+
 
 # ── Set up OAuth providers (authlib)
 oauth = OAuth()
@@ -390,10 +422,12 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
                     if res.status_code == 200:
                         info = res.json()
         except Exception as err:
-            return RedirectResponse(f"{FRONTEND_URL}/login?error=Google+authentication+failed.+Please+try+again.")
+            target_frontend = get_frontend_url(request)
+            return RedirectResponse(f"{target_frontend}/login?error=Google+authentication+failed.+Please+try+again.")
 
+    target_frontend = get_frontend_url(request)
     if not info or not info.get("email"):
-        return RedirectResponse(f"{FRONTEND_URL}/login?error=Google+did+not+return+a+valid+email.")
+        return RedirectResponse(f"{target_frontend}/login?error=Google+did+not+return+a+valid+email.")
 
     email_clean = info["email"].lower()
     name = info.get("name") or info.get("given_name") or email_clean.split("@")[0]
@@ -426,7 +460,94 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         db.commit()
 
     access_token = create_access_token(str(user.id), user.email)
-    return RedirectResponse(f"{FRONTEND_URL}/auth/callback?token={access_token}")
+    return RedirectResponse(f"{target_frontend}/auth/callback?token={access_token}")
+
+
+@router.post("/google/verify", response_model=AuthResponse)
+async def google_verify(data: GoogleAuthVerifyRequest, request: Request, db: Session = Depends(get_db)):
+    info = None
+
+    if data.code:
+        client_id = os.getenv("GOOGLE_CLIENT_ID")
+        client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+        redirect_uri = data.redirect_uri or f"{get_frontend_url(request)}/auth/callback"
+
+
+        if not client_id or not client_secret:
+            raise HTTPException(status_code=500, detail="Google OAuth configuration missing on server.")
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            token_res = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "code": data.code,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "redirect_uri": redirect_uri,
+                    "grant_type": "authorization_code",
+                }
+            )
+
+            if token_res.status_code != 200:
+                print(f"DEBUG Google verification error: {token_res.text}")
+                raise HTTPException(status_code=400, detail="Failed to exchange authorization code with Google.")
+
+            token_data = token_res.json()
+            access_token_google = token_data.get("access_token")
+
+            if access_token_google:
+                userinfo_res = await client.get(
+                    "https://www.googleapis.com/oauth2/v3/userinfo",
+                    headers={"Authorization": f"Bearer {access_token_google}"}
+                )
+                if userinfo_res.status_code == 200:
+                    info = userinfo_res.json()
+
+    elif data.id_token:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            res = await client.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={data.id_token}")
+            if res.status_code == 200:
+                info = res.json()
+
+    if not info or not info.get("email"):
+        raise HTTPException(status_code=400, detail="Google authentication failed or did not return a valid email.")
+
+    email_clean = info["email"].lower().strip()
+    name = info.get("name") or info.get("given_name") or email_clean.split("@")[0]
+    picture = info.get("picture")
+    sub = info.get("sub")
+
+    user = db.query(User).filter(User.email == email_clean).first()
+    if not user:
+        user = User(
+            email=email_clean,
+            name=name,
+            image=picture,
+            provider="google",
+            provider_id=sub,
+            email_verified=True,
+            email_verified_at=datetime.utcnow()
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    else:
+        if picture and not user.image:
+            user.image = picture
+        if sub and not getattr(user, "provider_id", None):
+            user.provider_id = sub
+        if not user.email_verified:
+            user.email_verified = True
+            user.email_verified_at = datetime.utcnow()
+        db.commit()
+
+    access_token = create_access_token(str(user.id), user.email)
+    try:
+        user_resp = UserResponse.model_validate(user)
+        return AuthResponse(access_token=access_token, user=user_resp)
+    except Exception:
+        return AuthResponse(access_token=access_token, user=UserResponse.from_orm(user))
+
 
 
 # ─────────────────────────────────────────────
@@ -440,16 +561,17 @@ async def facebook_login(request: Request):
 
 @router.get("/facebook/callback")
 async def facebook_callback(request: Request, db: Session = Depends(get_db)):
+    target_frontend = get_frontend_url(request)
     try:
         token = await oauth.facebook.authorize_access_token(request)
         resp  = await oauth.facebook.get("me?fields=id,name,email,picture.type(large)", token=token)
         info  = resp.json()
     except Exception as err:
-        return RedirectResponse(f"{FRONTEND_URL}/login?error=Facebook+authentication+failed.+Please+try+again.")
+        return RedirectResponse(f"{target_frontend}/login?error=Facebook+authentication+failed.+Please+try+again.")
 
     email = info.get("email")
     if not email:
-        return RedirectResponse(f"{FRONTEND_URL}/login?error=Facebook+did+not+return+a+valid+email+address.")
+        return RedirectResponse(f"{target_frontend}/login?error=Facebook+did+not+return+a+valid+email+address.")
 
     email_clean = email.lower()
     name = info.get("name") or email_clean.split("@")[0]
@@ -481,7 +603,7 @@ async def facebook_callback(request: Request, db: Session = Depends(get_db)):
         db.commit()
 
     access_token = create_access_token(str(user.id), user.email)
-    return RedirectResponse(f"{FRONTEND_URL}/auth/callback?token={access_token}")
+    return RedirectResponse(f"{target_frontend}/auth/callback?token={access_token}")
 
 
 # ─────────────────────────────────────────────
@@ -495,6 +617,7 @@ async def linkedin_login(request: Request):
 
 @router.get("/linkedin/callback")
 async def linkedin_callback(request: Request, db: Session = Depends(get_db)):
+    target_frontend = get_frontend_url(request)
     info = None
     try:
         token = await oauth.linkedin.authorize_access_token(request)
@@ -511,10 +634,10 @@ async def linkedin_callback(request: Request, db: Session = Depends(get_db)):
                 if res.status_code == 200:
                     info = res.json()
     except Exception as err:
-        return RedirectResponse(f"{FRONTEND_URL}/login?error=LinkedIn+authentication+failed.+Please+try+again.")
+        return RedirectResponse(f"{target_frontend}/login?error=LinkedIn+authentication+failed.+Please+try+again.")
 
     if not info or not info.get("email"):
-        return RedirectResponse(f"{FRONTEND_URL}/login?error=LinkedIn+did+not+return+a+valid+email+address.")
+        return RedirectResponse(f"{target_frontend}/login?error=LinkedIn+did+not+return+a+valid+email+address.")
 
     email_clean = info["email"].lower()
     name = info.get("name") or (info.get("given_name", "") + " " + info.get("family_name", "")).strip() or email_clean.split("@")[0]
@@ -546,7 +669,8 @@ async def linkedin_callback(request: Request, db: Session = Depends(get_db)):
         db.commit()
 
     access_token = create_access_token(str(user.id), user.email)
-    return RedirectResponse(f"{FRONTEND_URL}/auth/callback?token={access_token}")
+    return RedirectResponse(f"{target_frontend}/auth/callback?token={access_token}")
+
 from pydantic import BaseModel
 from typing import Optional
 

@@ -64,3 +64,9 @@ class PhoneVerifyResponse(BaseModel):
     message: str
     access_token: Optional[str] = None
     user: Optional[UserResponse] = None
+
+
+class GoogleAuthVerifyRequest(BaseModel):
+    code: Optional[str] = None
+    redirect_uri: Optional[str] = None
+    id_token: Optional[str] = None
