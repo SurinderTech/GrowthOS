@@ -43,13 +43,12 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 def get_frontend_url(request: Request = None) -> str:
-
     # 1. Explicit env var if set to non-localhost
     env = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
     if env and "localhost" not in env and "127.0.0.1" not in env:
         return env
 
-    # 2. Inspect incoming request headers (Origin / Referer)
+    # 2. Inspect incoming request headers (Origin / Referer), filtering out third-party auth providers
     if request:
         origin = request.headers.get("origin") or request.headers.get("referer")
         if origin:
@@ -57,7 +56,9 @@ def get_frontend_url(request: Request = None) -> str:
             parsed = urlparse(origin)
             if parsed.scheme and parsed.netloc:
                 host_url = f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
-                if "localhost" not in host_url and "127.0.0.1" not in host_url:
+                netloc_lower = parsed.netloc.lower()
+                is_ignored = any(d in netloc_lower for d in ["google.com", "facebook.com", "linkedin.com", "localhost", "127.0.0.1"])
+                if not is_ignored:
                     return host_url
 
     # 3. Automatic Render Cloud Environment Detection
@@ -71,6 +72,7 @@ def get_frontend_url(request: Request = None) -> str:
 
     # 4. Local development default
     return env or "http://localhost:3000"
+
 
 
 FRONTEND_URL = get_frontend_url()
