@@ -159,19 +159,11 @@ export async function apiGetMe() {
   return json;
 }
 
-// Google OAuth — redirect directly to Google OAuth endpoint (never to backend directly)
+// GET /auth/google — redirect to Backend Google OAuth initiation endpoint
 export function loginWithGoogle() {
-  const clientId =
-    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
-    "152168838416-hsqvd9ph168d6r5c5djitepan7ldqeu2.apps.googleusercontent.com";
-  const redirectUri = `${window.location.origin}/auth/callback`;
-  const scope = encodeURIComponent("openid email profile");
-  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(
-    redirectUri
-  )}&response_type=code&scope=${scope}&prompt=select_account`;
-
-  window.location.href = authUrl;
+  window.location.href = `${API_URL}/auth/google`;
 }
+
 
 // POST /auth/google/verify — verify Google auth code with FastAPI backend
 export async function apiVerifyGoogleCode(code: string, redirectUri: string) {

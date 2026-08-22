@@ -384,8 +384,9 @@ async def get_me(current_user: User = Depends(get_current_user_allow_unverified)
 # ─────────────────────────────────────────────
 @router.get("/google")
 async def google_login(request: Request):
-    redirect_uri = f"{request.base_url}auth/google/callback"
+    redirect_uri = f"{str(request.base_url).rstrip('/')}/auth/google/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
+
 
 
 @router.get("/google/callback")
