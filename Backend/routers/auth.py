@@ -621,15 +621,15 @@ async def linkedin_login(request: Request):
 @router.get("/linkedin/callback")
 async def linkedin_callback(request: Request, db: Session = Depends(get_db)):
     target_frontend = get_frontend_url(request)
+    redirect_uri = f"{str(request.base_url).rstrip('/')}/auth/linkedin/callback"
     info = None
+
     try:
-        token = await oauth.linkedin.authorize_access_token(request)
-        # Try fetching userinfo from LinkedIn OpenID Connect endpoint
-        resp = await oauth.linkedin.get("https://api.linkedin.com/v2/userinfo", token=token)
-        if resp.status_code == 200:
-            info = resp.json()
-        elif "access_token" in token:
-            async with httpx.AsyncClient() as client:
+        token = await oauth.linkedin.authorize_access_token(request, redirect_uri=redirect_uri)
+        if token and "userinfo" in token:
+            info = token["userinfo"]
+        elif token and "access_token" in token:
+            async with httpx.AsyncClient(timeout=15.0) as client:
                 res = await client.get(
                     "https://api.linkedin.com/v2/userinfo",
                     headers={"Authorization": f"Bearer {token['access_token']}"}
@@ -637,12 +637,45 @@ async def linkedin_callback(request: Request, db: Session = Depends(get_db)):
                 if res.status_code == 200:
                     info = res.json()
     except Exception as err:
-        print(f"DEBUG LinkedIn OAuth exception: {type(err).__name__}: {err}")
-        return RedirectResponse(f"{target_frontend}/login?error=LinkedIn+authentication+failed.+Please+try+again.")
+        print(f"DEBUG Authlib LinkedIn OAuth exception: {type(err).__name__}: {err}")
 
+    # Fallback to direct HTTP code exchange if Authlib state validation failed
+    if not info:
+        code = request.query_params.get("code")
+        if code:
+            client_id = (os.getenv("LINKEDIN_CLIENT_ID") or "").strip('"\'')
+            client_secret = (os.getenv("LINKEDIN_CLIENT_SECRET") or "").strip('"\'')
+            try:
+                async with httpx.AsyncClient(timeout=15.0) as client:
+                    token_res = await client.post(
+                        "https://www.linkedin.com/oauth/v2/accessToken",
+                        data={
+                            "grant_type": "authorization_code",
+                            "code": code,
+                            "redirect_uri": redirect_uri,
+                            "client_id": client_id,
+                            "client_secret": client_secret,
+                        },
+                        headers={"Content-Type": "application/x-www-form-urlencoded"}
+                    )
+                    if token_res.status_code == 200:
+                        token_data = token_res.json()
+                        acc_token = token_data.get("access_token")
+                        if acc_token:
+                            userinfo_res = await client.get(
+                                "https://api.linkedin.com/v2/userinfo",
+                                headers={"Authorization": f"Bearer {acc_token}"}
+                            )
+                            if userinfo_res.status_code == 200:
+                                info = userinfo_res.json()
+                    else:
+                        print(f"DEBUG Direct LinkedIn token error ({token_res.status_code}): {token_res.text}")
+            except Exception as direct_err:
+                print(f"DEBUG Direct LinkedIn exchange exception: {direct_err}")
 
     if not info or not info.get("email"):
-        return RedirectResponse(f"{target_frontend}/login?error=LinkedIn+did+not+return+a+valid+email+address.")
+        return RedirectResponse(f"{target_frontend}/login?error=LinkedIn+authentication+failed.+Please+try+again.")
+
 
     email_clean = info["email"].lower()
     name = info.get("name") or (info.get("given_name", "") + " " + info.get("family_name", "")).strip() or email_clean.split("@")[0]
