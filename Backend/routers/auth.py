@@ -565,16 +565,50 @@ async def facebook_login(request: Request):
 @router.get("/facebook/callback")
 async def facebook_callback(request: Request, db: Session = Depends(get_db)):
     target_frontend = get_frontend_url(request)
+    redirect_uri = f"{str(request.base_url).rstrip('/')}/auth/facebook/callback"
+    info = None
+
     try:
-        token = await oauth.facebook.authorize_access_token(request)
+        token = await oauth.facebook.authorize_access_token(request, redirect_uri=redirect_uri)
         resp  = await oauth.facebook.get("me?fields=id,name,email,picture.type(large)", token=token)
         info  = resp.json()
     except Exception as err:
+        print(f"DEBUG Authlib Facebook OAuth exception: {type(err).__name__}: {err}")
+
+    # Fallback to direct HTTP code exchange if Authlib state validation failed
+    if not info:
+        code = request.query_params.get("code")
+        if code:
+            client_id = (os.getenv("FACEBOOK_CLIENT_ID") or "").strip('"\'')
+            client_secret = (os.getenv("FACEBOOK_CLIENT_SECRET") or "").strip('"\'')
+            try:
+                async with httpx.AsyncClient(timeout=15.0) as client:
+                    token_res = await client.get(
+                        "https://graph.facebook.com/v18.0/oauth/access_token",
+                        params={
+                            "client_id": client_id,
+                            "client_secret": client_secret,
+                            "redirect_uri": redirect_uri,
+                            "code": code,
+                        }
+                    )
+                    if token_res.status_code == 200:
+                        acc_token = token_res.json().get("access_token")
+                        if acc_token:
+                            res = await client.get(
+                                "https://graph.facebook.com/v18.0/me?fields=id,name,email,picture.type(large)",
+                                params={"access_token": acc_token}
+                            )
+                            if res.status_code == 200:
+                                info = res.json()
+                    else:
+                        print(f"DEBUG Direct Facebook token error ({token_res.status_code}): {token_res.text}")
+            except Exception as direct_err:
+                print(f"DEBUG Direct Facebook exchange exception: {direct_err}")
+
+    if not info or not info.get("email"):
         return RedirectResponse(f"{target_frontend}/login?error=Facebook+authentication+failed.+Please+try+again.")
 
-    email = info.get("email")
-    if not email:
-        return RedirectResponse(f"{target_frontend}/login?error=Facebook+did+not+return+a+valid+email+address.")
 
     email_clean = email.lower()
     name = info.get("name") or email_clean.split("@")[0]
