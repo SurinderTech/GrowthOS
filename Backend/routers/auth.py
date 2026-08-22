@@ -637,7 +637,9 @@ async def linkedin_callback(request: Request, db: Session = Depends(get_db)):
                 if res.status_code == 200:
                     info = res.json()
     except Exception as err:
+        print(f"DEBUG LinkedIn OAuth exception: {type(err).__name__}: {err}")
         return RedirectResponse(f"{target_frontend}/login?error=LinkedIn+authentication+failed.+Please+try+again.")
+
 
     if not info or not info.get("email"):
         return RedirectResponse(f"{target_frontend}/login?error=LinkedIn+did+not+return+a+valid+email+address.")
