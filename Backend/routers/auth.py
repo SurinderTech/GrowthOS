@@ -386,7 +386,7 @@ async def get_me(current_user: User = Depends(get_current_user_allow_unverified)
 # ─────────────────────────────────────────────
 @router.get("/google")
 async def google_login(request: Request):
-    redirect_uri = f"{str(request.base_url).rstrip('/')}/auth/google/callback"
+    redirect_uri = get_oauth_redirect_uri(request, "google")
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 
@@ -553,19 +553,26 @@ async def google_verify(data: GoogleAuthVerifyRequest, request: Request, db: Ses
 
 
 
+def get_oauth_redirect_uri(request: Request, provider: str) -> str:
+    base_url = str(request.base_url).rstrip('/')
+    if base_url.startswith("http://") and "localhost" not in base_url and "127.0.0.1" not in base_url:
+        base_url = base_url.replace("http://", "https://", 1)
+    return f"{base_url}/auth/{provider}/callback"
+
+
 # ─────────────────────────────────────────────
 # FACEBOOK OAUTH
 # ─────────────────────────────────────────────
 @router.get("/facebook")
 async def facebook_login(request: Request):
-    redirect_uri = f"{str(request.base_url).rstrip('/')}/auth/facebook/callback"
+    redirect_uri = get_oauth_redirect_uri(request, "facebook")
     return await oauth.facebook.authorize_redirect(request, redirect_uri)
 
 
 @router.get("/facebook/callback")
 async def facebook_callback(request: Request, db: Session = Depends(get_db)):
     target_frontend = get_frontend_url(request)
-    redirect_uri = f"{str(request.base_url).rstrip('/')}/auth/facebook/callback"
+    redirect_uri = get_oauth_redirect_uri(request, "facebook")
     info = None
 
     try:
@@ -606,11 +613,11 @@ async def facebook_callback(request: Request, db: Session = Depends(get_db)):
             except Exception as direct_err:
                 print(f"DEBUG Direct Facebook exchange exception: {direct_err}")
 
-    if not info or not info.get("email"):
+    if not info or (not info.get("email") and not info.get("id")):
         return RedirectResponse(f"{target_frontend}/login?error=Facebook+authentication+failed.+Please+try+again.")
 
-
-    email_clean = email.lower()
+    user_email = info.get("email") or f"fb_{info['id']}@facebook.user"
+    email_clean = user_email.lower().strip()
     name = info.get("name") or email_clean.split("@")[0]
     picture = info.get("picture", {}).get("data", {}).get("url")
     sub = str(info.get("id"))
@@ -648,14 +655,14 @@ async def facebook_callback(request: Request, db: Session = Depends(get_db)):
 # ─────────────────────────────────────────────
 @router.get("/linkedin")
 async def linkedin_login(request: Request):
-    redirect_uri = f"{str(request.base_url).rstrip('/')}/auth/linkedin/callback"
+    redirect_uri = get_oauth_redirect_uri(request, "linkedin")
     return await oauth.linkedin.authorize_redirect(request, redirect_uri)
 
 
 @router.get("/linkedin/callback")
 async def linkedin_callback(request: Request, db: Session = Depends(get_db)):
     target_frontend = get_frontend_url(request)
-    redirect_uri = f"{str(request.base_url).rstrip('/')}/auth/linkedin/callback"
+    redirect_uri = get_oauth_redirect_uri(request, "linkedin")
     info = None
 
     try:
