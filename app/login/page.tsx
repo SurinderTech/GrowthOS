@@ -1,7 +1,7 @@
 "use client";
 // app/login/page.tsx  — fully responsive (mobile-first)
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -54,7 +54,7 @@ function BrainOrb() {
   );
 }
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setUser } = useAuth();
@@ -798,5 +798,19 @@ export default function LoginPage() {
         </div>
       )}
     </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ minHeight: "100vh", background: "#050709", display: "flex", alignItems: "center", justifyContent: "center", color: "#38bdf8" }}>
+          <Loader2 size={32} style={{ animation: "spin 1s linear infinite" }} />
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }
