@@ -1,8 +1,8 @@
 "use client";
 // app/login/page.tsx  — fully responsive (mobile-first)
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { Eye, EyeOff, Mail, Lock, Loader2, Brain, Phone, KeyRound } from "lucide-react";
@@ -56,6 +56,7 @@ function BrainOrb() {
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { setUser } = useAuth();
 
   const [authMode, setAuthMode]       = useState<"email" | "phone">("email");
@@ -69,6 +70,20 @@ export default function LoginPage() {
   const [show2FAModal, setShow2FA]  = useState(false);
   const [otp2FA, setOtp2FA]         = useState("");
   const [verifying2FA, setVerifying2FA] = useState(false);
+  const [oauthError, setOauthError]     = useState<string | null>(null);
+
+  // Display error toast & inline error if redirected back from OAuth failure
+  useEffect(() => {
+    const errParam = searchParams.get("error");
+    if (errParam) {
+      const decoded = decodeURIComponent(errParam);
+      setOauthError(decoded);
+      toast.error(decoded, { id: "oauth_error", duration: 8000 });
+      if (typeof window !== "undefined" && window.location.hash === "#_=_") {
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -513,6 +528,30 @@ export default function LoginPage() {
 
             <h2 className="gos-title">Welcome back 👋</h2>
             <p className="gos-desc">Sign in to your GrowthOS account</p>
+
+            {oauthError && (
+              <div style={{
+                background: "rgba(239, 68, 68, 0.12)",
+                border: "1px solid rgba(239, 68, 68, 0.3)",
+                borderRadius: "10px",
+                padding: "12px 14px",
+                marginBottom: "16px",
+                color: "#f87171",
+                fontSize: "0.83rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "10px"
+              }}>
+                <span>⚠️ {oauthError}</span>
+                <button
+                  onClick={() => setOauthError(null)}
+                  style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", fontSize: "1.1rem", lineHeight: 1 }}
+                >
+                  ×
+                </button>
+              </div>
+            )}
 
             {/* Sub-toggle: Email vs Phone OTP */}
             <div style={{ display: "flex", gap: "8px", background: "rgba(255, 255, 255, 0.03)", padding: "4px", borderRadius: "10px", marginBottom: "20px", border: "1px solid rgba(255, 255, 255, 0.08)" }}>

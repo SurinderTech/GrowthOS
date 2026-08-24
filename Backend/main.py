@@ -25,6 +25,7 @@ from Backend.routers.interview_agent import router as interview_agent_router
 from Backend.routers.project_agent import router as project_agent_router
 from Backend.routers.networking_agent import router as networking_agent_router
 from Backend.routers.learning_agent import router as learning_agent_router
+from Backend.nova import nova_router
 
 from Backend.scheduler.task_scheduler import start_scheduler, shutdown_scheduler
 
@@ -93,6 +94,7 @@ app.include_router(interview_agent_router,  prefix="/agents/interview",  tags=["
 app.include_router(project_agent_router,    prefix="/agents/projects",   tags=["Project Agent"])
 app.include_router(networking_agent_router, prefix="/agents/networking", tags=["Networking Agent"])
 app.include_router(learning_agent_router, prefix="/api/learning-agent", tags=["Learning Agent"])
+app.include_router(nova_router, prefix="/api/nova", tags=["NOVA"])
 
 # ─────────────────────────────────
 # Root Endpoint

@@ -1,6 +1,5 @@
 // src/app/layout.tsx
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
 import { AppShell } from "@/components/layout/AppShell";
 import { NeuralGrid } from "@/components/ui/NeuralGrid";
 import "./globals.css";
@@ -26,15 +25,6 @@ export default function RootLayout({
         <title>GrowthOS – Your Digital Silicon Valley</title>
         <meta name="description" content="The all-in-one operating system for ambitious businesses." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        {/* Nova AI Botpress Webchat Integration */}
-        <Script
-          src="https://cdn.botpress.cloud/webchat/v5.0/inject.js"
-          strategy="afterInteractive"
-        />
-        <Script
-          src="https://files.bpcontent.cloud/2026/08/17/15/20260817152735-O9AWKARL.js"
-          strategy="afterInteractive"
-        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}

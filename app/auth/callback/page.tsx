@@ -80,7 +80,8 @@ function CallbackInner() {
           saveUser(user);
           setUser(user);
           toast.success("Welcome to GrowthOS! 🎉");
-          router.push("/dashboard");
+          const nextUrl = user.onboarding_completed ? "/dashboard" : "/onboarding";
+          router.push(nextUrl);
         })
         .catch(() => {
           toast.error("Login succeeded but failed to fetch profile details");

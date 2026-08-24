@@ -83,10 +83,13 @@ FRONTEND_URL = get_frontend_url()
 # ── Set up OAuth providers (authlib)
 oauth = OAuth()
 
+FB_CLIENT_ID = (os.getenv("FACEBOOK_CLIENT_ID") or "").strip('"\'')
+FB_CLIENT_SECRET = (os.getenv("FACEBOOK_CLIENT_SECRET") or "").strip('"\'')
+
 oauth.register(
     name="google",
-    client_id=os.getenv("GOOGLE_CLIENT_ID"),
-    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+    client_id=(os.getenv("GOOGLE_CLIENT_ID") or "").strip('"\''),
+    client_secret=(os.getenv("GOOGLE_CLIENT_SECRET") or "").strip('"\''),
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
     client_kwargs={"scope": "openid email profile"},
     claims_options={
@@ -98,8 +101,8 @@ oauth.register(
 
 oauth.register(
     name="facebook",
-    client_id=os.getenv("FACEBOOK_CLIENT_ID"),
-    client_secret=os.getenv("FACEBOOK_CLIENT_SECRET"),
+    client_id=FB_CLIENT_ID,
+    client_secret=FB_CLIENT_SECRET,
     access_token_url="https://graph.facebook.com/oauth/access_token",
     authorize_url="https://www.facebook.com/dialog/oauth",
     api_base_url="https://graph.facebook.com/",
@@ -108,8 +111,8 @@ oauth.register(
 
 oauth.register(
     name="linkedin",
-    client_id=os.getenv("LINKEDIN_CLIENT_ID"),
-    client_secret=os.getenv("LINKEDIN_CLIENT_SECRET"),
+    client_id=(os.getenv("LINKEDIN_CLIENT_ID") or "").strip('"\''),
+    client_secret=(os.getenv("LINKEDIN_CLIENT_SECRET") or "").strip('"\''),
     access_token_url="https://www.linkedin.com/oauth/v2/accessToken",
     authorize_url="https://www.linkedin.com/oauth/v2/authorization",
     api_base_url="https://api.linkedin.com/v2/",
@@ -565,8 +568,21 @@ def get_oauth_redirect_uri(request: Request, provider: str) -> str:
 # ─────────────────────────────────────────────
 @router.get("/facebook")
 async def facebook_login(request: Request):
+    if not FB_CLIENT_ID:
+        from urllib.parse import quote_plus
+        target_frontend = get_frontend_url(request)
+        return RedirectResponse(f"{target_frontend}/login?error={quote_plus('Server configuration error: FACEBOOK_CLIENT_ID is not set.')}")
+    
     redirect_uri = get_oauth_redirect_uri(request, "facebook")
-    return await oauth.facebook.authorize_redirect(request, redirect_uri)
+    from urllib.parse import quote
+    fb_auth_url = (
+        f"https://www.facebook.com/v18.0/dialog/oauth?"
+        f"client_id={FB_CLIENT_ID}&"
+        f"redirect_uri={quote(redirect_uri)}&"
+        f"scope=email,public_profile&"
+        f"response_type=code"
+    )
+    return RedirectResponse(fb_auth_url)
 
 
 @router.get("/facebook/callback")
@@ -574,47 +590,58 @@ async def facebook_callback(request: Request, db: Session = Depends(get_db)):
     target_frontend = get_frontend_url(request)
     redirect_uri = get_oauth_redirect_uri(request, "facebook")
     info = None
+    last_error = ""
 
-    try:
-        token = await oauth.facebook.authorize_access_token(request, redirect_uri=redirect_uri)
-        resp  = await oauth.facebook.get("me?fields=id,name,email,picture.type(large)", token=token)
-        info  = resp.json()
-    except Exception as err:
-        print(f"DEBUG Authlib Facebook OAuth exception: {type(err).__name__}: {err}")
+    code = request.query_params.get("code")
+    fb_err = request.query_params.get("error_description") or request.query_params.get("error_message") or request.query_params.get("error")
 
-    # Fallback to direct HTTP code exchange if Authlib state validation failed
-    if not info:
-        code = request.query_params.get("code")
-        if code:
-            client_id = (os.getenv("FACEBOOK_CLIENT_ID") or "").strip('"\'')
-            client_secret = (os.getenv("FACEBOOK_CLIENT_SECRET") or "").strip('"\'')
-            try:
-                async with httpx.AsyncClient(timeout=15.0) as client:
-                    token_res = await client.get(
-                        "https://graph.facebook.com/v18.0/oauth/access_token",
-                        params={
-                            "client_id": client_id,
-                            "client_secret": client_secret,
-                            "redirect_uri": redirect_uri,
-                            "code": code,
-                        }
-                    )
-                    if token_res.status_code == 200:
-                        acc_token = token_res.json().get("access_token")
-                        if acc_token:
-                            res = await client.get(
-                                "https://graph.facebook.com/v18.0/me?fields=id,name,email,picture.type(large)",
-                                params={"access_token": acc_token}
-                            )
-                            if res.status_code == 200:
-                                info = res.json()
+    if fb_err:
+        last_error = f"Facebook Error: {fb_err}"
+    elif not FB_CLIENT_ID or not FB_CLIENT_SECRET:
+        last_error = "Server configuration error: FACEBOOK_CLIENT_ID or FACEBOOK_CLIENT_SECRET environment variable is not set."
+    elif not code:
+        last_error = "No authorization code returned from Facebook."
+    else:
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                token_res = await client.get(
+                    "https://graph.facebook.com/v18.0/oauth/access_token",
+                    params={
+                        "client_id": FB_CLIENT_ID,
+                        "client_secret": FB_CLIENT_SECRET,
+                        "redirect_uri": redirect_uri,
+                        "code": code,
+                    }
+                )
+                if token_res.status_code == 200:
+                    token_data = token_res.json()
+                    acc_token = token_data.get("access_token")
+                    if acc_token:
+                        res = await client.get(
+                            "https://graph.facebook.com/v18.0/me",
+                            params={
+                                "fields": "id,name,email,picture.type(large)",
+                                "access_token": acc_token
+                            }
+                        )
+                        if res.status_code == 200:
+                            info = res.json()
+                        else:
+                            last_error = f"Graph UserInfo ({res.status_code}): {res.text}"
                     else:
-                        print(f"DEBUG Direct Facebook token error ({token_res.status_code}): {token_res.text}")
-            except Exception as direct_err:
-                print(f"DEBUG Direct Facebook exchange exception: {direct_err}")
+                        last_error = f"Access token missing in response: {token_res.text}"
+                else:
+                    last_error = f"Token Exchange ({token_res.status_code}): {token_res.text}"
+                    print(f"DEBUG Direct Facebook token error ({token_res.status_code}): {token_res.text}")
+        except Exception as direct_err:
+            last_error = f"Exchange Exception: {direct_err}"
+            print(f"DEBUG Direct Facebook exchange exception: {direct_err}")
 
     if not info or (not info.get("email") and not info.get("id")):
-        return RedirectResponse(f"{target_frontend}/login?error=Facebook+authentication+failed.+Please+try+again.")
+        from urllib.parse import quote_plus
+        err_msg = f"Facebook authentication failed: {last_error}" if last_error else "Facebook authentication failed. Please try again."
+        print(f"CRITICAL Facebook Login Failure: {err_msg}")
+        return RedirectResponse(f"{target_frontend}/login?error={quote_plus(err_msg)}")
 
     user_email = info.get("email") or f"fb_{info['id']}@facebook.user"
     email_clean = user_email.lower().strip()

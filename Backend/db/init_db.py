@@ -12,6 +12,14 @@ import Backend.models.agents_data       # Resume / Interview / Project / Network
 import Backend.models.learning_agent    # ← Learning Agent ORM models
 import Backend.models.otp               # ← User OTP ORM models
 import Backend.models.user_verification # ← Email Verification Token ORM models
+import Backend.nova.memory.models      # ← NOVA User Memory ORM models
+import Backend.nova.resources.models     # ← NOVA Resource Intelligence ORM models
+import Backend.nova.critic.models        # ← NOVA Critic & Verification ORM models
+import Backend.nova.planner.models       # ← NOVA Planner ORM models
+import Backend.nova.progress.models      # ← NOVA Progress Intelligence ORM models
+import Backend.nova.adaptive.models      # ← NOVA Adaptive Engine ORM models
+import Backend.nova.rag.models        # ← NOVA RAG ORM models
+import Backend.nova.knowledge.models   # ← NOVA Knowledge Base RAG ORM models (alias)
 
 
 def init_db():
@@ -78,6 +86,14 @@ def init_db():
             conn.execute(text("ALTER TABLE coding_submissions ADD COLUMN IF NOT EXISTS time_spent_s INTEGER DEFAULT 0;"))
         except Exception as e:
             print(f"Skipping coding_submissions column add: {e}")
+
+        try:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+            conn.execute(text("ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS embedding vector(384);"))
+            conn.execute(text("UPDATE document_chunks SET embedding = embedding_json::vector WHERE embedding_json IS NOT NULL AND embedding IS NULL;"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_document_chunks_embedding_hnsw ON document_chunks USING hnsw (embedding vector_cosine_ops);"))
+        except Exception as e:
+            print(f"Skipping pgvector extension/column setup: {e}")
 
         conn.commit()
 

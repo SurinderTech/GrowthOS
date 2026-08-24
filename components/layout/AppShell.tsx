@@ -5,6 +5,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { Toaster } from "react-hot-toast";
 import Navbar from "@/components/ui/Navbar";
+import { NovaStickyWidget } from "@/components/ui/NovaStickyWidget";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -20,6 +21,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main style={{ position: "relative", zIndex: 2, paddingTop: showNavbar ? "104px" : "0px", minHeight: "100vh" }}>
           {children}
         </main>
+        {/* GrowthOS Advanced NOVA Sticky Floating AI Widget */}
+        <NovaStickyWidget />
         <Toaster
           position="top-center"
           toastOptions={{
