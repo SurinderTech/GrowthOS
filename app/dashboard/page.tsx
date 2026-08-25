@@ -16,6 +16,7 @@ import {
 import LoadingScreen from "./LoadingScreen";
 import ProfileSettingsModal from "@/components/ui/ProfileSettingsModal";
 import BrandLogo from "@/components/ui/BrandLogo";
+import NovaProactiveInsightCard from "@/components/ui/NovaProactiveInsightCard";
 import {
   ResumeAgent,
   InterviewAgent,
@@ -579,7 +580,7 @@ export default function DashboardPage() {
 
   // Agent workspace panel state
   const [activeAgentPanel, setActiveAgentPanel] = useState<
-    "learning" | "opportunity" | "roadmap" | "resume" | "interview" | "project" | "networking" | "productivity" | null
+    "nova" | "learning" | "opportunity" | "roadmap" | "resume" | "interview" | "project" | "networking" | "productivity" | null
   >(null);
 
   // Profile & Settings wide modal state
@@ -1148,6 +1149,9 @@ export default function DashboardPage() {
             </div>
           </div>
         </section>
+
+        {/* ══ NOVA PROACTIVE INSIGHT BANNER ═══════════════════════════════════ */}
+        <NovaProactiveInsightCard />
 
         {/* ══ ORBIT VOICE — CENTRAL AI VOICE CORE ══════════════════════════════ */}
         <section style={s.section}>

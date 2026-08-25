@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Target, Lock, Check, ChevronRight, Send, Sparkles, Loader2,
   PlaySquare, BookOpen, GraduationCap, FileText, Flame, ArrowRight, ExternalLink,
+  Compass, Brain, Upload, Layers
 } from "lucide-react";
 import {
   getGoalBoard, getCurrentWeekRoadmap, getTodayMission, getProgressSummary,
@@ -20,17 +21,23 @@ import {
   type TopicResources, type TutorMessage, type TutorContext,
 } from "@/lib/learning-agent-api";
 import { LiveTutorPanel } from "./LiveTutorPanel";
+import { KnowledgeSection } from "./KnowledgeSection";
+import { PersonalMemorySection } from "./PersonalMemorySection";
+import { RoadmapSection } from "./RoadmapSection";
+import { ResourcesSection } from "./ResourcesSection";
+import NovaProactiveInsightCard from "@/components/ui/NovaProactiveInsightCard";
 
 const JOURNEY_PHASES = ["Foundation", "Core Skills", "Practice", "Projects", "Interview Ready"];
 
 const QUICK_PROMPTS = [
-  { label: "Explain differently", prompt: "Can you explain that a different way?" },
-  { label: "Give me a hint", prompt: "Give me a hint instead of the full answer." },
-  { label: "Show me visually", prompt: "Can you show me this visually, step by step?" },
+  { label: "Explain differently", prompt: "Can you explain the current topic in a different way with a new analogy?" },
+  { label: "Give me a hint", prompt: "Give me a hint on this topic instead of the full answer." },
+  { label: "Show me visually", prompt: "Can you break down this concept visually and step by step?" },
   { label: "Quiz me", prompt: "Quiz me on this topic." },
 ];
 
 export function LearningStudio({ onClose }: { onClose: () => void }) {
+  const [activeTab, setActiveTab] = useState<"workspace" | "roadmap" | "knowledge" | "resources" | "memory">("workspace");
   const [goalBoard, setGoalBoard] = useState<GoalBoardData | null>(null);
   const [roadmap, setRoadmap] = useState<WeeklyRoadmap | null>(null);
   const [mission, setMission] = useState<TodayMission | null>(null);
@@ -68,16 +75,64 @@ export function LearningStudio({ onClose }: { onClose: () => void }) {
 
   return (
     <div style={w.wrap}>
-      <div style={w.grid}>
-        <JourneyColumn goalBoard={goalBoard} roadmap={roadmap} todayIndex={todayIndex} />
-        <StudioChat context={context} focusLabel={activeItem?.title || roadmap.week_theme} />
-        <div style={w.rightCol}>
-          <LiveTutorPanel context={context} />
-          <ResourcesCard resources={resources} />
-          <PracticeCTA />
-        </div>
+      {/* ── Sub-area Top Navigation Bar ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: "12px", marginBottom: "16px", overflowX: "auto" }}>
+        {[
+          { id: "workspace", label: "Workspace", icon: Layers },
+          { id: "roadmap", label: "Roadmap", icon: Compass },
+          { id: "knowledge", label: "Knowledge (RAG)", icon: FileText },
+          { id: "resources", label: "Resources", icon: BookOpen },
+          { id: "memory", label: "NOVA Memory", icon: Brain },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 16px",
+                borderRadius: "10px",
+                fontSize: "0.82rem",
+                fontWeight: 700,
+                border: isActive ? "1px solid rgba(56, 189, 248, 0.4)" : "1px solid rgba(255, 255, 255, 0.06)",
+                backgroundColor: isActive ? "rgba(56, 189, 248, 0.12)" : "rgba(255, 255, 255, 0.02)",
+                color: isActive ? "#38bdf8" : "#94a3b8",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                transition: "all 0.2s ease",
+              }}
+            >
+              <Icon size={14} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
-      <ProgressStrip progress={progress} goalBoard={goalBoard} />
+
+      {activeTab === "workspace" && (
+        <>
+          <NovaProactiveInsightCard />
+          <div style={w.grid}>
+            <JourneyColumn goalBoard={goalBoard} roadmap={roadmap} todayIndex={todayIndex} />
+            <StudioChat context={context} focusLabel={activeItem?.title || roadmap.week_theme} />
+            <div style={w.rightCol}>
+              <LiveTutorPanel context={context} />
+              <ResourcesCard resources={resources} />
+              <PracticeCTA />
+            </div>
+          </div>
+          <ProgressStrip progress={progress} goalBoard={goalBoard} />
+        </>
+      )}
+
+      {activeTab === "roadmap" && <RoadmapSection />}
+      {activeTab === "knowledge" && <KnowledgeSection />}
+      {activeTab === "resources" && <ResourcesSection />}
+      {activeTab === "memory" && <PersonalMemorySection />}
     </div>
   );
 }

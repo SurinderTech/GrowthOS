@@ -14,7 +14,7 @@ import { Bot, Send, Sparkles, HelpCircle, FileText, Bug, Loader2 } from "lucide-
 import { askTutor, type TutorMessage, type TutorContext } from "@/lib/learning-agent-api";
 
 const QUICK_ACTIONS: { label: string; icon: any; prompt: string }[] = [
-    { label: "Explain again", icon: Sparkles, prompt: "Can you explain this a different way?" },
+    { label: "Explain again", icon: Sparkles, prompt: "Can you explain this topic in a different way with a new analogy?" },
     { label: "Quiz me", icon: HelpCircle, prompt: "Quiz me on this topic." },
     { label: "Make notes", icon: FileText, prompt: "Make concise notes for this topic." },
     { label: "Debug my code", icon: Bug, prompt: "I have a bug in my code, can you help me debug it?" },
