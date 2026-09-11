@@ -366,25 +366,6 @@ async def dev_reset_password(email: str, new_password: str, db: Session = Depend
 
 
 # ─────────────────────────────────────────────
-# GET /auth/me
-# Returns current logged-in user's info
-# ─────────────────────────────────────────────
-@router.get("/me", response_model=UserResponse)
-async def get_me(current_user: User = Depends(get_current_user_allow_unverified)):
-    try:
-        return UserResponse.model_validate(current_user)
-    except Exception:
-        return UserResponse(
-            id=current_user.id,
-            email=current_user.email,
-            name=current_user.name,
-            image=current_user.image,
-            email_verified=getattr(current_user, "email_verified", False),
-            onboarding_completed=current_user.onboarding_completed
-        )
-
-
-# ─────────────────────────────────────────────
 # GOOGLE OAUTH
 # ─────────────────────────────────────────────
 @router.get("/google")

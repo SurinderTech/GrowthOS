@@ -29,7 +29,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from Backend.db.session import get_db
-from Backend.routers.auth import get_current_user, hash_password, verify_password
+from Backend.auth import hash_password, verify_password, get_current_user, get_current_user_allow_unverified
 from Backend.models.user import User
 from Backend.models.onboarding import UserOnboarding
 
@@ -79,7 +79,7 @@ class DeleteAccountRequest(BaseModel):
 
 @router.get("/profile")
 def get_profile(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_allow_unverified),
     db: Session = Depends(get_db),
 ):
     """

@@ -89,12 +89,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else if (meData) {
         setUser((prev) => {
           const base = prev || getUser() || { id: "", email: "", name: "" };
+          const rawPlan = meData.plan_tier || meData.user_type || "Free";
+          const formattedPlan = rawPlan.replace("_", " ").toUpperCase() + " PLAN";
+
           return {
             ...base,
             id: meData.id || base.id,
             email: meData.email || base.email,
-            name: meData.name || base.name,
-            email_verified: meData.email_verified,
+            name: meData.name || meData.full_name || base.name,
+            full_name: meData.full_name || meData.name || base.name,
+            image: meData.image || meData.avatar_url || base.image,
+            avatar_url: meData.avatar_url || meData.image || base.image,
+            email_verified: meData.email_verified ?? base.email_verified,
+            onboarding_completed: meData.onboarding_completed ?? base.onboarding_completed,
+            plan: formattedPlan,
+            plan_tier: formattedPlan,
           };
         });
       }

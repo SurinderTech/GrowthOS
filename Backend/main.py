@@ -6,7 +6,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 import os
+from pathlib import Path
 from dotenv import load_dotenv
+
+# Load environment variables before importing modules that depend on them
+backend_env = Path(__file__).resolve().parent / ".env"
+root_env = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(backend_env)
+load_dotenv(root_env)
+load_dotenv()
 
 # Routers
 from Backend.routers import practice, streaks, missions, activity, accountability
@@ -32,9 +40,6 @@ from Backend.scheduler.task_scheduler import start_scheduler, shutdown_scheduler
 # Database
 from Backend.db.init_db import init_db
 
-# Load environment variables
-load_dotenv()
-
 app = FastAPI(
     title="GrowthOS API",
     description="Authentication backend for GrowthOS",
@@ -58,6 +63,8 @@ app.add_middleware(
 allowed_origins = list({
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
     "https://growthosai.tech",
     "https://www.growthosai.tech",
     os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
@@ -66,6 +73,7 @@ allowed_origins = list({
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?|https://.*\.growthosai\.tech",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

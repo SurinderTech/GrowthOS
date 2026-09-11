@@ -27,7 +27,7 @@ from Backend.services.gemini_service import (
     generate_job_skills,
     generate_skill_subskills
 )
-from Backend.routers.auth import get_current_user
+from Backend.auth import get_current_user, get_current_user_allow_unverified
 from Backend.services.streak_service import update_streak
 
 
@@ -106,7 +106,7 @@ def resolve_clean_user_name(user, ob) -> str:
 
 # ── GET /dashboard/ ───────────────────────────────────────────────────────────
 @router.get("/")
-def get_dashboard(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+def get_dashboard(current_user=Depends(get_current_user_allow_unverified), db: Session = Depends(get_db)):
     """Return basic dashboard meta with clean user name, real profile image, plan tier, level & XP."""
     ob = db.query(UserOnboarding).filter(UserOnboarding.user_id == current_user.id).first()
     plan = db.query(GrowthPlan).filter(
