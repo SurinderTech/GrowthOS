@@ -34,6 +34,9 @@ from Backend.routers.project_agent import router as project_agent_router
 from Backend.routers.networking_agent import router as networking_agent_router
 from Backend.routers.learning_agent import router as learning_agent_router
 from Backend.nova import nova_router
+from Backend.routers.leaderboard import router as leaderboard_router
+from Backend.routers.challenges import router as challenges_router
+from Backend.routers.community import router as community_router
 
 from Backend.scheduler.task_scheduler import start_scheduler, shutdown_scheduler
 
@@ -103,6 +106,9 @@ app.include_router(project_agent_router,    prefix="/agents/projects",   tags=["
 app.include_router(networking_agent_router, prefix="/agents/networking", tags=["Networking Agent"])
 app.include_router(learning_agent_router, prefix="/api/learning-agent", tags=["Learning Agent"])
 app.include_router(nova_router, prefix="/api/nova", tags=["NOVA"])
+app.include_router(leaderboard_router, prefix="/leaderboard", tags=["Leaderboard"])
+app.include_router(challenges_router, prefix="/challenges", tags=["Challenges"])
+app.include_router(community_router, prefix="/community", tags=["Community"])
 
 # ─────────────────────────────────
 # Root Endpoint

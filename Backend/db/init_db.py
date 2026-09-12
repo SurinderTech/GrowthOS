@@ -12,6 +12,9 @@ import Backend.models.agents_data       # Resume / Interview / Project / Network
 import Backend.models.learning_agent    # ← Learning Agent ORM models
 import Backend.models.otp               # ← User OTP ORM models
 import Backend.models.user_verification # ← Email Verification Token ORM models
+import Backend.models.leaderboard      # ← UserXP, LeaderboardEvent
+import Backend.models.challenges       # ← Challenge, ChallengeParticipant
+import Backend.models.community        # ← CommunityPost, CommunityReaction
 import Backend.nova.memory.models      # ← NOVA User Memory ORM models
 import Backend.nova.resources.models     # ← NOVA Resource Intelligence ORM models
 import Backend.nova.critic.models        # ← NOVA Critic & Verification ORM models
