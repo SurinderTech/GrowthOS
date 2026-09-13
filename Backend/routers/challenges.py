@@ -2,14 +2,18 @@
 routers/challenges.py
 
 Endpoints:
-  GET  /challenges/           — challenges matched to user's field
-  GET  /challenges/my         — user's joined/completed challenges
-  POST /challenges/{id}/join  — join a challenge
+  GET  /challenges/             — challenges matched to user's field
+  GET  /challenges/my           — user's joined/completed challenges
+  GET  /challenges/arena-stats  — live arena, boss, campaign & capability data
+  POST /challenges/{id}/join    — join a challenge
   POST /challenges/{id}/complete — mark complete, award XP
 """
 
 from uuid import UUID
 from typing import Optional
+import random
+from datetime import datetime, timezone, timedelta
+from math import floor
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -30,7 +34,7 @@ from Backend.services.leaderboard_service import (
     award_xp,
     get_user_batch,
 )
-from Backend.models.leaderboard import LeaderboardEvent
+from Backend.models.leaderboard import LeaderboardEvent, UserXP
 
 router = APIRouter(tags=["Challenges"])
 
@@ -158,3 +162,182 @@ def complete(
             db.commit()
 
     return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /challenges/arena-stats
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Field → Campaign display data
+_CAMPAIGN_MAP = {
+    "student:cs":          {"title": "AI ENGINEER",       "emoji": "🤖", "theme": "#6366f1"},
+    "student:datascience": {"title": "DATA SCIENTIST",    "emoji": "📊", "theme": "#8b5cf6"},
+    "student:medical":     {"title": "MED CHAMPION",      "emoji": "🏥", "theme": "#ec4899"},
+    "student:commerce":    {"title": "MARKET STRATEGIST", "emoji": "📈", "theme": "#f59e0b"},
+    "student:electronics": {"title": "CIRCUIT MASTER",   "emoji": "⚡", "theme": "#22c55e"},
+    "student:mechanical":  {"title": "SYSTEMS ENGINEER",  "emoji": "⚙️", "theme": "#64748b"},
+    "exam:jee":            {"title": "JEE WARRIOR",       "emoji": "⚗️", "theme": "#ef4444"},
+    "exam:neet":           {"title": "NEET CHAMPION",     "emoji": "🔬", "theme": "#10b981"},
+    "exam:upsc":           {"title": "UPSC ASPIRANT",     "emoji": "🏛️", "theme": "#f59e0b"},
+    "exam:other":          {"title": "EXAM SLAYER",       "emoji": "📚", "theme": "#6366f1"},
+    "freelancer":          {"title": "FREELANCE PRO",     "emoji": "💼", "theme": "#3b82f6"},
+    "entrepreneur":        {"title": "STARTUP FOUNDER",   "emoji": "🚀", "theme": "#f97316"},
+    "creator":             {"title": "CONTENT CREATOR",   "emoji": "🎬", "theme": "#ec4899"},
+    "self_growth":         {"title": "GROWTH MASTER",     "emoji": "🧠", "theme": "#8b5cf6"},
+}
+
+_LIVE_EVENTS = [
+    {"title": "THE AI OUTBREAK",    "players": 12483, "difficulty": 4, "xp": 2500, "multiplier": 1.5},
+    {"title": "CYBER DEFENSE",      "players": 6482,  "difficulty": 3, "xp": 1800, "multiplier": 1.2},
+    {"title": "AI AGENT WAR",       "players": 2103,  "difficulty": 5, "xp": 3200, "multiplier": 2.0},
+    {"title": "SYSTEM DESIGN RUSH", "players": 4871,  "difficulty": 3, "xp": 1500, "multiplier": 1.3},
+    {"title": "PRODUCTION DOWN",    "players": 9214,  "difficulty": 5, "xp": 4000, "multiplier": 2.5},
+]
+
+_BOSSES = [
+    {"name": "THE HALLUCINATION MONSTER", "emoji": "🧟", "desc": "Your RAG system is hallucinating. Defeat it before it spreads.", "xp": 1800},
+    {"name": "THE MEMORY LEAK",           "emoji": "👾", "desc": "Production RAM spiking 400%. Find and kill the leak.",          "xp": 2200},
+    {"name": "THE SQL INJECTION BOSS",    "emoji": "💀", "desc": "Attackers are probing your endpoints. Harden every query.",     "xp": 2000},
+    {"name": "THE TIMEOUT TITAN",         "emoji": "⏱️", "desc": "API timeouts are cascading. Redesign the call chain.",         "xp": 1600},
+    {"name": "THE COLD START GHOST",      "emoji": "👻", "desc": "Serverless cold starts are killing UX. Warm them up.",         "xp": 1400},
+]
+
+
+@router.get("/arena-stats")
+def arena_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    ob = db.query(UserOnboarding).filter(UserOnboarding.user_id == current_user.id).first()
+    field_key = get_user_field(ob)
+
+    # ── Participation stats ──────────────────────────────────────────────────
+    all_parts = (
+        db.query(ChallengeParticipant)
+        .filter(ChallengeParticipant.user_id == current_user.id)
+        .all()
+    )
+    completed_parts = [p for p in all_parts if p.completed]
+    completed_count = len(completed_parts)
+    total_score = sum(p.score or 0 for p in completed_parts)
+
+    # ── Campaign ─────────────────────────────────────────────────────────────
+    campaign_meta = _CAMPAIGN_MAP.get(field_key, {"title": "GROWTH WARRIOR", "emoji": "⚔️", "theme": "#6366f1"})
+    # Derive level from completions: 1 level per 3 challenges, min level 1
+    level = max(1, completed_count // 3 + 1)
+    xp_in_level = (completed_count % 3) * 33  # 0..99
+
+    # Find next incomplete challenge as current mission
+    all_challenges = (
+        db.query(Challenge)
+        .filter(
+            Challenge.is_active == True,
+            Challenge.ends_at > datetime.now(timezone.utc),
+            Challenge.field_tag.in_([field_key, "all"]),
+        )
+        .all()
+    )
+    joined_ids = {str(p.challenge_id) for p in all_parts}
+    completed_ids = {str(p.challenge_id) for p in completed_parts}
+    mission_title = None
+    for ch in all_challenges:
+        if str(ch.id) not in completed_ids:
+            mission_title = ch.title
+            break
+    if not mission_title and all_challenges:
+        mission_title = all_challenges[0].title
+    if not mission_title:
+        mission_title = "Complete your first challenge to begin"
+
+    campaign = {
+        "title": campaign_meta["title"],
+        "emoji": campaign_meta["emoji"],
+        "theme": campaign_meta["theme"],
+        "level": level,
+        "xp_percent": xp_in_level,
+        "mission_title": mission_title,
+        "field_key": field_key,
+    }
+
+    # ── Live Events (deterministic shuffle based on today's date) ────────────
+    seed = datetime.now(timezone.utc).toordinal()
+    rng = random.Random(seed)
+    events_pool = list(_LIVE_EVENTS)
+    rng.shuffle(events_pool)
+    live_events = []
+    for i, ev in enumerate(events_pool[:3]):
+        starts_offset = (seed * (i + 1) * 137) % 900  # 0-900 seconds from now until start
+        live_events.append({
+            "title": ev["title"],
+            "players": ev["players"] + (seed % 1000),
+            "difficulty": ev["difficulty"],
+            "xp": ev["xp"],
+            "multiplier": ev["multiplier"],
+            "starts_in_s": starts_offset,
+            "time_remaining_s": 2700 - (seed % 1200),  # 15-45 min remaining
+        })
+
+    # ── Boss Battle ──────────────────────────────────────────────────────────
+    boss_pick = _BOSSES[seed % len(_BOSSES)]
+    # HP decreases as more global participants complete challenges today
+    global_completions_today = (
+        db.query(ChallengeParticipant)
+        .filter(
+            ChallengeParticipant.completed == True,
+            ChallengeParticipant.completed_at >= datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0),
+        )
+        .count()
+    )
+    boss_hp = max(10, 100 - min(global_completions_today * 3, 85))
+    boss = {
+        "name": boss_pick["name"],
+        "emoji": boss_pick["emoji"],
+        "description": boss_pick["desc"],
+        "xp_reward": boss_pick["xp"],
+        "hp_percent": boss_hp,
+        "time_remaining_s": 3600 - (seed % 1800),
+        "participants": 8214 + (seed % 2000),
+    }
+
+    # ── Capability Score ─────────────────────────────────────────────────────
+    # Derive from participation — rough but honest
+    total_possible = max(1, len(all_challenges))
+    participation_rate = min(100, int(len(joined_ids) / total_possible * 100))
+    completion_rate = min(100, int(completed_count / max(1, len(joined_ids)) * 100)) if joined_ids else 0
+
+    avg_time_s = None
+    timed = [p.time_taken_s for p in completed_parts if p.time_taken_s]
+    if timed:
+        avg_time_s = sum(timed) // len(timed)
+
+    # Fake but sensible sub-scores seeded from real data
+    base = min(85, 40 + completed_count * 5)
+    capability = {
+        "overall": min(999, total_score // 10 + completed_count * 12),
+        "problem_solving": min(100, base + 5),
+        "coding": min(100, base),
+        "debugging": min(100, max(20, base - 8)),
+        "system_design": min(100, max(15, base - 22)),
+        "ai_engineering": min(100, max(10, base - 10)),
+        "execution": min(100, base + 3),
+    }
+
+    # ── PvP / Battle Stats ───────────────────────────────────────────────────
+    pvp_stats = {
+        "attacks_survived": completed_count * 2 + len(all_parts),
+        "problems_solved": completed_count,
+        "win_streak": min(completed_count, 6),
+        "accuracy": completion_rate,
+        "avg_completion": min(100, participation_rate),
+        "deployments": max(0, completed_count - 2),
+    }
+
+    return {
+        "campaign": campaign,
+        "live_events": live_events,
+        "boss": boss,
+        "capability": capability,
+        "pvp_stats": pvp_stats,
+        "total_xp": total_score,
+        "completed_count": completed_count,
+    }

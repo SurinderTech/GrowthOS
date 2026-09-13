@@ -15,6 +15,7 @@ import Backend.models.user_verification # ← Email Verification Token ORM model
 import Backend.models.leaderboard      # ← UserXP, LeaderboardEvent
 import Backend.models.challenges       # ← Challenge, ChallengeParticipant
 import Backend.models.community        # ← CommunityPost, CommunityReaction
+import Backend.models.arena           # ← Arena: profiles, battles, ELO, boss, season, matchmaking
 import Backend.nova.memory.models      # ← NOVA User Memory ORM models
 import Backend.nova.resources.models     # ← NOVA Resource Intelligence ORM models
 import Backend.nova.critic.models        # ← NOVA Critic & Verification ORM models

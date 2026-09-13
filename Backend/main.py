@@ -37,6 +37,8 @@ from Backend.nova import nova_router
 from Backend.routers.leaderboard import router as leaderboard_router
 from Backend.routers.challenges import router as challenges_router
 from Backend.routers.community import router as community_router
+from Backend.routers.arena import router as arena_router_new
+from Backend.routers.arena_ws import router as arena_ws_router
 
 from Backend.scheduler.task_scheduler import start_scheduler, shutdown_scheduler
 
@@ -109,6 +111,8 @@ app.include_router(nova_router, prefix="/api/nova", tags=["NOVA"])
 app.include_router(leaderboard_router, prefix="/leaderboard", tags=["Leaderboard"])
 app.include_router(challenges_router, prefix="/challenges", tags=["Challenges"])
 app.include_router(community_router, prefix="/community", tags=["Community"])
+app.include_router(arena_router_new, prefix="/arena", tags=["Arena"])
+app.include_router(arena_ws_router, prefix="/ws", tags=["Arena WebSocket"])
 
 # ─────────────────────────────────
 # Root Endpoint
@@ -132,11 +136,23 @@ def startup():
     # Initialize database tables
     try:
         init_db()
-        print("✅ Database tables ready")
+        print("[OK] Database tables ready")
     except Exception as e:
-        print("❌ DB error:", str(e))
-        # IMPORTANT: crash avoid karne ke liye pass
+        print("[ERROR] DB error:", str(e))
         pass
+
+    # Seed Arena data (idempotent)
+    try:
+        from Backend.db.session import SessionLocal
+        from Backend.services.arena_seed import seed_arena
+        _db = SessionLocal()
+        try:
+            seed_arena(_db)
+            print("[OK] Arena seed complete")
+        finally:
+            _db.close()
+    except Exception as e:
+        print(f"[ERROR] Arena seed failed: {e}")
 
     # Start APScheduler for smart daily tasks
     try:
