@@ -37,6 +37,130 @@ from Backend.services.leaderboard_service import get_user_field
 
 log = logging.getLogger(__name__)
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Question Bank — MCQ questions for AI Duels and seeded battles
+# _correct is stored under config["_correct"] and NEVER sent to the client.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_QUESTION_BANK = [
+    {
+        "question": "What does RAG stand for in modern AI systems?",
+        "options": ["Random Access Generation", "Retrieval-Augmented Generation", "Recurrent Attention Gating", "Recursive Agent Graph"],
+        "_correct": 1,
+        "topic": "ai",
+    },
+    {
+        "question": "Which data structure gives O(1) average-case lookup time?",
+        "options": ["Binary Tree", "Linked List", "Hash Table", "Stack"],
+        "_correct": 2,
+        "topic": "cs",
+    },
+    {
+        "question": "In the Transformer architecture, what does 'attention' compute?",
+        "options": ["Gradient norms", "Weighted sum of value vectors", "Dropout masks", "Positional encodings"],
+        "_correct": 1,
+        "topic": "ai",
+    },
+    {
+        "question": "Which sorting algorithm has the best worst-case time complexity?",
+        "options": ["QuickSort", "BubbleSort", "MergeSort", "SelectionSort"],
+        "_correct": 2,
+        "topic": "cs",
+    },
+    {
+        "question": "What is the primary purpose of a vector database in an AI system?",
+        "options": ["Store SQL schemas", "Cache HTTP responses", "Retrieve semantically similar embeddings", "Run Python scripts"],
+        "_correct": 2,
+        "topic": "ai",
+    },
+    {
+        "question": "Which HTTP status code means 'resource not found'?",
+        "options": ["200", "401", "404", "500"],
+        "_correct": 2,
+        "topic": "web",
+    },
+    {
+        "question": "In Python, what does the `yield` keyword create?",
+        "options": ["A class instance", "An async coroutine", "A generator function", "A decorator"],
+        "_correct": 2,
+        "topic": "python",
+    },
+    {
+        "question": "What does 'idempotent' mean in the context of HTTP methods?",
+        "options": ["The request is encrypted", "Multiple identical requests have the same effect as one", "The request requires authentication", "The response is cached"],
+        "_correct": 1,
+        "topic": "web",
+    },
+    {
+        "question": "Which of these is NOT a SOLID principle?",
+        "options": ["Single Responsibility", "Open/Closed", "DRY (Don't Repeat Yourself)", "Liskov Substitution"],
+        "_correct": 2,
+        "topic": "cs",
+    },
+    {
+        "question": "In a neural network, what is 'backpropagation' used for?",
+        "options": ["Forward inference", "Data augmentation", "Computing gradients to update weights", "Tokenizing input text"],
+        "_correct": 2,
+        "topic": "ai",
+    },
+]
+
+
+def sanitize_task_for_client(task: BattleTask) -> dict:
+    """
+    Strip the server-only '_correct' field before sending task to browser.
+    NEVER expose the correct answer to the client.
+    """
+    cfg = dict(task.config or {})
+    cfg.pop("_correct", None)  # remove server-only field
+    return {
+        "id":        str(task.id),
+        "type":      task.task_type,
+        "order":     task.order,
+        "max_score": task.max_score,
+        "question":  cfg.get("question"),
+        "options":   cfg.get("options", []),
+        "topic":     cfg.get("topic"),
+        "ends_at":   task.ends_at.isoformat() if task.ends_at else None,
+    }
+
+
+def _generate_battle_tasks(
+    battle: Battle,
+    battle_round: BattleRound,
+    db: Session,
+    num_tasks: int = 5,
+) -> list:
+    """
+    Pick `num_tasks` questions from the bank and create BattleTask rows.
+    Returns the created BattleTask objects.
+    Called during create_ai_duel() and _seed_live_battles().
+    """
+    import random
+    questions = random.sample(_QUESTION_BANK, min(num_tasks, len(_QUESTION_BANK)))
+    tasks = []
+    for i, q in enumerate(questions, start=1):
+        task = BattleTask(
+            battle_id=battle.id,
+            round_id=battle_round.id,
+            task_type="mcq",
+            order=i,
+            max_score=100,
+            ends_at=battle.ends_at,
+            # _correct is stored inside config but NEVER sent to client
+            config={
+                "question": q["question"],
+                "options":  q["options"],
+                "_correct": q["_correct"],
+                "topic":    q["topic"],
+            },
+        )
+        db.add(task)
+        tasks.append(task)
+    db.flush()
+    return tasks
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ELO Engine (Standard formula, K=32)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -389,8 +513,17 @@ def _attempt_match(user_id: UUID, mode: str, player_elo: int, db: Session) -> Op
     """
     Find a compatible opponent in the queue within ELO ±150 range.
     If found, create a battle and remove both from queue.
+    Respects challenge_format from the queue entry (Fix 6).
     """
     elo_range = 150
+
+    # Get current user's queue entry to know their requested format
+    my_entry = db.query(MatchmakingQueue).filter(
+        MatchmakingQueue.user_id == user_id,
+        MatchmakingQueue.status == "searching",
+    ).first()
+    my_format = (my_entry.challenge_format if my_entry else None) or "mcq"
+
     opponent_entry = (
         db.query(MatchmakingQueue)
         .filter(
@@ -405,11 +538,14 @@ def _attempt_match(user_id: UUID, mode: str, player_elo: int, db: Session) -> Op
     if not opponent_entry:
         return None
 
+    # Use the format both players agreed on (prefer match; fallback to my format)
+    chosen_format = (opponent_entry.challenge_format or my_format) or "mcq"
+
     # Create battle
     now = datetime.now(timezone.utc)
     battle = Battle(
         mode=mode,
-        challenge_format="mcq",
+        challenge_format=chosen_format,   # FIX 6: was hardcoded "mcq"
         status="lobby",
         title=f"{mode.upper()} Battle",
         starts_at=now + timedelta(seconds=30),
@@ -422,6 +558,21 @@ def _attempt_match(user_id: UUID, mode: str, player_elo: int, db: Session) -> Op
     for uid in [user_id, opponent_entry.user_id]:
         bp = BattlePlayer(battle_id=battle.id, user_id=uid, status="ready")
         db.add(bp)
+
+    # Generate tasks if MCQ format
+    if chosen_format == "mcq":
+        battle_round = BattleRound(
+            battle_id=battle.id,
+            round_number=1,
+            challenge_format=chosen_format,
+            status="lobby",
+            starts_at=battle.starts_at,
+            ends_at=battle.ends_at,
+            config={},
+        )
+        db.add(battle_round)
+        db.flush()
+        _generate_battle_tasks(battle, battle_round, db, num_tasks=5)
 
     # Update queue entries
     for uid in [user_id, opponent_entry.user_id]:
@@ -454,35 +605,43 @@ def get_battle_state(battle_id: UUID, user_id: UUID, db: Session) -> dict:
     players = db.query(BattlePlayer).filter(BattlePlayer.battle_id == battle_id).all()
     player_data = []
     for p in players:
-        u = db.query(User).filter(User.id == p.user_id).first()
+        if p.is_ai:
+            bot = db.query(AIOpponent).filter(AIOpponent.id == p.ai_opponent_id).first() if p.ai_opponent_id else None
+            name = bot.display_name if bot else "AI Opponent"
+        else:
+            u = db.query(User).filter(User.id == p.user_id).first()
+            name = (u.name or u.email.split("@")[0]) if u else "Player"
         player_data.append({
-            "user_id": str(p.user_id),
-            "name":    u.name if u else "Player",
+            "user_id": str(p.user_id) if p.user_id else f"ai:{p.ai_opponent_id}",
+            "name":    name,
             "status":  p.status,
-            "score":   p.score,
+            "score":   p.score or 0,
             "rank":    p.rank,
             "is_ai":   p.is_ai,
         })
 
-    # Build current round questions
-    rounds = db.query(BattleRound).filter(
-        BattleRound.battle_id == battle_id,
-        BattleRound.round_number == battle.current_round,
-    ).first()
+    # FIX 4: Query BattleTask rows and return sanitized list (no _correct exposed)
+    tasks_raw = (
+        db.query(BattleTask)
+        .filter(BattleTask.battle_id == battle_id)
+        .order_by(BattleTask.order)
+        .all()
+    )
+    tasks = [sanitize_task_for_client(t) for t in tasks_raw]
 
     return {
-        "id":         str(battle.id),
-        "mode":       battle.mode,
-        "format":     battle.challenge_format,
-        "status":     battle.status,
-        "title":      battle.title,
-        "starts_at":  battle.starts_at.isoformat() if battle.starts_at else None,
-        "ends_at":    battle.ends_at.isoformat() if battle.ends_at else None,
+        "id":            str(battle.id),
+        "battle_id":     str(battle.id),
+        "mode":          battle.mode,
+        "format":        battle.challenge_format,
+        "status":        battle.status,
+        "title":         battle.title,
+        "starts_at":     battle.starts_at.isoformat() if battle.starts_at else None,
+        "ends_at":       battle.ends_at.isoformat() if battle.ends_at else None,
         "current_round": battle.current_round,
         "total_rounds":  battle.total_rounds,
-        "players":    player_data,
-        "config":     battle.config or {},
-        "round_config": rounds.config if rounds else {},
+        "players":       player_data,
+        "tasks":         tasks,          # FIX 4: was missing; frontend does `if (d.tasks) setTasks(d.tasks)`
     }
 
 
@@ -494,11 +653,13 @@ def submit_battle_answer(
     selected_option: Optional[int],
     language: Optional[str],
     db: Session,
-    task_id: Optional[str] = None,   # NEW: which task this submission is for
+    task_id: Optional[str] = None,
 ) -> dict:
     """
     Server receives submission and validates the deadline.
     submitted_at is set by server — client timestamp is ignored.
+    Authoritative scoring flow:
+        Submission → Evaluation → Score → BattlePlayer.score += score → commit
     """
     battle = db.query(Battle).filter(Battle.id == battle_id).first()
     if not battle:
@@ -520,8 +681,24 @@ def submit_battle_answer(
     if battle.status not in ("live", "lobby"):
         raise ValueError(f"Battle is not accepting submissions (status={battle.status})")
 
-    # Idempotency: check for duplicate MCQ submission
-    if submission_type == "mcq":
+    # Resolve task object (used for correct answer lookup and max_score)
+    task = None
+    if task_id:
+        try:
+            task = db.query(BattleTask).filter(BattleTask.id == UUID(task_id)).first()
+        except Exception:
+            pass
+
+    # Idempotency: check for duplicate submission per task
+    if task_id:
+        existing = db.query(BattleSubmission).filter(
+            BattleSubmission.battle_id == battle_id,
+            BattleSubmission.user_id == user_id,
+            BattleSubmission.task_id == UUID(task_id),
+        ).first()
+        if existing:
+            raise ValueError("Answer for this task already submitted")
+    elif submission_type == "mcq":
         existing = db.query(BattleSubmission).filter(
             BattleSubmission.battle_id == battle_id,
             BattleSubmission.user_id == user_id,
@@ -530,6 +707,38 @@ def submit_battle_answer(
         if existing:
             raise ValueError("MCQ answer already submitted")
 
+    # ── Evaluate ──────────────────────────────────────────────────────────────
+    score = 0
+    is_correct = None
+    eval_status = "evaluated"
+
+    if submission_type == "mcq" and selected_option is not None:
+        # Correct answer is stored in task.config["_correct"] (server-only key)
+        correct = None
+        if task:
+            correct = task.config.get("_correct")
+        if correct is None:
+            # Fallback: legacy battle.config path
+            correct = battle.config.get("correct_option")
+
+        if correct is not None:
+            is_correct = (int(selected_option) == int(correct))
+            if is_correct:
+                base_score = task.max_score if task else battle.config.get("points_per_question", 100)
+                elapsed    = (now - battle.starts_at).total_seconds() if battle.starts_at else 0
+                total_dur  = (battle.ends_at - battle.starts_at).total_seconds() if battle.starts_at and battle.ends_at else 1
+                time_ratio = max(0.0, 1.0 - elapsed / max(1.0, total_dur))
+                score      = base_score + int(time_ratio * 50)  # up to 50 speed bonus
+        eval_status = "evaluated"
+
+    elif submission_type == "reasoning":
+        # FIX 8: Reasoning is NOT evaluated immediately — mark pending, score stays 0
+        # A future AI rubric pass will update score and mark evaluated.
+        score = 0
+        is_correct = None
+        eval_status = "pending"  # was wrongly set to "evaluated" before
+
+    # ── Persist submission ────────────────────────────────────────────────────
     sub = BattleSubmission(
         battle_id=battle_id,
         task_id=UUID(task_id) if task_id else None,
@@ -538,50 +747,16 @@ def submit_battle_answer(
         content=content,
         selected_option=selected_option,
         language=language,
+        score=score,
+        is_correct=is_correct,
+        evaluation_status=eval_status,
     )
     db.add(sub)
-    db.flush()
 
-    # Evaluate MCQ immediately — look up correct from BattleTask.config first, fallback to Battle.config
-    score = 0
-    is_correct = None
-    if submission_type == "mcq" and selected_option is not None:
-        # Phase 1: get correct answer from task config if available
-        correct = None
-        if task_id:
-            task = db.query(BattleTask).filter(BattleTask.id == UUID(task_id)).first()
-            if task:
-                correct = task.config.get("correct")
-        if correct is None:
-            correct = battle.config.get("correct_option")
-        if correct is not None:
-            is_correct = (int(selected_option) == int(correct))
-            if is_correct:
-                base_score = 100
-                if task_id:
-                    task = db.query(BattleTask).filter(BattleTask.id == UUID(task_id)).first()
-                    if task:
-                        base_score = task.max_score
-                else:
-                    base_score = battle.config.get("points_per_question", 100)
-                elapsed    = (now - battle.starts_at).total_seconds() if battle.starts_at else 0
-                total      = (battle.ends_at - battle.starts_at).total_seconds() if battle.starts_at and battle.ends_at else 1
-                time_ratio = max(0.0, 1.0 - elapsed / max(1.0, total))
-                score      = base_score + int(time_ratio * 50)  # up to 50 speed bonus
-
-    elif submission_type == "reasoning":
-        # Phase 1: store with evaluation_status=pending; AI rubric is Phase 2
-        sub.evaluation_status = "pending"
-        score = 0
-        is_correct = None
-
-        sub.is_correct = is_correct
-        sub.score = score
-        sub.evaluation_status = "evaluated"
-
-        # Update player score
+    # FIX 2: Always update participant.score (MCQ branch was missing this)
+    if submission_type == "mcq":
         participant.score = (participant.score or 0) + score
-        db.flush()
+    # Reasoning: score stays 0 until evaluated — don't add to participant yet
 
     db.commit()
     db.refresh(sub)
@@ -903,19 +1078,28 @@ def submit_boss_answer(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def create_ai_duel(user_id: UUID, opponent_id: UUID, db: Session) -> dict:
-    """Create a 1v1 battle against an AI opponent."""
+    """
+    Create a 1v1 battle against an AI opponent.
+    FIX 1: Creates BattleRound + BattleTask rows so the battle is genuinely playable.
+    """
     bot = db.query(AIOpponent).filter(AIOpponent.id == opponent_id).first()
     if not bot:
         raise ValueError("AI opponent not found")
 
-    # Prevent duplicate active duels against same bot
+    # Prevent duplicate active duels
     existing = db.query(Battle).join(BattlePlayer).filter(
         BattlePlayer.user_id == user_id,
         Battle.mode == "ai_duel",
         Battle.status.in_(["waiting", "lobby", "live"]),
     ).first()
     if existing:
-        return {"battle_id": str(existing.id), "opponent": bot.display_name, "starts_at": existing.starts_at.isoformat(), "ends_at": existing.ends_at.isoformat(), "resuming": True}
+        return {
+            "battle_id": str(existing.id),
+            "opponent":  bot.display_name,
+            "starts_at": existing.starts_at.isoformat() if existing.starts_at else None,
+            "ends_at":   existing.ends_at.isoformat() if existing.ends_at else None,
+            "resuming":  True,
+        }
 
     now = datetime.now(timezone.utc)
     battle = Battle(
@@ -928,6 +1112,7 @@ def create_ai_duel(user_id: UUID, opponent_id: UUID, db: Session) -> dict:
         config={
             "opponent_name": bot.display_name,
             "opponent_elo":  bot.elo,
+            "is_ai_duel":    True,
         }
     )
     db.add(battle)
@@ -938,16 +1123,32 @@ def create_ai_duel(user_id: UUID, opponent_id: UUID, db: Session) -> dict:
         battle_id=battle.id, user_id=user_id, status="ready", is_ai=False
     ))
 
-    # AI player row — user_id=None (nullable after schema fix)
-    # This resolves the unique constraint violation where AI used human's user_id
+    # AI player row — user_id=None (nullable)
     db.add(BattlePlayer(
         battle_id=battle.id,
-        user_id=None,            # AI has no real user row
+        user_id=None,
         ai_opponent_id=opponent_id,
         status="ready",
         is_ai=True,
         score=0,
     ))
+    db.flush()
+
+    # FIX 1: Create BattleRound + BattleTasks — without these the battle screen shows nothing
+    battle_round = BattleRound(
+        battle_id=battle.id,
+        round_number=1,
+        challenge_format="mcq",
+        status="lobby",
+        starts_at=battle.starts_at,
+        ends_at=battle.ends_at,
+        config={"bot": bot.display_name},
+    )
+    db.add(battle_round)
+    db.flush()
+
+    _generate_battle_tasks(battle, battle_round, db, num_tasks=5)
+
     db.commit()
     db.refresh(battle)
 

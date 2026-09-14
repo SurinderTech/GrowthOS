@@ -51,6 +51,49 @@ log = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Arena WebSocket"])
 
+# ─────────────────────────────────────────────────────────────────────────────
+# FIX 5: Idempotency guard — prevents duplicate battle workers
+# Per-process set; sufficient for Phase 1 single-process deployment.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_running_battles: set = set()
+
+
+def _start_battle_idempotent(battle_id: str, ws_manager) -> bool:
+    """
+    Start the battle engine worker only if not already running.
+    Returns True if a new worker was started, False if already running.
+    """
+    if battle_id in _running_battles:
+        log.info(f"[WS] Battle {battle_id} engine already running — skipping duplicate start")
+        return False
+    _running_battles.add(battle_id)
+    from Backend.services.battle_engine import start_battle_worker
+
+    async def _wrapped():
+        try:
+            await start_battle_worker(battle_id, ws_manager).__await__()  # noqa
+        finally:
+            _running_battles.discard(battle_id)
+
+    # create_task schedules on the running event loop
+    import asyncio as _asyncio
+    task = asyncio.create_task(
+        _run_worker(battle_id, ws_manager),
+        name=f"battle_idempotent_{battle_id}",
+    )
+    return True
+
+
+async def _run_worker(battle_id: str, ws_manager):
+    """Wrapper that removes battle from _running_battles when done."""
+    from Backend.services.battle_engine import _battle_lifecycle
+    try:
+        await _battle_lifecycle(battle_id, ws_manager)
+    finally:
+        _running_battles.discard(battle_id)
+        log.info(f"[WS] Battle {battle_id} worker finished, removed from guard")
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Connection Manager
@@ -230,6 +273,7 @@ async def battle_ws(
         # If battle is already live on reconnect, send current state snapshot
         db = SessionLocal()
         try:
+            from Backend.services.arena_service import sanitize_task_for_client
             battle = db.query(Battle).filter(Battle.id == UUID(battle_id)).first()
             if battle and battle.status == "live":
                 tasks = db.query(BattleTask).filter(BattleTask.battle_id == UUID(battle_id)).order_by(BattleTask.order).all()
@@ -238,7 +282,8 @@ async def battle_ws(
                     "type": "battle:state",
                     "status": battle.status,
                     "ends_at": battle.ends_at.isoformat() if battle.ends_at else None,
-                    "tasks": [{"id": str(t.id), "type": t.task_type, "order": t.order, "config": t.config} for t in tasks],
+                    # FIX 3: sanitize tasks — never send _correct to client
+                    "tasks": [sanitize_task_for_client(t) for t in tasks],
                     "leaderboard": [{"user_id": str(p.user_id) if p.user_id else f"ai:{p.ai_opponent_id}", "score": p.score or 0, "rank": i+1} for i, p in enumerate(players)],
                 }))
         finally:
@@ -276,9 +321,8 @@ async def battle_ws(
                         if battle and battle.status in ("waiting", "lobby"):
                             battle.status = "lobby"  # acknowledge all ready
                             db.commit()
-                            # ——— Engine owns the lifecycle. WS only triggers it. ———
-                            from Backend.services.battle_engine import start_battle_worker
-                            start_battle_worker(battle_id, manager)
+                            # FIX 5: idempotent start — won't spawn duplicate workers
+                            _start_battle_idempotent(battle_id, manager)
                 finally:
                     db.close()
 
@@ -335,6 +379,7 @@ async def battle_ws(
             elif event == "state:request":
                 db = SessionLocal()
                 try:
+                    from Backend.services.arena_service import sanitize_task_for_client
                     battle = db.query(Battle).filter(Battle.id == UUID(battle_id)).first()
                     players = db.query(BattlePlayer).filter(
                         BattlePlayer.battle_id == UUID(battle_id)
@@ -345,7 +390,8 @@ async def battle_ws(
                         "type": "battle:state",
                         "status": battle.status if battle else "unknown",
                         "ends_at": battle.ends_at.isoformat() if battle and battle.ends_at else None,
-                        "tasks": [{"id": str(t.id), "type": t.task_type, "order": t.order, "config": t.config} for t in tasks],
+                        # FIX 3: sanitize — never send _correct to client
+                        "tasks": [sanitize_task_for_client(t) for t in tasks],
                         "leaderboard": [
                             {"user_id": str(p.user_id) if p.user_id else f"ai:{p.ai_opponent_id}", "score": p.score or 0, "rank": i + 1, "is_ai": p.is_ai}
                             for i, p in enumerate(players)

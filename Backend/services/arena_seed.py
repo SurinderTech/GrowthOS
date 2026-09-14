@@ -15,7 +15,7 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from Backend.models.arena import (
-    AIOpponent, Boss, BossInstance, ArenaSeason, Battle, BattleRound
+    AIOpponent, Boss, BossInstance, ArenaSeason, Battle, BattleRound, BattleTask
 )
 from Backend.models.challenges import Challenge
 
@@ -247,24 +247,37 @@ _SAMPLE_BATTLES = [
 
 
 def _seed_live_battles(db: Session):
+    """
+    FIX 7: Seed battles as 'upcoming' rather than fake 'live'.
+    A seeded battle with status='live' but no running engine is misleading
+    and breaks the battle screen. Upcoming events show correctly in the UI
+    and can be promoted to live via a dev endpoint or scheduler.
+
+    Knowledge Clash gets real BattleTask rows (MCQ) so it's playable
+    when a dev manually starts its engine.
+    """
     now = datetime.now(timezone.utc)
 
     for spec in _SAMPLE_BATTLES:
         existing = db.query(Battle).filter(
             Battle.title == spec["title"],
-            Battle.status.in_(["live", "lobby"]),
+            Battle.status.in_(["live", "lobby", "upcoming", "waiting"]),
         ).first()
         if existing:
             continue
 
         duration = spec.get("duration_m", 30)
+        # FIX 7: Use 'upcoming' + future timestamps (not fake-live)
+        starts_at = now + timedelta(hours=2)
+        ends_at   = starts_at + timedelta(minutes=duration)
+
         battle = Battle(
             title=spec["title"],
             mode=spec["mode"],
             challenge_format=spec["challenge_format"],
-            status="live",
-            starts_at=now - timedelta(minutes=5),
-            ends_at=now + timedelta(minutes=duration),
+            status="upcoming",   # was "live" — now honest
+            starts_at=starts_at,
+            ends_at=ends_at,
             config=spec["config"],
         )
         db.add(battle)
@@ -275,12 +288,36 @@ def _seed_live_battles(db: Session):
             battle_id=battle.id,
             round_number=1,
             challenge_format=spec["challenge_format"],
-            status="live",
-            starts_at=battle.starts_at,
-            ends_at=battle.ends_at,
+            status="upcoming",
+            starts_at=starts_at,
+            ends_at=ends_at,
             config=spec["config"],
         )
         db.add(r)
-        log.info(f"[Seed] Created live battle: {spec['title']}")
+        db.flush()
+
+        # FIX 1 (seed): Add real BattleTask rows for MCQ battles
+        # Knowledge Clash is MCQ-format and needs tasks to be playable
+        if spec["challenge_format"] == "mcq":
+            from Backend.services.arena_service import _QUESTION_BANK
+            import random
+            questions = random.sample(_QUESTION_BANK, min(5, len(_QUESTION_BANK)))
+            for i, q in enumerate(questions, start=1):
+                db.add(BattleTask(
+                    battle_id=battle.id,
+                    round_id=r.id,
+                    task_type="mcq",
+                    order=i,
+                    max_score=100,
+                    ends_at=ends_at,
+                    config={
+                        "question": q["question"],
+                        "options":  q["options"],
+                        "_correct": q["_correct"],
+                        "topic":    q["topic"],
+                    },
+                ))
+
+        log.info(f"[Seed] Created upcoming battle: {spec['title']}")
 
     db.commit()

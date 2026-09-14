@@ -321,16 +321,14 @@ def battle_ready(
     all_ready = all(p.status == "ready" for p in human_players) and len(human_players) > 0
 
     if all_ready and battle and battle.status in ("waiting", "lobby"):
-        # Engine owns the lifecycle — we just trigger it here.
-        # The WS handler also triggers it for WS-based flows.
-        from Backend.routers.arena_ws import manager as ws_manager
-        from Backend.services.battle_engine import start_battle_worker
-        import asyncio
+        # FIX 5: use idempotency guard — won't spawn duplicate workers even if
+        # the WS player:ready event also fires.
+        from Backend.routers.arena_ws import manager as ws_manager, _start_battle_idempotent
         try:
             loop = asyncio.get_event_loop()
-            loop.create_task(start_battle_worker(str(battle_id), ws_manager))
+            if loop.is_running():
+                _start_battle_idempotent(str(battle_id), ws_manager)
         except RuntimeError:
-            # No running event loop (e.g. in sync test context) — skip
             pass
         return {"status": "battle_starting", "ends_at": battle.ends_at.isoformat() if battle.ends_at else None}
 

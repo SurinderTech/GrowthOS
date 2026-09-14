@@ -1,4 +1,4 @@
-﻿"""
+"""
 services/battle_engine.py
 GrowthOS Arena - Battle Engine (server-authoritative lifecycle owner).
 Architecture: WebSocket handler triggers engine tasks; engine owns timers, AI bot, finalization.
@@ -13,6 +13,7 @@ from Backend.models.arena import (
     EloHistory, XpTransaction, AIOpponent,
 )
 from Backend.models.user import User
+from Backend.services.arena_service import sanitize_task_for_client
 
 log = logging.getLogger(__name__)
 K_FACTOR = 32
@@ -40,7 +41,8 @@ async def _battle_lifecycle(battle_id: str, ws_manager):
             p.status = "live"
         db.commit()
         tasks = db.query(BattleTask).filter(BattleTask.battle_id == battle_id).order_by(BattleTask.order).all()
-        task_list = [{"id": str(t.id), "type": t.task_type, "order": t.order, "max_score": t.max_score, "config": t.config, "ends_at": t.ends_at.isoformat() if t.ends_at else (battle.ends_at.isoformat() if battle.ends_at else None)} for t in tasks]
+        # FIX 3: use sanitize_task_for_client — NEVER expose _correct to the browser
+        task_list = [sanitize_task_for_client(t) for t in tasks]
         await ws_manager.broadcast_battle(battle_id, {"type": "battle:started", "starts_at": battle.starts_at.isoformat() if battle.starts_at else now.isoformat(), "ends_at": battle.ends_at.isoformat() if battle.ends_at else None, "tasks": task_list})
         log.info(f"[Engine] Battle {battle_id} live with {len(tasks)} tasks")
         if battle.mode == "ai_duel":
@@ -49,7 +51,16 @@ async def _battle_lifecycle(battle_id: str, ws_manager):
                 bot = db.query(AIOpponent).filter(AIOpponent.id == ai_player.ai_opponent_id).first()
                 if bot:
                     for t in tasks:
-                        schedule_ai_bot_turn(battle_id, str(t.id), {"ai_opponent_id": str(bot.id), "display_name": bot.display_name, "accuracy_max": bot.accuracy_max, "speed_level": bot.speed_level, "task_type": t.task_type, "correct_option": t.config.get("correct", 0)}, ws_manager)
+                        # Pass _correct from task.config (server-only key) so bot can use it internally
+                        correct_opt = t.config.get("_correct", 0) if t.config else 0
+                        schedule_ai_bot_turn(battle_id, str(t.id), {
+                            "ai_opponent_id": str(bot.id),
+                            "display_name":   bot.display_name,
+                            "accuracy_max":   bot.accuracy_max,
+                            "speed_level":    bot.speed_level,
+                            "task_type":      t.task_type,
+                            "correct_option": correct_opt,   # server-only, never sent to client
+                        }, ws_manager)
         ends_at = battle.ends_at
         db.close()
         if ends_at:
