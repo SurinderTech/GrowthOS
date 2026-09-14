@@ -5,6 +5,7 @@
 // WebSocket connects to live battles for real-time score/HP updates
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -56,9 +57,14 @@ interface Boss {
 }
 
 interface Challenge {
-  id: string; title: string; description: string; type: string;
-  difficulty: string; xp_reward: number; time_minutes: number;
-  tags: string[]; field_tag: string; ends_at: string;
+  id: string; title: string; description: string;
+  type: string;        // daily | weekly | monthly | special (from backend)
+  domain: string;      // field tag e.g. "ai_ml", "all"
+  difficulty: string;
+  xp: number;          // API sends "xp" not "xp_reward"
+  timeMinutes: number; // API sends "timeMinutes" not "time_minutes"
+  tags: string[];
+  endsIn: string;      // human-readable string e.g. "2h 30m"
   joined?: boolean; completed?: boolean;
 }
 
@@ -296,13 +302,16 @@ function UpcomingEventRow({ ev }: { ev: UpcomingEvent }) {
 function ChallengeCard({ ch, onSelect }: { ch: Challenge; onSelect: () => void }) {
   const DIFF: Record<string, string> = { Easy: "#22c55e", Medium: "#f59e0b", Hard: "#ef4444", Expert: "#8b5cf6" };
   const color = DIFF[ch.difficulty] || "#6366f1";
+  // Map backend type (daily/weekly/monthly) to a readable badge
+  const typeBadge: Record<string, string> = { daily: "Daily", weekly: "Weekly", monthly: "Monthly", special: "Special" };
+  const typeLabel = typeBadge[ch.type] || ch.type;
   return (
     <div onClick={onSelect} style={{
       background: "rgba(13,18,35,0.88)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14,
       padding: "14px", cursor: "pointer", transition: "all 0.18s",
     }}>
       <div style={{ display: "flex", gap: 5, marginBottom: 8, flexWrap: "wrap" as const }}>
-        <span style={{ ...badgeSt, background: "rgba(99,102,241,0.1)", color: "#818cf8" }}>{ch.type}</span>
+        <span style={{ ...badgeSt, background: "rgba(99,102,241,0.1)", color: "#818cf8" }}>{typeLabel}</span>
         <span style={{ ...badgeSt, background: `${color}18`, color }}>{ch.difficulty}</span>
         {ch.completed && <span style={{ ...badgeSt, background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>✓ Done</span>}
       </div>
@@ -312,13 +321,13 @@ function ChallengeCard({ ch, onSelect }: { ch: Challenge; onSelect: () => void }
         {ch.description}
       </div>
       <div style={{ display: "flex", gap: 4, flexWrap: "wrap" as const, marginBottom: 8 }}>
-        {ch.tags.slice(0, 3).map((t, i) => (
+        {(ch.tags || []).slice(0, 3).map((t, i) => (
           <span key={i} style={{ padding: "1px 6px", background: "rgba(99,102,241,0.08)", borderRadius: 5, fontSize: "0.6rem", color: "#818cf8" }}>#{t}</span>
         ))}
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 8, borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-        <span style={{ fontSize: "0.78rem", fontWeight: 800, color: "#ffd700" }}>+{ch.xp_reward} XP</span>
-        <span style={{ fontSize: "0.68rem", color: "#475569" }}>⏱ {ch.time_minutes}m</span>
+        <span style={{ fontSize: "0.78rem", fontWeight: 800, color: "#ffd700" }}>+{ch.xp ?? 0} XP</span>
+        <span style={{ fontSize: "0.68rem", color: "#475569" }}>⏱ {ch.timeMinutes ?? "??"}m</span>
         <span style={{ fontSize: "0.68rem", color: "#6366f1", fontWeight: 600 }}>Enter →</span>
       </div>
     </div>
@@ -333,6 +342,7 @@ const badgeSt: React.CSSProperties = {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ChallengesPage() {
+  const router = useRouter();
   const { user, logout } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -376,50 +386,92 @@ export default function ChallengesPage() {
     setLoading(true);
     const h = { Authorization: `Bearer ${token}` };
 
-    const safe = async (url: string) => {
-      try { const r = await fetch(url, { headers: h }); return r.ok ? r.json() : null; }
-      catch { return null; }
+    // Timeout-aware fetch — 10s per request, returns null on timeout/error
+    const safe = async (url: string, ms = 10000) => {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), ms);
+      try {
+        const r = await fetch(url, { headers: h, signal: ctrl.signal });
+        return r.ok ? r.json() : null;
+      } catch {
+        return null;
+      } finally {
+        clearTimeout(t);
+      }
     };
 
-    const [prof, live, up, opp, seas, bs, ch] = await Promise.all([
-      safe(`${API}/arena/profile`),
-      safe(`${API}/arena/live`),
-      safe(`${API}/arena/upcoming`),
-      safe(`${API}/arena/opponents`),
-      safe(`${API}/arena/season`),
-      safe(`${API}/arena/boss`),
-      safe(`${API}/challenges/`),
-    ]);
+    try {
+      const [prof, live, up, opp, seas, bs, ch] = await Promise.all([
+        safe(`${API}/arena/profile`),
+        safe(`${API}/arena/live`),
+        safe(`${API}/arena/upcoming`),
+        safe(`${API}/arena/opponents`),
+        safe(`${API}/arena/season`),
+        safe(`${API}/arena/boss`),
+        safe(`${API}/challenges/`),
+      ]);
 
-    if (prof)  setProfile(prof);
-    if (live)  { setLiveBattles(live.battles || []); setPlayersOnline(live.players_online || 0); setLiveCount(live.live_count || 0); }
-    if (up)    setUpcoming(up.events || []);
-    if (opp)   setOpponents(opp.opponents || []);
-    if (seas)  setSeason(seas);
-    if (bs)    setBoss(bs);
-    if (ch)    setChallenges(ch.challenges || []);
-
-    setLoading(false);
+      if (prof)  setProfile(prof);
+      if (live)  { setLiveBattles(live.battles || []); setPlayersOnline(live.players_online || 0); setLiveCount(live.live_count || 0); }
+      if (up)    setUpcoming(up.events || []);
+      if (opp)   setOpponents(opp.opponents || []);
+      if (seas)  setSeason(seas);
+      if (bs)    setBoss(bs);
+      if (ch)    setChallenges(ch.challenges || []);
+    } finally {
+      // Always clear loading — even if every request returned null
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { if (mounted) fetchAll(); }, [fetchAll, mounted]);
 
-  // Poll matchmaking status
+  // Start AI Duel with a specific bot (NOT human matchmaking)
+  const startAIDuel = useCallback(async (opponentId: string) => {
+    const token = getToken();
+    if (!token) return;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 10000);
+    try {
+      const r = await fetch(`${API}/arena/duels/create`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ opponent_id: opponentId }),
+        signal: ctrl.signal,
+      });
+      const d = await r.json();
+      if (d?.battle_id) router.push(`/dashboard/arena/${d.battle_id}`);
+    } catch {
+      // Silently ignore — toast can be added later
+    } finally {
+      clearTimeout(t);
+    }
+  }, [router]);
+
+  // Poll matchmaking status (human vs human)
   const startMM = useCallback(async (mode: string) => {
     const token = getToken();
     if (!token) return;
     setMmMode(mode);
     setMmStatus("searching");
     setMmModal(true);
-    await fetch(`${API}/arena/matchmaking/join`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ mode }),
-    }).then(r => r.json()).then(d => {
-      if (d.status === "matched" && d.battle_id) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 10000);
+    try {
+      const d = await fetch(`${API}/arena/matchmaking/join`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ mode }),
+        signal: ctrl.signal,
+      }).then(r => r.json());
+      if (d?.status === "matched" && d.battle_id) {
         setMmStatus("matched"); setMmBattleId(d.battle_id); return;
       }
-    }).catch(() => {});
+    } catch {
+      // timeout — keep searching state, poll will pick it up
+    } finally {
+      clearTimeout(t);
+    }
 
     mmPollRef.current = setInterval(async () => {
       const r = await fetch(`${API}/arena/matchmaking/status`, {
@@ -519,7 +571,7 @@ export default function ChallengesPage() {
                 <div style={{ fontSize: "2rem", marginBottom: 12 }}>🎯</div>
                 <div style={{ fontSize: "1rem", fontWeight: 800, color: "#22c55e", marginBottom: 16 }}>MATCH FOUND!</div>
                 <div style={{ fontSize: "0.78rem", color: "#475569", marginBottom: 20 }}>Battle is starting. Get ready!</div>
-                <Link href={`/arena/${mmBattleId}`} style={{ textDecoration: "none" }}>
+                <Link href={`/dashboard/arena/${mmBattleId}`} style={{ textDecoration: "none" }}>
                   <button style={{ ...s.indBtn, width: "100%" }}>⚡ ENTER BATTLE</button>
                 </Link>
               </>
@@ -574,7 +626,7 @@ export default function ChallengesPage() {
                 <div style={{ fontSize: "0.58rem", color: "#475569" }}>Difficulty</div>
               </div>
             </div>
-            <Link href={`/arena/boss/${boss.instance_id}`} style={{ textDecoration: "none" }}>
+            <Link href={`/dashboard/arena/boss/${boss.instance_id}`} style={{ textDecoration: "none" }}>
               <button style={{ ...s.redBtn, width: "100%", marginTop: 14 }}>⚔️ FIGHT BOSS</button>
             </Link>
           </div>
@@ -596,8 +648,8 @@ export default function ChallengesPage() {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 16 }}>
               {[
-                { icon: "⚡", val: `+${selectedChallenge.xp_reward} XP`, sub: "Reward" },
-                { icon: "⏱", val: `${selectedChallenge.time_minutes}m`, sub: "Time limit" },
+                { icon: "⚡", val: `+${selectedChallenge.xp ?? 0} XP`, sub: "Reward" },
+                { icon: "⏱", val: `${selectedChallenge.timeMinutes ?? "??"}m`, sub: "Time limit" },
                 { icon: "🏷️", val: selectedChallenge.type, sub: "Type" },
               ].map((st, i) => (
                 <div key={i} style={s.statMini}>
@@ -819,13 +871,13 @@ export default function ChallengesPage() {
                     <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "white", marginBottom: 2 }}>{bot.display_name}</div>
                     <div style={{ fontSize: "0.62rem", color: "#475569", marginBottom: 6 }}>ELO ~ {bot.elo}</div>
                     <StarRating n={Math.ceil(bot.difficulty / 2)} max={5}/>
-                    <button onClick={() => startMM("ai_duel")} style={{
+                    <button onClick={() => startAIDuel(bot.id)} style={{
                       display: "block", width: "100%", marginTop: 10, padding: "6px",
                       background: bot.difficulty <= 3 ? "rgba(34,197,94,0.15)" : bot.difficulty <= 6 ? "rgba(245,158,11,0.15)" : "rgba(239,68,68,0.15)",
                       border: `1px solid ${bot.difficulty <= 3 ? "rgba(34,197,94,0.3)" : bot.difficulty <= 6 ? "rgba(245,158,11,0.3)" : "rgba(239,68,68,0.3)"}`,
                       borderRadius: 7, color: bot.difficulty <= 3 ? "#22c55e" : bot.difficulty <= 6 ? "#f59e0b" : "#ef4444",
                       fontSize: "0.72rem", fontWeight: 700, cursor: "pointer",
-                    }}>Play</button>
+                    }}>⚡ Play</button>
                   </div>
                 ))}
                 {loading && [...Array(3)].map((_, i) => <div key={i} style={{ ...s.skeleton, flex: 1, height: 140 }}/>)}

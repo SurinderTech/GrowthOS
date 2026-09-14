@@ -64,6 +64,11 @@ class ArenaProfile(Base):
     skill_accuracy        = Column(Integer, default=0, nullable=False)
     skill_collaboration   = Column(Integer, default=0, nullable=False)
 
+    # AI Duel separate rating (prevents bot farming from inflating competitive ELO)
+    ai_duel_rating = Column(Integer, default=800, nullable=False)
+    ai_duel_wins   = Column(Integer, default=0,   nullable=False)
+    ai_duel_losses = Column(Integer, default=0,   nullable=False)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -110,6 +115,7 @@ class Battle(Base):
     players     = relationship("BattlePlayer", back_populates="battle", cascade="all, delete-orphan")
     teams       = relationship("BattleTeam",   back_populates="battle", cascade="all, delete-orphan")
     rounds      = relationship("BattleRound",  back_populates="battle", cascade="all, delete-orphan")
+    tasks       = relationship("BattleTask",   back_populates="battle", cascade="all, delete-orphan")
     submissions = relationship("BattleSubmission", back_populates="battle", cascade="all, delete-orphan")
 
     __table_args__ = (
@@ -124,7 +130,8 @@ class BattlePlayer(Base):
 
     id         = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     battle_id  = Column(UUID(as_uuid=True), ForeignKey("battles.id", ondelete="CASCADE"), nullable=False)
-    user_id    = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    # user_id is nullable so AI rows don't need a real user account
+    user_id    = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     team_id    = Column(UUID(as_uuid=True), ForeignKey("battle_teams.id", ondelete="SET NULL"), nullable=True)
 
     # ai_duel: store opponent config id; None for human players
@@ -143,7 +150,8 @@ class BattlePlayer(Base):
     user   = relationship("User", foreign_keys=[user_id])
 
     __table_args__ = (
-        Index("idx_bp_battle_user", "battle_id", "user_id", unique=True),
+        # Unique only when user_id is not NULL (enforced in service layer for human players)
+        Index("idx_bp_battle_user", "battle_id", "user_id"),
     )
 
 
@@ -182,6 +190,48 @@ class BattleRound(Base):
     )
 
 
+class BattleTask(Base):
+    """
+    One discrete task within a round.
+    A single MCQ round might have 5 tasks; a reasoning round might have 1.
+    This replaces config-stuffing in BattleRound.config for clean multi-task support.
+
+    task_type: mcq | reasoning | code | build | ai_agent
+    order: sequence of the task within the round (1, 2, 3…)
+    assigned_to: 'all' | 'team_a' | 'team_b' | specific player_id
+    """
+    __tablename__ = "battle_tasks"
+
+    id           = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    battle_id    = Column(UUID(as_uuid=True), ForeignKey("battles.id", ondelete="CASCADE"), nullable=False)
+    round_id     = Column(UUID(as_uuid=True), ForeignKey("battle_rounds.id", ondelete="CASCADE"), nullable=True)
+    challenge_id = Column(UUID(as_uuid=True), ForeignKey("challenges.id", ondelete="SET NULL"), nullable=True)
+
+    task_type    = Column(String(30), nullable=False, default="mcq")   # mcq|reasoning|code|build|ai_agent
+    order        = Column(Integer, nullable=False, default=1)           # task sequence within round
+    assigned_to  = Column(String(50), default="all")                   # all|team_a|team_b|<player_id>
+
+    starts_at    = Column(DateTime(timezone=True), nullable=True)
+    ends_at      = Column(DateTime(timezone=True), nullable=True)
+    status       = Column(String(20), default="pending")               # pending|live|completed
+
+    max_score    = Column(Integer, default=100)
+    # Stores question, options, correct answer index, rubric hints, etc.
+    config       = Column(JSON, default=dict)
+
+    created_at   = Column(DateTime(timezone=True), server_default=func.now())
+
+    battle      = relationship("Battle", back_populates="tasks")
+    round       = relationship("BattleRound")
+    submissions = relationship("BattleSubmission", back_populates="task",
+                               foreign_keys="[BattleSubmission.task_id]")
+
+    __table_args__ = (
+        Index("idx_bt_battle_order", "battle_id", "order"),
+        Index("idx_bt_round", "round_id"),
+    )
+
+
 class BattleSubmission(Base):
     """
     Every answer a user submits during a battle.
@@ -192,6 +242,7 @@ class BattleSubmission(Base):
     id          = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     battle_id   = Column(UUID(as_uuid=True), ForeignKey("battles.id", ondelete="CASCADE"), nullable=False)
     round_id    = Column(UUID(as_uuid=True), ForeignKey("battle_rounds.id", ondelete="SET NULL"), nullable=True)
+    task_id     = Column(UUID(as_uuid=True), ForeignKey("battle_tasks.id", ondelete="SET NULL"), nullable=True)
     user_id     = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
 
     submission_type = Column(String(30), nullable=False)  # mcq|reasoning|code|file
@@ -207,6 +258,7 @@ class BattleSubmission(Base):
     evaluation_detail  = Column(JSON, default=dict)   # rubric_scores, explanation, etc.
 
     battle = relationship("Battle", back_populates="submissions")
+    task   = relationship("BattleTask", back_populates="submissions", foreign_keys=[task_id])
     user   = relationship("User", foreign_keys=[user_id])
 
     __table_args__ = (

@@ -131,7 +131,7 @@ def root():
 # ─────────────────────────────────
 @app.on_event("startup")
 def startup():
-    print("🚀 Starting GrowthOS Backend...")
+    print("[START] Starting GrowthOS Backend...")
 
     # Initialize database tables
     try:
@@ -157,19 +157,19 @@ def startup():
     # Start APScheduler for smart daily tasks
     try:
         #start_scheduler()
-        print("✅ Task scheduler started (runs at 00:05 UTC daily)")
+        print("[OK] Task scheduler started (runs at 00:05 UTC daily)")
     except Exception as e:
-        print(f"❌ Scheduler failed to start: {e}")
+        print(f"[ERROR] Scheduler failed to start: {e}")
 
-    print("🤖 AI task scheduler ready")
-    print("🚀 GrowthOS API running at http://localhost:8000")
-    print("📚 API docs at http://localhost:8000/docs")
+    print("[INFO] AI task scheduler ready")
+    print("[INFO] GrowthOS API running at http://localhost:8000")
+    print("[INFO] API docs at http://localhost:8000/docs")
 
 
 @app.on_event("shutdown")
 def shutdown():
     try:
         shutdown_scheduler()
-        print("🛑 Scheduler stopped")
+        print("[INFO] Scheduler stopped")
     except:
         pass  

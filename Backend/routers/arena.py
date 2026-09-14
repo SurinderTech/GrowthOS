@@ -67,7 +67,6 @@ from Backend.services.arena_service import (
     create_ai_duel,
     get_recommended_challenge,
     get_or_create_arena_profile,
-    finalize_battle,
 )
 from Backend.models.arena import (
     Battle, BattlePlayer, Boss, BossInstance, BossRun,
@@ -263,6 +262,39 @@ def get_battle(
         raise HTTPException(status_code=404, detail=str(e))
 
 
+@router.get("/battles/me")
+def get_my_active_battle(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Return the user's currently active battle (non-completed).
+    Used by the frontend to resume an in-progress battle.
+    """
+    player = (
+        db.query(BattlePlayer)
+        .join(Battle)
+        .filter(
+            BattlePlayer.user_id == current_user.id,
+            Battle.status.in_(["waiting", "lobby", "live"]),
+        )
+        .order_by(Battle.created_at.desc())
+        .first()
+    )
+    if not player:
+        raise HTTPException(status_code=404, detail="No active battle")
+
+    battle = db.query(Battle).filter(Battle.id == player.battle_id).first()
+    return {
+        "battle_id": str(battle.id),
+        "status":    battle.status,
+        "mode":      battle.mode,
+        "title":     battle.title,
+        "ends_at":   battle.ends_at.isoformat() if battle.ends_at else None,
+    }
+
+
+
 @router.post("/battles/{battle_id}/ready")
 def battle_ready(
     battle_id: UUID,
@@ -282,23 +314,27 @@ def battle_ready(
     player.ready_at = datetime.now(timezone.utc)
     db.commit()
 
-    # Check if all players ready → start battle
+    # Check if all human players are ready
     battle = db.query(Battle).filter(Battle.id == battle_id).first()
     all_players = db.query(BattlePlayer).filter(BattlePlayer.battle_id == battle_id).all()
-    if all(p.status == "ready" for p in all_players) and battle.status == "lobby":
-        from datetime import datetime, timezone, timedelta
-        now = datetime.now(timezone.utc)
-        battle.status = "live"
-        battle.starts_at = now
-        # Preserve original ends_at or set based on duration from config
-        if not battle.ends_at or battle.ends_at < now:
-            battle.ends_at = now + timedelta(minutes=20)
-        for p in all_players:
-            p.status = "live"
-        db.commit()
-        return {"status": "battle_started", "ends_at": battle.ends_at.isoformat()}
+    human_players = [p for p in all_players if not p.is_ai]
+    all_ready = all(p.status == "ready" for p in human_players) and len(human_players) > 0
 
-    return {"status": "ready", "waiting_for": len([p for p in all_players if p.status != "ready"])}
+    if all_ready and battle and battle.status in ("waiting", "lobby"):
+        # Engine owns the lifecycle — we just trigger it here.
+        # The WS handler also triggers it for WS-based flows.
+        from Backend.routers.arena_ws import manager as ws_manager
+        from Backend.services.battle_engine import start_battle_worker
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            loop.create_task(start_battle_worker(str(battle_id), ws_manager))
+        except RuntimeError:
+            # No running event loop (e.g. in sync test context) — skip
+            pass
+        return {"status": "battle_starting", "ends_at": battle.ends_at.isoformat() if battle.ends_at else None}
+
+    return {"status": "ready", "waiting_for": len([p for p in human_players if p.status != "ready"])}
 
 
 @router.post("/battles/{battle_id}/submit")

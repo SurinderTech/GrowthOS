@@ -30,7 +30,7 @@ from Backend.models.leaderboard import UserXP, LeaderboardEvent
 from Backend.models.challenges import Challenge, ChallengeParticipant
 from Backend.models.arena import (
     ArenaProfile, Battle, BattlePlayer, BattleTeam, BattleRound,
-    BattleSubmission, EloHistory, XpTransaction, MatchmakingQueue,
+    BattleTask, BattleSubmission, EloHistory, XpTransaction, MatchmakingQueue,
     AIOpponent, Boss, BossInstance, BossRun, BossSubmission, ArenaSeason
 )
 from Backend.services.leaderboard_service import get_user_field
@@ -494,6 +494,7 @@ def submit_battle_answer(
     selected_option: Optional[int],
     language: Optional[str],
     db: Session,
+    task_id: Optional[str] = None,   # NEW: which task this submission is for
 ) -> dict:
     """
     Server receives submission and validates the deadline.
@@ -531,6 +532,7 @@ def submit_battle_answer(
 
     sub = BattleSubmission(
         battle_id=battle_id,
+        task_id=UUID(task_id) if task_id else None,
         user_id=user_id,
         submission_type=submission_type,
         content=content,
@@ -540,20 +542,38 @@ def submit_battle_answer(
     db.add(sub)
     db.flush()
 
-    # Evaluate MCQ immediately
+    # Evaluate MCQ immediately — look up correct from BattleTask.config first, fallback to Battle.config
     score = 0
     is_correct = None
     if submission_type == "mcq" and selected_option is not None:
-        correct = battle.config.get("correct_option")
+        # Phase 1: get correct answer from task config if available
+        correct = None
+        if task_id:
+            task = db.query(BattleTask).filter(BattleTask.id == UUID(task_id)).first()
+            if task:
+                correct = task.config.get("correct")
+        if correct is None:
+            correct = battle.config.get("correct_option")
         if correct is not None:
-            is_correct = (selected_option == correct)
+            is_correct = (int(selected_option) == int(correct))
             if is_correct:
-                score = battle.config.get("points_per_question", 100)
-                # Speed bonus: earlier submission = more points
-                elapsed = (now - battle.starts_at).total_seconds() if battle.starts_at else 0
-                total   = (battle.ends_at - battle.starts_at).total_seconds() if battle.starts_at and battle.ends_at else 1
-                time_ratio = max(0, 1 - elapsed / total)
-                score += int(time_ratio * 50)   # up to 50 speed bonus points
+                base_score = 100
+                if task_id:
+                    task = db.query(BattleTask).filter(BattleTask.id == UUID(task_id)).first()
+                    if task:
+                        base_score = task.max_score
+                else:
+                    base_score = battle.config.get("points_per_question", 100)
+                elapsed    = (now - battle.starts_at).total_seconds() if battle.starts_at else 0
+                total      = (battle.ends_at - battle.starts_at).total_seconds() if battle.starts_at and battle.ends_at else 1
+                time_ratio = max(0.0, 1.0 - elapsed / max(1.0, total))
+                score      = base_score + int(time_ratio * 50)  # up to 50 speed bonus
+
+    elif submission_type == "reasoning":
+        # Phase 1: store with evaluation_status=pending; AI rubric is Phase 2
+        sub.evaluation_status = "pending"
+        score = 0
+        is_correct = None
 
         sub.is_correct = is_correct
         sub.score = score
@@ -888,13 +908,22 @@ def create_ai_duel(user_id: UUID, opponent_id: UUID, db: Session) -> dict:
     if not bot:
         raise ValueError("AI opponent not found")
 
+    # Prevent duplicate active duels against same bot
+    existing = db.query(Battle).join(BattlePlayer).filter(
+        BattlePlayer.user_id == user_id,
+        Battle.mode == "ai_duel",
+        Battle.status.in_(["waiting", "lobby", "live"]),
+    ).first()
+    if existing:
+        return {"battle_id": str(existing.id), "opponent": bot.display_name, "starts_at": existing.starts_at.isoformat(), "ends_at": existing.ends_at.isoformat(), "resuming": True}
+
     now = datetime.now(timezone.utc)
     battle = Battle(
         mode="ai_duel",
         challenge_format="mcq",
         status="lobby",
         title=f"AI Duel vs {bot.display_name}",
-        starts_at=now + timedelta(seconds=10),
+        starts_at=now + timedelta(seconds=5),
         ends_at=now + timedelta(minutes=15),
         config={
             "opponent_name": bot.display_name,
@@ -908,10 +937,12 @@ def create_ai_duel(user_id: UUID, opponent_id: UUID, db: Session) -> dict:
     db.add(BattlePlayer(
         battle_id=battle.id, user_id=user_id, status="ready", is_ai=False
     ))
-    # Bot player (uses same user_id slot but marked as AI)
+
+    # AI player row — user_id=None (nullable after schema fix)
+    # This resolves the unique constraint violation where AI used human's user_id
     db.add(BattlePlayer(
         battle_id=battle.id,
-        user_id=user_id,     # placeholder — AI doesn't have a real user row
+        user_id=None,            # AI has no real user row
         ai_opponent_id=opponent_id,
         status="ready",
         is_ai=True,

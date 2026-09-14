@@ -45,7 +45,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from sqlalchemy.orm import Session
 
 from Backend.db.session import get_db
-from Backend.models.arena import Battle, BattlePlayer, BossRun, BossInstance
+from Backend.models.arena import Battle, BattlePlayer, BattleTask, BossRun, BossInstance
 
 log = logging.getLogger(__name__)
 
@@ -78,13 +78,22 @@ class ArenaConnectionManager:
                 (w, u) for w, u in self.battle_connections[battle_id] if w != ws
             ]
 
-    async def broadcast_battle(self, battle_id: str, event: str, data: dict):
+    async def broadcast_battle(self, battle_id: str, msg):
+        """
+        Broadcast to all connections in a battle.
+        msg can be a pre-built dict (used by battle_engine) or separate (event, data) - both are supported.
+        """
         if battle_id not in self.battle_connections:
             return
+        if isinstance(msg, dict):
+            payload = json.dumps(msg)
+        else:
+            # Legacy path: msg is actually 'event', accept a third positional arg
+            payload = json.dumps({"type": msg})
         dead = []
         for ws, uid in self.battle_connections[battle_id]:
             try:
-                await ws.send_text(json.dumps({"event": event, "data": data}))
+                await ws.send_text(payload)
             except Exception:
                 dead.append(ws)
         for ws in dead:
@@ -212,10 +221,28 @@ async def battle_ws(
         finally:
             db.close()
 
-        # Notify others that this user joined
-        await manager.broadcast_battle(battle_id, "battle:player_joined", {
+        # Notify others that this user joined/reconnected
+        await manager.broadcast_battle(battle_id, {
+            "type": "battle:player_joined",
             "user_id": user_id,
         })
+
+        # If battle is already live on reconnect, send current state snapshot
+        db = SessionLocal()
+        try:
+            battle = db.query(Battle).filter(Battle.id == UUID(battle_id)).first()
+            if battle and battle.status == "live":
+                tasks = db.query(BattleTask).filter(BattleTask.battle_id == UUID(battle_id)).order_by(BattleTask.order).all()
+                players = db.query(BattlePlayer).filter(BattlePlayer.battle_id == UUID(battle_id)).order_by(BattlePlayer.score.desc()).all()
+                await websocket.send_text(json.dumps({
+                    "type": "battle:state",
+                    "status": battle.status,
+                    "ends_at": battle.ends_at.isoformat() if battle.ends_at else None,
+                    "tasks": [{"id": str(t.id), "type": t.task_type, "order": t.order, "config": t.config} for t in tasks],
+                    "leaderboard": [{"user_id": str(p.user_id) if p.user_id else f"ai:{p.ai_opponent_id}", "score": p.score or 0, "rank": i+1} for i, p in enumerate(players)],
+                }))
+        finally:
+            db.close()
 
         # Listen for client messages
         while True:
@@ -225,16 +252,45 @@ async def battle_ws(
             except json.JSONDecodeError:
                 continue
 
-            event = msg.get("event", "")
+            event = msg.get("event", msg.get("type", ""))
+
+            # Client signals ready — when all human players are ready, start engine
+            if event == "player:ready":
+                db = SessionLocal()
+                try:
+                    player = db.query(BattlePlayer).filter(
+                        BattlePlayer.battle_id == UUID(battle_id),
+                        BattlePlayer.user_id == UUID(user_id),
+                    ).first()
+                    if player:
+                        player.status = "ready"
+                        db.commit()
+
+                    # Check if all human players are ready
+                    all_players = db.query(BattlePlayer).filter(BattlePlayer.battle_id == UUID(battle_id)).all()
+                    human_players = [p for p in all_players if not p.is_ai]
+                    all_ready = all(p.status == "ready" for p in human_players) and len(human_players) > 0
+
+                    if all_ready:
+                        battle = db.query(Battle).filter(Battle.id == UUID(battle_id)).first()
+                        if battle and battle.status in ("waiting", "lobby"):
+                            battle.status = "lobby"  # acknowledge all ready
+                            db.commit()
+                            # ——— Engine owns the lifecycle. WS only triggers it. ———
+                            from Backend.services.battle_engine import start_battle_worker
+                            start_battle_worker(battle_id, manager)
+                finally:
+                    db.close()
 
             # Client submits answer — record and broadcast score update
-            if event == "answer:submit":
+            elif event == "answer:submit":
                 db = SessionLocal()
                 try:
                     from Backend.services.arena_service import submit_battle_answer
                     result = submit_battle_answer(
                         battle_id=UUID(battle_id),
                         user_id=UUID(user_id),
+                        task_id=msg.get("task_id"),
                         submission_type=msg.get("submission_type", "mcq"),
                         content=msg.get("content", ""),
                         selected_option=msg.get("selected_option"),
@@ -243,7 +299,6 @@ async def battle_ws(
                     )
 
                     # Broadcast updated leaderboard
-                    battle = db.query(Battle).filter(Battle.id == UUID(battle_id)).first()
                     players = (
                         db.query(BattlePlayer)
                         .filter(BattlePlayer.battle_id == UUID(battle_id))
@@ -251,32 +306,27 @@ async def battle_ws(
                         .all()
                     )
                     lb = [
-                        {"rank": i + 1, "user_id": str(p.user_id), "score": p.score}
+                        {"rank": i + 1, "user_id": str(p.user_id) if p.user_id else f"ai:{p.ai_opponent_id}", "score": p.score or 0, "is_ai": p.is_ai}
                         for i, p in enumerate(players)
                     ]
-                    await manager.broadcast_battle(battle_id, "battle:leaderboard_updated", {
+                    await manager.broadcast_battle(battle_id, {
+                        "type": "battle:score_updated",
+                        "user_id": user_id,
+                        "score": result.get("score", 0),
                         "leaderboard": lb,
                     })
 
                     # Private confirmation to submitter
                     await websocket.send_text(json.dumps({
-                        "event": "answer:confirmed",
-                        "data": result,
+                        "type": "answer:confirmed",
+                        "result": result,
                     }))
-
-                    # Check if battle should end (all submitted or time expired)
-                    now = datetime.now(timezone.utc)
-                    if battle.ends_at and now >= battle.ends_at:
-                        from Backend.services.arena_service import finalize_battle
-                        finalize_battle(UUID(battle_id), db)
-                        await manager.broadcast_battle(battle_id, "battle:completed", {
-                            "leaderboard": lb,
-                        })
+                    # NOTE: No inline finalization here. Engine timer owns that.
 
                 except ValueError as e:
                     await websocket.send_text(json.dumps({
-                        "event": "battle:error",
-                        "data": {"message": str(e)},
+                        "type": "battle:error",
+                        "message": str(e),
                     }))
                 finally:
                     db.close()
@@ -289,24 +339,24 @@ async def battle_ws(
                     players = db.query(BattlePlayer).filter(
                         BattlePlayer.battle_id == UUID(battle_id)
                     ).order_by(BattlePlayer.score.desc()).all()
+                    tasks = db.query(BattleTask).filter(BattleTask.battle_id == UUID(battle_id)).order_by(BattleTask.order).all()
 
                     await websocket.send_text(json.dumps({
-                        "event": "battle:state",
-                        "data": {
-                            "status":  battle.status,
-                            "ends_at": battle.ends_at.isoformat() if battle.ends_at else None,
-                            "leaderboard": [
-                                {"user_id": str(p.user_id), "score": p.score, "rank": i + 1}
-                                for i, p in enumerate(players)
-                            ],
-                        },
+                        "type": "battle:state",
+                        "status": battle.status if battle else "unknown",
+                        "ends_at": battle.ends_at.isoformat() if battle and battle.ends_at else None,
+                        "tasks": [{"id": str(t.id), "type": t.task_type, "order": t.order, "config": t.config} for t in tasks],
+                        "leaderboard": [
+                            {"user_id": str(p.user_id) if p.user_id else f"ai:{p.ai_opponent_id}", "score": p.score or 0, "rank": i + 1, "is_ai": p.is_ai}
+                            for i, p in enumerate(players)
+                        ],
                     }))
                 finally:
                     db.close()
 
     except WebSocketDisconnect:
         manager.disconnect_battle(websocket, battle_id)
-        await manager.broadcast_battle(battle_id, "battle:player_left", {"user_id": user_id})
+        await manager.broadcast_battle(battle_id, {"type": "battle:player_left", "user_id": user_id})
         log.info(f"[WS] User {user_id} disconnected from battle {battle_id}")
 
 
