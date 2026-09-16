@@ -28,6 +28,7 @@ def get_challenges_for_user(
     ob: Optional[UserOnboarding],
     user_id: UUID,
     db: Session,
+    _seeded: bool = False,
 ) -> list[dict]:
     """
     Return challenges for the user:
@@ -120,10 +121,10 @@ def get_challenges_for_user(
             "myTimeTaken": part.time_taken_s if part else None,
         })
 
-    # If no challenges exist for this field, seed some
-    if not result:
+    # If no challenges exist for this field, seed some (only attempt once)
+    if not result and not _seeded:
         _seed_challenges_for_field(field_key, ob, db)
-        return get_challenges_for_user(ob, user_id, db)
+        return get_challenges_for_user(ob, user_id, db, _seeded=True)
 
     return result
 

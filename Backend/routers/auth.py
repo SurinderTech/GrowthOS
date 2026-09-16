@@ -43,23 +43,22 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 def get_frontend_url(request: Request = None) -> str:
-    # 1. Explicit env var if set to non-localhost
-    env = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
-    if env and "localhost" not in env and "127.0.0.1" not in env:
-        return env
-
-    # 2. Inspect incoming request headers (Origin / Referer), filtering out third-party auth providers
+    # 1. Inspect incoming request headers (Origin / Referer) FIRST if present
     if request:
         origin = request.headers.get("origin") or request.headers.get("referer")
         if origin:
             from urllib.parse import urlparse
             parsed = urlparse(origin)
             if parsed.scheme and parsed.netloc:
-                host_url = f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
                 netloc_lower = parsed.netloc.lower()
-                is_ignored = any(d in netloc_lower for d in ["google.com", "facebook.com", "linkedin.com", "localhost", "127.0.0.1"])
+                is_ignored = any(d in netloc_lower for d in ["google.com", "facebook.com", "linkedin.com", "googleapis.com", "accounts.google.com"])
                 if not is_ignored:
-                    return host_url
+                    return f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
+
+    # 2. Explicit env var if set
+    env = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+    if env:
+        return env
 
     # 3. Automatic Render Cloud Environment Detection
     is_render = (
@@ -71,7 +70,7 @@ def get_frontend_url(request: Request = None) -> str:
         return "https://growthosai.tech"
 
     # 4. Local development default
-    return env or "http://localhost:3000"
+    return "http://localhost:3000"
 
 
 
@@ -378,9 +377,11 @@ async def google_login(request: Request):
 @router.get("/google/callback")
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     info = None
+    redirect_uri = get_oauth_redirect_uri(request, "google")
     try:
         token = await oauth.google.authorize_access_token(
             request,
+            redirect_uri=redirect_uri,
             claims_options={
                 "iat": {"leeway": 300},
                 "exp": {"leeway": 300},
@@ -396,7 +397,8 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
                 )
                 if res.status_code == 200:
                     info = res.json()
-    except Exception:
+    except Exception as e1:
+        print(f"[WARNING] authorize_access_token initial attempt failed: {e1}")
         # Fallback to fetching access token directly if id_token claims validation fails due to machine clock skew
         try:
             token = await oauth.google.fetch_access_token(request)
@@ -409,6 +411,9 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
                     if res.status_code == 200:
                         info = res.json()
         except Exception as err:
+            import traceback
+            print(f"[ERROR] Google OAuth callback failed: {err}")
+            traceback.print_exc()
             target_frontend = get_frontend_url(request)
             return RedirectResponse(f"{target_frontend}/login?error=Google+authentication+failed.+Please+try+again.")
 
