@@ -127,14 +127,25 @@ def build_nova_state(
         profile_data.setdefault("country", onboarding_entity.country)
         profile_data.setdefault("experience_level", getattr(onboarding_entity, "experience_level", None))
         profile_data.setdefault("exam_type", getattr(onboarding_entity, "exam_type", None))
+        profile_data.setdefault("attempt_year", getattr(onboarding_entity, "attempt_year", None))
+        profile_data.setdefault("field_of_study", getattr(onboarding_entity, "field_of_study", None))
+        profile_data.setdefault("primary_skill", getattr(onboarding_entity, "primary_skill", None))
+        profile_data.setdefault("monthly_income_goal", getattr(onboarding_entity, "monthly_income_goal", None))
+        profile_data.setdefault("business_type", getattr(onboarding_entity, "business_type", None))
+        profile_data.setdefault("business_goal", getattr(onboarding_entity, "business_goal", None))
+        profile_data.setdefault("creator_platform", getattr(onboarding_entity, "creator_platform", None))
+        profile_data.setdefault("content_niche", getattr(onboarding_entity, "content_niche", None))
         profile_data.setdefault("interests", onboarding_entity.interests or [])
+
+    from Backend.routers.dashboard import resolve_exact_user_goal
+    specific_goal = resolve_exact_user_goal(profile_data)
 
     state.user = UserProfileContext(
         user_id=uid_str,
         email=profile_data.get("email"),
         name=profile_data.get("name"),
         user_type=profile_data.get("user_type", "student"),
-        primary_goal=profile_data.get("primary_goal"),
+        primary_goal=specific_goal,
         twelve_month_goal=profile_data.get("twelve_month_goal"),
         career_goal=profile_data.get("career_goal"),
         daily_time=profile_data.get("daily_time"),

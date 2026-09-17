@@ -79,11 +79,12 @@ def fetch_live_free_models() -> list[str]:
         return _cached_free_models
 
     fallback_free_defaults = [
-        "openrouter/auto",
-        "meta-llama/llama-3.3-70b-instruct:free",
-        "qwen/qwen-2.5-coder-32b-instruct:free",
-        "google/gemma-2-9b-it:free",
-        "mistralai/mistral-small-24b-instruct-2501:free",
+        "openrouter/free",
+        "nex-agi/nex-n2.5-mini:free",
+        "nvidia/nemotron-3-super-120b-a12b:free",
+        "nex-agi/nex-n2.5-pro:free",
+        "poolside/laguna-s-2.1:free",
+        "nvidia/nemotron-3-ultra-550b-a55b:free",
     ]
 
     try:
@@ -105,11 +106,12 @@ def fetch_live_free_models() -> list[str]:
                 
                 if free_list:
                     priority_order = [
-                        "openrouter/auto",
-                        "meta-llama/llama-3.3-70b-instruct:free",
-                        "qwen/qwen-2.5-coder-32b-instruct:free",
-                        "google/gemma-2-9b-it:free",
-                        "mistralai/mistral-small-24b-instruct-2501:free",
+                        "openrouter/free",
+                        "nex-agi/nex-n2.5-mini:free",
+                        "nvidia/nemotron-3-super-120b-a12b:free",
+                        "nex-agi/nex-n2.5-pro:free",
+                        "poolside/laguna-s-2.1:free",
+                        "nvidia/nemotron-3-ultra-550b-a55b:free",
                     ]
                     ordered = [m for m in priority_order if m in free_list]
                     for m in free_list:

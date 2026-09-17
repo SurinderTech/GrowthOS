@@ -45,11 +45,16 @@ from Backend.scheduler.task_scheduler import start_scheduler, shutdown_scheduler
 # Database
 from Backend.db.init_db import init_db
 
+from Backend.middleware.logger_middleware import RequestLoggingMiddleware, setup_exception_handlers
+
 app = FastAPI(
     title="GrowthOS API",
     description="Authentication backend for GrowthOS",
     version="1.0.0",
 )
+
+# Register custom exception handlers for structured terminal logging
+setup_exception_handlers(app)
 
 # ─────────────────────────────────
 # MIDDLEWARE ORDER MATTERS!
@@ -58,13 +63,16 @@ app = FastAPI(
 # So CORSMiddleware must be added LAST to handle OPTIONS preflight first.
 # ─────────────────────────────────
 
-# Step 1: Add SessionMiddleware FIRST (will run AFTER CORS)
+# Step 1: Add RequestLoggingMiddleware (will catch and format execution & errors)
+app.add_middleware(RequestLoggingMiddleware)
+
+# Step 2: Add SessionMiddleware
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.getenv("SECRET_KEY", "fallback-secret"),
 )
 
-# Step 2: Add CORSMiddleware LAST (will run FIRST, handles OPTIONS preflight)
+# Step 3: Add CORSMiddleware LAST (will run FIRST, handles OPTIONS preflight)
 allowed_origins = list({
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -83,6 +91,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 
 # ─────────────────────────────────

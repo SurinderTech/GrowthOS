@@ -2,7 +2,7 @@
 // app/pricing/page.tsx
 // GrowthOS — Premium Pricing + Payment Simulation System
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -144,16 +144,26 @@ const AI_TOOLS = [
 
 // ── Confetti ──────────────────────────────────────────────────────────────────
 function Confetti() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const colors = ["#6366f1","#00e5ff","#f59e0b","#22c55e","#f97316","#ec4899"];
-  const pieces = Array.from({ length: 80 }, (_, i) => ({
-    id: i,
-    color: colors[i % colors.length],
-    left: `${Math.random() * 100}%`,
-    delay: `${Math.random() * 1.5}s`,
-    duration: `${2 + Math.random() * 2}s`,
-    size: `${6 + Math.random() * 8}px`,
-    rotate: `${Math.random() * 360}deg`,
-  }));
+  const pieces = useMemo(() => {
+    if (!mounted) return [];
+    return Array.from({ length: 80 }, (_, i) => ({
+      id: i,
+      color: colors[i % colors.length],
+      left: `${((i * 37 + 11) % 95) + 2}%`,
+      delay: `${(i % 10) * 0.15}s`,
+      duration: `${2 + (i % 5) * 0.4}s`,
+      size: `${6 + (i % 4) * 2}px`,
+      rotate: `${(i * 45) % 360}deg`,
+    }));
+  }, [mounted]);
+
+  if (!mounted) return null;
 
   return (
     <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1000, overflow: "hidden" }}>

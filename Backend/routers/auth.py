@@ -92,9 +92,9 @@ oauth.register(
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
     client_kwargs={"scope": "openid email profile"},
     claims_options={
-        "iat": {"leeway": 300},
-        "exp": {"leeway": 300},
-        "nbf": {"leeway": 300},
+        "iat": {"leeway": 86400},
+        "exp": {"leeway": 86400},
+        "nbf": {"leeway": 86400},
     },
 )
 
@@ -378,48 +378,60 @@ async def google_login(request: Request):
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     info = None
     redirect_uri = get_oauth_redirect_uri(request, "google")
+    target_frontend = get_frontend_url(request)
+
+    # 1. Try Authlib standard authorize_access_token (pass generous leeway to tolerate clock skew)
     try:
-        token = await oauth.google.authorize_access_token(
-            request,
-            redirect_uri=redirect_uri,
-            claims_options={
-                "iat": {"leeway": 300},
-                "exp": {"leeway": 300},
-                "nbf": {"leeway": 300},
-            }
-        )
-        info = token.get("userinfo")
-        if not info and "access_token" in token:
-            async with httpx.AsyncClient() as client:
-                res = await client.get(
-                    "https://www.googleapis.com/oauth2/v3/userinfo",
-                    headers={"Authorization": f"Bearer {token['access_token']}"}
-                )
-                if res.status_code == 200:
-                    info = res.json()
-    except Exception as e1:
-        print(f"[WARNING] authorize_access_token initial attempt failed: {e1}")
-        # Fallback to fetching access token directly if id_token claims validation fails due to machine clock skew
-        try:
-            token = await oauth.google.fetch_access_token(request)
-            if token and "access_token" in token:
-                async with httpx.AsyncClient() as client:
+        token = await oauth.google.authorize_access_token(request, leeway=86400)
+        if token:
+            info = token.get("userinfo")
+            if not info and "access_token" in token:
+                async with httpx.AsyncClient(timeout=10.0) as client:
                     res = await client.get(
                         "https://www.googleapis.com/oauth2/v3/userinfo",
                         headers={"Authorization": f"Bearer {token['access_token']}"}
                     )
                     if res.status_code == 200:
                         info = res.json()
-        except Exception as err:
-            import traceback
-            print(f"[ERROR] Google OAuth callback failed: {err}")
-            traceback.print_exc()
-            target_frontend = get_frontend_url(request)
-            return RedirectResponse(f"{target_frontend}/login?error=Google+authentication+failed.+Please+try+again.")
+    except Exception as e1:
+        print(f"[WARNING] Authlib Google OAuth attempt failed: {e1}")
 
-    target_frontend = get_frontend_url(request)
+    # 2. Fallback: Direct authorization code exchange via httpx if Authlib failed
+    if not info:
+        code = request.query_params.get("code")
+        client_id = (os.getenv("GOOGLE_CLIENT_ID") or "").strip('"\'')
+        client_secret = (os.getenv("GOOGLE_CLIENT_SECRET") or "").strip('"\'')
+
+        if code and client_id and client_secret:
+            try:
+                async with httpx.AsyncClient(timeout=15.0) as client:
+                    token_res = await client.post(
+                        "https://oauth2.googleapis.com/token",
+                        data={
+                            "code": code,
+                            "client_id": client_id,
+                            "client_secret": client_secret,
+                            "redirect_uri": redirect_uri,
+                            "grant_type": "authorization_code",
+                        }
+                    )
+                    if token_res.status_code == 200:
+                        token_data = token_res.json()
+                        acc_token = token_data.get("access_token")
+                        if acc_token:
+                            userinfo_res = await client.get(
+                                "https://www.googleapis.com/oauth2/v3/userinfo",
+                                headers={"Authorization": f"Bearer {acc_token}"}
+                            )
+                            if userinfo_res.status_code == 200:
+                                info = userinfo_res.json()
+                    else:
+                        print(f"[ERROR] Direct Google token exchange error ({token_res.status_code}): {token_res.text}")
+            except Exception as err:
+                print(f"[ERROR] Direct Google OAuth exchange exception: {err}")
+
     if not info or not info.get("email"):
-        return RedirectResponse(f"{target_frontend}/login?error=Google+did+not+return+a+valid+email.")
+        return RedirectResponse(f"{target_frontend}/login?error=Google+authentication+failed.+Please+try+again.")
 
     email_clean = info["email"].lower()
     name = info.get("name") or info.get("given_name") or email_clean.split("@")[0]

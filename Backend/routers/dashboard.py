@@ -35,11 +35,99 @@ router = APIRouter(tags=["Dashboard"])
 
 ai_cache = {}
 
+def resolve_exact_user_goal(profile: dict) -> str:
+    """
+    Returns the exact specific career goal chosen by the user in Step 5 of Onboarding
+    (e.g., 'Crack JEE 2026', 'Crack NEET 2026', 'Become a Software Engineer', 'Become a Doctor', 'Build & Scale SaaS Business'),
+    rather than generic dropdown values ('get_job', 'earning_money', 'improve_skills').
+    """
+    user_type = (profile.get("user_type") or "").lower()
+
+    # 1. Exam Aspirant
+    if user_type == "exam_aspirant":
+        exam = (profile.get("exam_type") or "").strip()
+        year = (profile.get("attempt_year") or "").strip()
+        if exam:
+            exam_upper = exam.upper()
+            return f"Crack {exam_upper}" + (f" {year}" if year else "")
+
+    # 2. Student
+    if user_type == "student":
+        career = (profile.get("career_goal") or "").strip()
+        if career and career.lower() not in ["not sure yet", "other"]:
+            if career.lower().startswith("become"):
+                return career.title()
+            vowels = ("a", "e", "i", "o", "u")
+            article = "an" if career[0].lower() in vowels else "a"
+            return f"Become {article} {career.title()}"
+        field = (profile.get("field_of_study") or "").strip()
+        if field:
+            return f"Build Career in {field.title()}"
+
+    # 3. Freelancer
+    if user_type == "freelancer":
+        skill = (profile.get("primary_skill") or "").strip()
+        income = (profile.get("monthly_income_goal") or "").strip()
+        if skill and income:
+            return f"Earn {income} as {skill.title()} Freelancer"
+        elif skill:
+            return f"Master {skill.title()} & Grow Freelance Income"
+
+    # 4. Entrepreneur / Business Owner
+    if user_type in ("entrepreneur", "business_owner"):
+        biz_type = (profile.get("business_type") or "").strip()
+        biz_goal = (profile.get("business_goal") or "").strip()
+        if biz_type and biz_goal:
+            return f"Build & Scale {biz_type.title()} ({biz_goal.title()})"
+        elif biz_type:
+            return f"Build & Scale {biz_type.title()} Business"
+
+    # 5. Creator
+    if user_type == "creator":
+        niche = (profile.get("content_niche") or "").strip()
+        platform = (profile.get("creator_platform") or "").strip()
+        goal = (profile.get("creator_growth_goal") or "").strip()
+        if niche and platform:
+            return f"Grow {platform.title()} {niche.title()} Channel"
+        elif goal:
+            return f"Grow Creator Channel ({goal.title()})"
+
+    # 6. Fallbacks for general/self-growth or missing Step 5 choices
+    twelve_mo = profile.get("twelve_month_goal") or ""
+    twelve_mo_map = {
+        "get_job": "Land Your Dream Job",
+        "crack_exam": "Crack Your Target Exam",
+        "earn_online": "Earn Income Online",
+        "build_startup": "Build & Launch a Startup",
+        "grow_audience": "Grow Your Online Audience",
+        "become_disciplined": "Master Personal Discipline & Habits",
+    }
+    if twelve_mo in twelve_mo_map:
+        return twelve_mo_map[twelve_mo]
+
+    primary = profile.get("primary_goal") or ""
+    primary_map = {
+        "improve_discipline": "Improve Discipline & Routine",
+        "learn_skills": "Master In-Demand Skills",
+        "build_projects": "Build Real-World Projects",
+        "grow_career": "Accelerate Career Growth",
+        "prepare_exams": "Crack Competitive Exams",
+        "build_business": "Build & Scale a Business",
+        "financial_independence": "Achieve Financial Freedom",
+    }
+    if primary in primary_map:
+        return primary_map[primary]
+
+    return "Accelerate Personal & Career Growth"
+
+
 def get_user_profile(user_id: UUID, db: Session) -> dict:
     """Build user profile dict from onboarding data for Gemini prompts."""
     ob = db.query(UserOnboarding).filter(UserOnboarding.user_id == user_id).first()
     if not ob:
-        return {"user_type": "student", "primary_goal": "grow career", "interests": ["programming"]}
+        p = {"user_type": "student", "primary_goal": "grow career", "interests": ["programming"]}
+        p["specific_goal"] = resolve_exact_user_goal(p)
+        return p
     
     profile = {
         "user_type": ob.user_type or "student",
@@ -50,8 +138,9 @@ def get_user_profile(user_id: UUID, db: Session) -> dict:
         "career_goal": ob.career_goal or "",
         "productivity_style": ob.productivity_style or "deep_focus",
         "country": ob.country or "India",
-        "experience_level": ob.experience_level or "",
-        "exam_type": ob.exam_type or "",
+        "experience_level": getattr(ob, "experience_level", "") or "",
+        "exam_type": getattr(ob, "exam_type", "") or "",
+        "attempt_year": getattr(ob, "attempt_year", "") or "",
     }
 
     # Add user-type specific fields
@@ -65,6 +154,7 @@ def get_user_profile(user_id: UUID, db: Session) -> dict:
             "primary_skill": ob.primary_skill or "",
             "experience_level": ob.experience_level or "",
             "services_offered": ob.services_offered or [],
+            "monthly_income_goal": ob.monthly_income_goal or "",
         })
     elif ob.user_type == "entrepreneur" or ob.user_type == "business_owner":
         profile.update({
@@ -77,6 +167,7 @@ def get_user_profile(user_id: UUID, db: Session) -> dict:
             "creator_platform": ob.creator_platform or "",
             "content_niche": ob.content_niche or "",
             "audience_size": ob.audience_size or "",
+            "creator_growth_goal": ob.creator_growth_goal or "",
         })
     elif ob.user_type == "exam_aspirant":
         profile.update({
@@ -85,6 +176,7 @@ def get_user_profile(user_id: UUID, db: Session) -> dict:
             "weak_subjects": ob.weak_subjects or [],
         })
 
+    profile["specific_goal"] = resolve_exact_user_goal(profile)
     return profile
 
 

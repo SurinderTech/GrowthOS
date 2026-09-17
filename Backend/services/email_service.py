@@ -17,7 +17,8 @@ def get_brevo_api_key() -> str:
 
 
 def get_sender_email() -> str:
-    return os.getenv("BREVO_SENDER_EMAIL", "noreply@growthos.com").strip()
+    email = os.getenv("BREVO_SENDER_EMAIL", "").strip()
+    return email if email else "surinderkumar3182@gmail.com"
 
 
 def get_sender_name() -> str:
@@ -31,7 +32,7 @@ async def send_otp_email(to_email: str, otp_code: str, purpose: str = "Password 
     api_key = get_brevo_api_key()
     if not api_key:
         logger.error("BREVO_API_KEY environment variable is not configured.")
-        print("ERROR: BREVO_API_KEY is not set.")
+        print("[ERROR] BREVO_API_KEY is not set.")
         return False
 
     sender_email = get_sender_email()
@@ -69,7 +70,7 @@ async def send_otp_email(to_email: str, otp_code: str, purpose: str = "Password 
                 <div class="otp-box">
                     <div class="otp-code">{otp_code}</div>
                 </div>
-                <div class="expiry">⏱️ This verification code is valid for 10 minutes.</div>
+                <div class="expiry">This verification code is valid for 10 minutes.</div>
                 <div style="margin-top: 24px; font-size: 12px; color: #64748b;">If you did not request this email, please ignore it or secure your account.</div>
             </div>
             <div class="footer">
@@ -100,22 +101,22 @@ async def send_otp_email(to_email: str, otp_code: str, purpose: str = "Password 
                 res_data = response.json() if response.text else {}
                 msg_id = res_data.get("messageId", "")
                 logger.info(f"OTP email sent successfully to {to_email} via Brevo. Message ID: {msg_id}")
-                print(f"✅ SUCCESS: OTP email sent to {to_email} via Brevo! (Sender: {sender_email}, Message ID: {msg_id})")
+                print(f"[SUCCESS] OTP email sent to {to_email} via Brevo! (Sender: {sender_email}, Message ID: {msg_id})")
                 return True
             else:
                 logger.error(f"Brevo API error ({response.status_code}): {response.text}")
-                print(f"ERROR: Brevo API returned status {response.status_code}: {response.text}")
+                print(f"[ERROR] Brevo API returned status {response.status_code}: {response.text}")
                 print(f"\n=======================================================")
-                print(f"🔑 [DEV OTP FALLBACK] Use this code for testing:")
-                print(f"🔑 OTP Code for {to_email}: {otp_code}")
+                print(f"[DEV OTP FALLBACK] Use this code for testing:")
+                print(f"OTP Code for {to_email}: {otp_code}")
                 print(f"=======================================================\n")
                 return True
         except Exception as e:
             logger.error(f"Failed to send email via Brevo: {e}")
-            print(f"EXCEPTION sending Brevo email: {e}")
+            print(f"[EXCEPTION] sending Brevo email: {e}")
             print(f"\n=======================================================")
-            print(f"🔑 [DEV OTP FALLBACK] Use this code for testing:")
-            print(f"🔑 OTP Code for {to_email}: {otp_code}")
+            print(f"[DEV OTP FALLBACK] Use this code for testing:")
+            print(f"OTP Code for {to_email}: {otp_code}")
             print(f"=======================================================\n")
             return True
 
@@ -140,12 +141,11 @@ async def send_verification_email(to_email: str, token: str, user_name: str = "U
 
     verification_link = f"{frontend_url}/verify-email?token={token}"
 
-
     api_key = get_brevo_api_key()
     sender_email = get_sender_email()
     sender_name = get_sender_name()
 
-    subject = "Verify Your GrowthOS Account 🚀"
+    subject = "Verify Your GrowthOS Account"
 
     html_content = f"""
     <!DOCTYPE html>
@@ -172,12 +172,12 @@ async def send_verification_email(to_email: str, token: str, user_name: str = "U
                 <h1>GrowthOS</h1>
             </div>
             <div class="content">
-                <div class="title">Welcome, {user_name}! 👋</div>
+                <div class="title">Welcome, {user_name}!</div>
                 <div class="desc">Please verify your email address to unlock full access to the GrowthOS AI Career Acceleration Platform.</div>
                 <div>
                     <a href="{verification_link}" class="btn" target="_blank">Verify Email Address</a>
                 </div>
-                <div class="expiry">⏱️ This verification link expires in 24 hours.</div>
+                <div class="expiry">This verification link expires in 24 hours.</div>
                 <div class="link-text">If the button doesn't work, copy and paste this link into your browser:<br/><a href="{verification_link}" style="color: #38bdf8;">{verification_link}</a></div>
             </div>
             <div class="footer">
@@ -191,9 +191,9 @@ async def send_verification_email(to_email: str, token: str, user_name: str = "U
     if not api_key:
         logger.warning("BREVO_API_KEY not configured. Printing dev verification link to console.")
         print(f"\n=======================================================")
-        print(f"🔑 [DEV VERIFICATION LINK] Click or open in browser:")
-        print(f"🔑 User: {to_email}")
-        print(f"🔑 Link: {verification_link}")
+        print(f"[DEV VERIFICATION LINK] Click or open in browser:")
+        print(f"User: {to_email}")
+        print(f"Link: {verification_link}")
         print(f"=======================================================\n")
         return True
 
@@ -215,27 +215,24 @@ async def send_verification_email(to_email: str, token: str, user_name: str = "U
             response = await client.post(BREVO_API_URL, json=payload, headers=headers)
             if response.status_code in (200, 201, 202):
                 logger.info(f"Verification email sent successfully to {to_email}")
-                print(f"✅ SUCCESS: Verification email sent to {to_email} via Brevo!")
-                print(f"🔑 Dev Verification Link: {verification_link}")
+                print(f"[SUCCESS] Verification email sent to {to_email} via Brevo!")
+                print(f"[DEV] Verification Link: {verification_link}")
                 return True
             else:
                 logger.error(f"Brevo API error ({response.status_code}): {response.text}")
-                print(f"ERROR: Brevo API returned status {response.status_code}: {response.text}")
+                print(f"[ERROR] Brevo API returned status {response.status_code}: {response.text}")
                 print(f"\n=======================================================")
-                print(f"🔑 [DEV VERIFICATION LINK FALLBACK] Click or open in browser:")
-                print(f"🔑 User: {to_email}")
-                print(f"🔑 Link: {verification_link}")
+                print(f"[DEV VERIFICATION LINK FALLBACK] Click or open in browser:")
+                print(f"User: {to_email}")
+                print(f"Link: {verification_link}")
                 print(f"=======================================================\n")
                 return True
         except Exception as e:
             logger.error(f"Failed to send email via Brevo: {e}")
-            print(f"EXCEPTION sending verification email: {e}")
+            print(f"[EXCEPTION] sending verification email: {e}")
             print(f"\n=======================================================")
-            print(f"🔑 [DEV VERIFICATION LINK FALLBACK] Click or open in browser:")
-            print(f"🔑 User: {to_email}")
-            print(f"🔑 Link: {verification_link}")
+            print(f"[DEV VERIFICATION LINK FALLBACK] Click or open in browser:")
+            print(f"User: {to_email}")
+            print(f"Link: {verification_link}")
             print(f"=======================================================\n")
             return True
-
-
-

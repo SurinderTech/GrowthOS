@@ -59,7 +59,7 @@ _ENV_VAR_BY_TASK = {
 
 # Used only if DEFAULT_MODEL itself is unset — keeps the app bootable even
 # with a bare-minimum .env.
-_HARD_FALLBACK_MODEL = "openrouter/auto"
+_HARD_FALLBACK_MODEL = "openrouter/free"
 
 
 class ModelRouter:

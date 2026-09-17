@@ -594,6 +594,22 @@ def get_battle_state(battle_id: UUID, user_id: UUID, db: Session) -> dict:
     if not battle:
         raise ValueError("Battle not found")
 
+    # Auto-transition lobby/waiting battle to live if starts_at has arrived or for AI duels
+    if battle.status in ["waiting", "lobby"]:
+        now = datetime.now(timezone.utc)
+        is_past_start = False
+        if battle.starts_at:
+            sa = battle.starts_at
+            if sa.tzinfo is None:
+                sa = sa.replace(tzinfo=timezone.utc)
+            if now >= sa:
+                is_past_start = True
+
+        if battle.mode == "ai_duel" or is_past_start:
+            battle.status = "live"
+            db.commit()
+            db.refresh(battle)
+
     # Authorization check
     participant = db.query(BattlePlayer).filter(
         BattlePlayer.battle_id == battle_id,

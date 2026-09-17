@@ -58,9 +58,10 @@ def generate_full_growth_plan(profile: dict) -> dict:
 
     Falls back to get_fallback_plan(profile) if Gemini fails.
     """
-    user_type = profile.get("user_type", "student")
-    goal      = profile.get("twelve_month_goal", "grow career")
-    exam_type = profile.get("exam_type", "")
+    from Backend.routers.dashboard import resolve_exact_user_goal
+    user_type     = profile.get("user_type", "student")
+    specific_goal = profile.get("specific_goal") or resolve_exact_user_goal(profile)
+    exam_type     = profile.get("exam_type", "")
 
     # Build context lines for specific user types
     extra = _build_context(profile)
@@ -70,21 +71,22 @@ You are GrowthOS AI — a world-class growth coach building a personal execution
 
 User Profile:
 - Type: {user_type}
-- 12-Month Goal: {goal}
+- Targeted Specific Goal: {specific_goal}
+- 12-Month Goal: {profile.get("twelve_month_goal", "")}
 - Primary Goal: {profile.get("primary_goal", "")}
 - Daily Time: {profile.get("daily_time", "2-3hours")}
 - Productivity Style: {profile.get("productivity_style", "deep_focus")}
 - Country: {profile.get("country", "India")}
 {extra}
 
-Generate a complete 4-phase execution roadmap. Each phase has:
+Generate a complete 4-phase execution roadmap specifically for the goal: "{specific_goal}". Each phase has:
 - 4 skills with realistic progress levels
 - 4-5 specific actionable tasks with XP rewards
 - A milestone and reward
 
 Return ONLY a JSON object (no markdown, no explanation):
 {{
-  "goal": "Specific goal based on user profile e.g. Crack JEE 2026",
+  "goal": "{specific_goal}",
   "goal_icon": "single relevant emoji",
   "category": "Category e.g. Competitive Exam | Career | Business | Creator | Freelance",
   "timeline": "X months",
@@ -565,32 +567,36 @@ def _fallback_upsc(profile: dict) -> dict:
 
 
 # ── Generic Exam Fallback ─────────────────────────────────────────────────────
+# ── Generic Exam Fallback ─────────────────────────────────────────────────────
 def _fallback_exam_generic(profile: dict) -> dict:
+    from Backend.routers.dashboard import resolve_exact_user_goal
     exam = profile.get("exam_type", "Exam").upper()
-    year = profile.get("attempt_year", "2026")
+    goal_title = resolve_exact_user_goal(profile)
     return {
-        "goal": f"Clear {exam} {year}",
+        "goal": goal_title,
         "goal_icon": "📚",
         "category": "Competitive Exam",
         "timeline": "6 months",
         "start_date": "Jan 2026", "target_date": "Jun 2026",
         "smart_message_type": "info",
         "smart_message_text": f"Consistency beats intensity for {exam}. Build your daily habit first, then increase the depth.",
-        "phases": _generic_4_phases("Exam Preparation", f"Clear {exam} {year}"),
+        "phases": _generic_4_phases("Exam Preparation", goal_title),
     }
 
 
-# ── Student Fallback (CS / Engineering) ─────────────────────────────────────
+# ── Student Fallback (CS / Engineering / General) ────────────────────────────
 def _fallback_student(profile: dict) -> dict:
-    goal = profile.get("career_goal", "Software Engineer")
+    from Backend.routers.dashboard import resolve_exact_user_goal
+    goal_title = resolve_exact_user_goal(profile)
+    raw_goal = profile.get("career_goal", "Software Engineer")
     return {
-        "goal": f"Become {goal}",
+        "goal": goal_title,
         "goal_icon": "💻",
         "category": "Career",
         "timeline": "6 months",
         "start_date": "Jan 2026", "target_date": "Jun 2026",
         "smart_message_type": "info",
-        "smart_message_text": f"The fastest path to becoming a {goal} is building real projects daily. Code every day — even 30 minutes compounds.",
+        "smart_message_text": f"The fastest path to {goal_title} is building real projects daily. Code and learn every day — even 30 minutes compounds.",
         "phases": [
             {
                 "phase_number": 1, "label": "Phase 1", "theme": "CS Fundamentals",
@@ -652,7 +658,7 @@ def _fallback_student(profile: dict) -> dict:
                 "phase_number": 4, "label": "Phase 4", "theme": "Job Search",
                 "status": "locked", "progress": 0,
                 "xp_total": 850, "xp_earned": 0,
-                "milestone": f"{goal} Role Secured",
+                "milestone": f"{raw_goal} Role Secured",
                 "milestone_reward": "👑 Hired Badge + 2000 XP",
                 "skills": [
                     {"name": "Resume & LinkedIn", "level": "Advanced", "progress": 0},
@@ -670,60 +676,66 @@ def _fallback_student(profile: dict) -> dict:
 
 # ── Freelancer Fallback ───────────────────────────────────────────────────────
 def _fallback_freelancer(profile: dict) -> dict:
-    skill = profile.get("primary_skill", "your skill")
-    goal  = profile.get("monthly_income_goal", "₹50,000/month")
+    from Backend.routers.dashboard import resolve_exact_user_goal
+    goal_title = resolve_exact_user_goal(profile)
     return {
-        "goal": f"Earn {goal} as Freelance {skill.title()} Specialist",
+        "goal": goal_title,
         "goal_icon": "💼",
         "category": "Freelance",
         "timeline": "4 months",
         "start_date": "Jan 2026", "target_date": "May 2026",
         "smart_message_type": "info",
-        "smart_message_text": f"Your first ₹10,000 month as a freelancer is the hardest. Focus on 2 clients, over-deliver, and referrals will follow.",
-        "phases": _generic_4_phases("Freelance Income", f"Earn {goal}/month"),
+        "smart_message_text": f"Your initial month as a freelancer is the hardest. Focus on client outreach, over-deliver, and referrals will follow.",
+        "phases": _generic_4_phases("Freelance Growth", goal_title),
     }
 
 
 # ── Entrepreneur Fallback ─────────────────────────────────────────────────────
 def _fallback_entrepreneur(profile: dict) -> dict:
+    from Backend.routers.dashboard import resolve_exact_user_goal
+    goal_title = resolve_exact_user_goal(profile)
     return {
-        "goal": "Build a Profitable Business",
+        "goal": goal_title,
         "goal_icon": "🚀",
         "category": "Entrepreneurship",
         "timeline": "6 months",
         "start_date": "Jan 2026", "target_date": "Jun 2026",
         "smart_message_type": "info",
-        "smart_message_text": "Revenue is oxygen for your startup. Talk to 5 potential customers before writing a single line of code.",
-        "phases": _generic_4_phases("Startup Growth", "Build Profitable Business"),
+        "smart_message_text": "Revenue is oxygen for your startup. Talk to 5 potential customers before writing code or building.",
+        "phases": _generic_4_phases("Startup Growth", goal_title),
     }
 
 
 # ── Creator Fallback ──────────────────────────────────────────────────────────
 def _fallback_creator(profile: dict) -> dict:
+    from Backend.routers.dashboard import resolve_exact_user_goal
+    goal_title = resolve_exact_user_goal(profile)
     platform = profile.get("creator_platform", "YouTube")
     return {
-        "goal": f"Grow to 10K Subscribers on {platform.title()}",
+        "goal": goal_title,
         "goal_icon": "🎬",
         "category": "Content Creator",
         "timeline": "6 months",
         "start_date": "Jan 2026", "target_date": "Jun 2026",
         "smart_message_type": "info",
-        "smart_message_text": f"On {platform}, consistency + thumbnail quality determines 80% of your growth. Post 3x/week for 90 days — no exceptions.",
-        "phases": _generic_4_phases("Creator Growth", f"10K on {platform}"),
+        "smart_message_text": f"On {platform}, consistency + thumbnail quality determines 80% of your growth. Post regularly for 90 days — no exceptions.",
+        "phases": _generic_4_phases("Creator Growth", goal_title),
     }
 
 
 # ── Self Growth Fallback ──────────────────────────────────────────────────────
 def _fallback_self_growth(profile: dict) -> dict:
+    from Backend.routers.dashboard import resolve_exact_user_goal
+    goal_title = resolve_exact_user_goal(profile)
     return {
-        "goal": "Become the Best Version of Yourself",
+        "goal": goal_title,
         "goal_icon": "⚡",
         "category": "Personal Development",
         "timeline": "6 months",
         "start_date": "Jan 2026", "target_date": "Jun 2026",
         "smart_message_type": "info",
         "smart_message_text": "Real growth happens in the first 30 minutes after you wake up. Build your morning routine before anything else.",
-        "phases": _generic_4_phases("Personal Mastery", "Become Best Version"),
+        "phases": _generic_4_phases("Personal Mastery", goal_title),
     }
 
 

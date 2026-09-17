@@ -13,14 +13,20 @@ type TaskType = "mcq" | "reasoning" | "code";
 
 interface BattleTask {
   id: string; type: TaskType; order: number; max_score: number; ends_at: string | null;
-  config: { question?: string; options?: string[]; correct?: number; prompt?: string; hints?: string[]; };
+  config?: { question?: string; options?: string[]; correct?: number; prompt?: string; hints?: string[]; title?: string; description?: string; language?: string; starter_code?: string; };
+  question?: string; options?: string[]; prompt?: string; hints?: string[]; title?: string; description?: string; language?: string; starter_code?: string;
 }
 interface LeaderboardEntry { rank: number; name: string; score: number; is_ai: boolean; user_id: string; }
 interface BattleResults { battle_id: string; leaderboard: LeaderboardEntry[]; winner: LeaderboardEntry | null; }
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("token") || sessionStorage.getItem("token");
+  return (
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("token") ||
+    sessionStorage.getItem("access_token") ||
+    sessionStorage.getItem("token")
+  );
 }
 
 // ── Countdown overlay ─────────────────────────────────────────────────────────
@@ -62,11 +68,12 @@ function TimerBar({ endsAt }: { endsAt: string | null }) {
 // ── MCQ card ──────────────────────────────────────────────────────────────────
 function MCQCard({ task, onSubmit, submitted }: { task: BattleTask; onSubmit: (opt: number, taskId: string) => void; submitted: boolean; }) {
   const [selected, setSelected] = useState<number | null>(null);
-  const options = task.config.options || [];
+  const options = task.options || task.config?.options || [];
+  const question = task.question || task.config?.question || "Loading question...";
   return (
     <div style={{ animation: "slideUp 0.3s ease" }}>
       <div style={{ fontSize: "0.58rem", color: "#818cf8", fontWeight: 700, letterSpacing: "0.12em", marginBottom: 12 }}>MCQ — Task {task.order}</div>
-      <div style={{ fontSize: "1rem", fontWeight: 700, color: "white", lineHeight: 1.6, marginBottom: 24 }}>{task.config.question || "Loading question..."}</div>
+      <div style={{ fontSize: "1rem", fontWeight: 700, color: "white", lineHeight: 1.6, marginBottom: 24 }}>{question}</div>
       <div style={{ display: "flex", flexDirection: "column" as const, gap: 10, marginBottom: 24 }}>
         {options.map((opt, i) => (
           <button key={i} onClick={() => !submitted && setSelected(i)} disabled={submitted}
@@ -89,14 +96,16 @@ function MCQCard({ task, onSubmit, submitted }: { task: BattleTask; onSubmit: (o
 // ── Reasoning card ────────────────────────────────────────────────────────────
 function ReasoningCard({ task, onSubmit, submitted }: { task: BattleTask; onSubmit: (content: string, taskId: string) => void; submitted: boolean; }) {
   const [text, setText] = useState("");
+  const prompt = task.prompt || task.question || task.config?.prompt || task.config?.question || "Explain your reasoning...";
+  const hints = task.hints || task.config?.hints || [];
   return (
     <div style={{ animation: "slideUp 0.3s ease" }}>
       <div style={{ fontSize: "0.58rem", color: "#f59e0b", fontWeight: 700, letterSpacing: "0.12em", marginBottom: 12 }}>REASONING — Task {task.order}</div>
-      <div style={{ fontSize: "1rem", fontWeight: 700, color: "white", lineHeight: 1.6, marginBottom: 16 }}>{task.config.prompt || task.config.question || "Explain your reasoning..."}</div>
-      {task.config.hints && task.config.hints.length > 0 && (
+      <div style={{ fontSize: "1rem", fontWeight: 700, color: "white", lineHeight: 1.6, marginBottom: 16 }}>{prompt}</div>
+      {hints.length > 0 && (
         <div style={{ marginBottom: 16, padding: "10px 14px", background: "rgba(245,158,11,0.08)", borderRadius: 8, border: "1px solid rgba(245,158,11,0.15)" }}>
           <div style={{ fontSize: "0.62rem", color: "#f59e0b", fontWeight: 700, marginBottom: 6 }}>HINTS</div>
-          {task.config.hints.map((h, i) => <div key={i} style={{ fontSize: "0.78rem", color: "#94a3b8", marginBottom: 3 }}>• {h}</div>)}
+          {hints.map((h, i) => <div key={i} style={{ fontSize: "0.78rem", color: "#94a3b8", marginBottom: 3 }}>• {h}</div>)}
         </div>
       )}
       <textarea value={text} onChange={e => !submitted && setText(e.target.value)} disabled={submitted} placeholder="Type your reasoning here. Be clear and concise..."
@@ -165,30 +174,36 @@ export default function BattleScreen() {
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const token = getToken();
   const myUserId = (user as any)?.id || (user as any)?.user_id || "";
 
   const fetchBattleState = useCallback(async () => {
-    if (!token || !battleId) return;
+    const activeToken = getToken();
+    if (!activeToken || !battleId) return;
     try {
-      const r = await fetch(`${API}/arena/battles/${battleId}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) { router.push("/dashboard/challenges"); return; }
+      const r = await fetch(`${API}/arena/battles/${battleId}`, { headers: { Authorization: `Bearer ${activeToken}` } });
+      if (!r.ok) { return; }
       const d = await r.json();
       if (d.title) setBattleTitle(d.title);
       if (d.mode === "ai_duel") setIsAIDuel(true);
-      if (d.status === "completed" && d.results) { setResults(d.results); setStatus("completed"); }
-      else if (d.status === "live") {
-        if (d.tasks) setTasks(d.tasks);
-        if (d.ends_at) setEndsAt(d.ends_at);
-        if (d.leaderboard) setLeaderboard(d.leaderboard);
+      if (d.tasks && d.tasks.length > 0) setTasks(d.tasks);
+      if (d.ends_at) setEndsAt(d.ends_at);
+      if (d.leaderboard) setLeaderboard(d.leaderboard);
+
+      if (d.status === "completed" && d.results) {
+        setResults(d.results);
+        setStatus("completed");
+      } else if (d.status === "live") {
         setStatus("live");
-      } else { setStatus("lobby"); }
+      } else {
+        setStatus("lobby");
+      }
     } catch { setStatus("lobby"); }
-  }, [battleId, token, router]);
+  }, [battleId, router]);
 
   const connectWS = useCallback(() => {
-    if (!token || !battleId) return;
-    const ws = new WebSocket(`${WS_BASE}/ws/battles/${battleId}?token=${token}`);
+    const activeToken = getToken();
+    if (!activeToken || !battleId) return;
+    const ws = new WebSocket(`${WS_BASE}/ws/battles/${battleId}?token=${activeToken}`);
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -200,24 +215,32 @@ export default function BattleScreen() {
     ws.onmessage = (ev) => {
       try {
         const msg = JSON.parse(ev.data);
+        const payload = msg.data ? { ...msg, ...msg.data } : msg;
         const type = msg.type || msg.event;
+
         if (type === "battle:state") {
-          if (msg.tasks) setTasks(msg.tasks);
-          if (msg.ends_at) setEndsAt(msg.ends_at);
-          if (msg.leaderboard) setLeaderboard(msg.leaderboard);
-          if (msg.status === "live") setStatus("live");
+          if (payload.tasks) setTasks(payload.tasks);
+          if (payload.ends_at) setEndsAt(payload.ends_at);
+          if (payload.leaderboard) setLeaderboard(payload.leaderboard);
+          if (payload.status === "live") setStatus("live");
+          else if (payload.status === "completed") {
+            if (payload.results) setResults(payload.results);
+            setStatus("completed");
+          } else if (payload.status === "lobby" || payload.status === "waiting") {
+            setStatus("lobby");
+          }
         } else if (type === "battle:countdown") {
-          setCountdown(msg.seconds_remaining); setStatus("countdown");
+          setCountdown(payload.seconds_remaining); setStatus("countdown");
         } else if (type === "battle:started") {
           setCountdown(null);
-          if (msg.tasks) setTasks(msg.tasks);
-          if (msg.ends_at) setEndsAt(msg.ends_at);
+          if (payload.tasks) setTasks(payload.tasks);
+          if (payload.ends_at) setEndsAt(payload.ends_at);
           setStatus("live");
         } else if (type === "battle:score_updated") {
           setLeaderboard(prev => {
-            const upd = prev.map(e => e.user_id === msg.user_id ? { ...e, score: msg.score } : e);
-            if (!upd.find(e => e.user_id === msg.user_id)) {
-              upd.push({ user_id: msg.user_id, name: msg.name || "Player", score: msg.score, rank: upd.length + 1, is_ai: msg.is_ai || false });
+            const upd = prev.map(e => e.user_id === payload.user_id ? { ...e, score: payload.score } : e);
+            if (!upd.find(e => e.user_id === payload.user_id)) {
+              upd.push({ user_id: payload.user_id, name: payload.name || "Player", score: payload.score, rank: upd.length + 1, is_ai: payload.is_ai || false });
             }
             return upd.sort((a, b) => b.score - a.score).map((e, i) => ({ ...e, rank: i + 1 }));
           });
@@ -235,7 +258,7 @@ export default function BattleScreen() {
       }, 3000);
     };
     ws.onerror = () => ws.close();
-  }, [battleId, token]);
+  }, [battleId]);
 
   useEffect(() => {
     fetchBattleState();

@@ -30,8 +30,9 @@ def _safe_list(text: str) -> list:
 # ── Career-type → task generation strategy ───────────────────────────────────
 
 def _build_prompt(profile: dict) -> str:
+    from Backend.routers.dashboard import resolve_exact_user_goal
     user_type  = profile.get("user_type", "student")
-    goal       = profile.get("twelve_month_goal") or profile.get("primary_goal") or "grow in my career"
+    goal       = profile.get("specific_goal") or resolve_exact_user_goal(profile)
     daily_time = profile.get("daily_time", "2-3hours")
     interests  = ", ".join(profile.get("interests", [])[:4]) or "technology"
 

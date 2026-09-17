@@ -163,7 +163,12 @@ export function NovaStickyWidget() {
   };
 
   const handleClear = () => {
-    setMessages([INITIAL_GREETING]);
+    setMessages([{
+      id: `init-${Date.now()}`,
+      role: "assistant",
+      content: INITIAL_GREETINGS[currentArea] || INITIAL_GREETINGS.general,
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    }]);
   };
 
   const formatMessageText = (content: string) => {

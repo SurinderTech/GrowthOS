@@ -270,19 +270,33 @@ async def battle_ws(
             "user_id": user_id,
         })
 
-        # If battle is already live on reconnect, send current state snapshot
+        # Send current state snapshot on connect (and auto-transition if start time reached)
         db = SessionLocal()
         try:
             from Backend.services.arena_service import sanitize_task_for_client
+            from datetime import datetime, timezone
             battle = db.query(Battle).filter(Battle.id == UUID(battle_id)).first()
-            if battle and battle.status == "live":
+            if battle:
+                if battle.status in ["waiting", "lobby"]:
+                    now = datetime.now(timezone.utc)
+                    is_past_start = False
+                    if battle.starts_at:
+                        sa = battle.starts_at
+                        if sa.tzinfo is None:
+                            sa = sa.replace(tzinfo=timezone.utc)
+                        if now >= sa:
+                            is_past_start = True
+                    if battle.mode == "ai_duel" or is_past_start:
+                        battle.status = "live"
+                        db.commit()
+                        db.refresh(battle)
+
                 tasks = db.query(BattleTask).filter(BattleTask.battle_id == UUID(battle_id)).order_by(BattleTask.order).all()
                 players = db.query(BattlePlayer).filter(BattlePlayer.battle_id == UUID(battle_id)).order_by(BattlePlayer.score.desc()).all()
                 await websocket.send_text(json.dumps({
                     "type": "battle:state",
                     "status": battle.status,
                     "ends_at": battle.ends_at.isoformat() if battle.ends_at else None,
-                    # FIX 3: sanitize tasks — never send _correct to client
                     "tasks": [sanitize_task_for_client(t) for t in tasks],
                     "leaderboard": [{"user_id": str(p.user_id) if p.user_id else f"ai:{p.ai_opponent_id}", "score": p.score or 0, "rank": i+1} for i, p in enumerate(players)],
                 }))

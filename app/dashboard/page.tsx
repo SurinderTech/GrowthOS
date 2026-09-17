@@ -2107,14 +2107,33 @@ export default function DashboardPage() {
 
 // ── Ambient particles (pure decorative motion behind hero) ───────────────────
 function Particles() {
-  const particles = useMemo(() => Array.from({ length: 18 }, (_, i) => ({
-    id: i,
-    left: Math.round(Math.random() * 100),
-    top: 40 + Math.round(Math.random() * 50),
-    delay: Math.round(Math.random() * 10),
-    duration: 12 + Math.round(Math.random() * 10),
-    size: 1 + Math.round(Math.random() * 2),
-  })), []);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const particles = useMemo(() => {
+    if (!mounted) return [];
+    return Array.from({ length: 18 }, (_, i) => {
+      const pseudoLeft = ((i * 37 + 13) % 90) + 5;
+      const pseudoTop = 40 + ((i * 23 + 7) % 50);
+      const pseudoDelay = (i * 3) % 8;
+      const pseudoDuration = 12 + ((i * 5) % 9);
+      const pseudoSize = 1 + (i % 3);
+      return {
+        id: i,
+        left: pseudoLeft,
+        top: pseudoTop,
+        delay: pseudoDelay,
+        duration: pseudoDuration,
+        size: pseudoSize,
+      };
+    });
+  }, [mounted]);
+
+  if (!mounted) return null;
+
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none", overflow: "hidden" }}>
       {particles.map(p => (

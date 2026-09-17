@@ -205,6 +205,9 @@ def nova_chat_endpoint(
             "state": result["state"].model_dump(),
         }
     except Exception as exc:
+        import traceback
+        from Backend.utils.logger import log_custom_error
+        log_custom_error("NOVA Chat Engine", str(exc), exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"NOVA turn execution failed: {str(exc)}",
