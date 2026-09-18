@@ -51,7 +51,7 @@
 
 ## 📋 Table of Contents
 
-- [ Executive Summary \& Product Vision](#-executive-summary--product-vision)
+- [💡 Executive Summary \& Product Vision](#-executive-summary--product-vision)
 - [🎯 Target Audience \& User Personas](#-target-audience--user-personas)
 - [🥊 Problem Statement \& Competitive Landscape](#-problem-statement--competitive-landscape)
 - [🌌 The NOVA AI Engine \& Multi-Agent Architecture](#-the-nova-ai-engine--multi-agent-architecture)
@@ -77,7 +77,7 @@
 
 ---
 
-## 💡 Executive Summary & Product Vision
+##  Executive Summary & Product Vision
 
 **GrowthOS** is a zero-to-one, SaaS-grade **AI-Driven Personal Execution Operating System**. 
 
