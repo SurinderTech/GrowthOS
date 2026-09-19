@@ -21,6 +21,23 @@ class UserXP(Base):
       - streak milestones
       - task completions
       - challenge completions
+
+    SCALE DESIGN (supports 1M+ users):
+    ------------------------------------
+    cached_score   — pre-computed Growth Score, updated atomically on every
+                     award_xp() call. The leaderboard query is:
+                       SELECT ... ORDER BY cached_score DESC
+                     with a covering index. No Python-side re-computation on read.
+
+    field_key      — denormalized classification (e.g. 'exam:jee').
+                     Written once when onboarding completes, re-written if user
+                     changes their profile. Enables WHERE field_key = ? leaderboard
+                     query without joining user_onboarding.
+
+    batch_key      — denormalized cohort key (e.g. 'batch:jee:2027').
+                     Same pattern as field_key.
+
+    previous_weekly_rank — snapshot taken at week boundary for rank movement.
     """
     __tablename__ = "user_xp"
 
@@ -44,6 +61,28 @@ class UserXP(Base):
     practice_sessions    = Column(Integer, default=0, nullable=False)
     total_correct        = Column(Integer, default=0, nullable=False)
 
+    # ── SCALE COLUMNS ─────────────────────────────────────────────────────────
+
+    # Pre-computed canonical Growth Score — the single source of truth for ranking.
+    # Formula: (streak × 20) + (correct × 5) + (challenges × 30) + bonus_xp
+    # Updated in-place on every award_xp() call. O(1) write, O(1) index scan on read.
+    cached_score = Column(BigInteger, default=0, nullable=False, index=True)
+
+    # Denormalized user classification for direct SQL leaderboard filtering.
+    # e.g. 'exam:jee', 'student:cs', 'freelancer:web', 'creator', 'general'
+    # NULL until onboarding is completed.
+    field_key = Column(String(100), nullable=True, index=True)
+
+    # Denormalized batch cohort key.
+    # e.g. 'batch:jee:2027', 'batch:student:cs', 'batch:freelancer'
+    batch_key = Column(String(150), nullable=True, index=True)
+
+    # Rank at the start of the current week — for showing ↑↓4 / ↓3 movement.
+    # Updated by weekly scheduler or on-demand when rank is first requested.
+    previous_weekly_rank = Column(Integer, nullable=True)
+
+    # ── END SCALE COLUMNS ───────────────────────────────────────────────────
+
     last_xp_earned_at = Column(DateTime(timezone=True), nullable=True)
     updated_at        = Column(
         DateTime(timezone=True),
@@ -52,6 +91,15 @@ class UserXP(Base):
     )
 
     user = relationship("User", foreign_keys=[user_id])
+
+    __table_args__ = (
+        # Composite index: field leaderboard sorted by score (covers ORDER BY)
+        Index("idx_uxp_field_score", "field_key", "cached_score"),
+        # Composite index: batch leaderboard sorted by score
+        Index("idx_uxp_batch_score", "batch_key", "cached_score"),
+        # Global leaderboard (just score DESC)
+        Index("idx_uxp_global_score", "cached_score"),
+    )
 
 
 class LeaderboardEvent(Base):

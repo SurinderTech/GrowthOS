@@ -7,23 +7,25 @@ from Backend.models.dashboard import GrowthPlan, DailyTask, AIInsight
 from Backend.models.user import User
 from Backend.models.onboarding import UserOnboarding
 import Backend.models.practice
-import Backend.models.practice_arena    # ← ADD THIS LINE
+import Backend.models.practice_arena    # ← Practice Arena
 import Backend.models.agents_data       # Resume / Interview / Project / Networking agents
 import Backend.models.learning_agent    # ← Learning Agent ORM models
 import Backend.models.otp               # ← User OTP ORM models
 import Backend.models.user_verification # ← Email Verification Token ORM models
-import Backend.models.leaderboard      # ← UserXP, LeaderboardEvent
-import Backend.models.challenges       # ← Challenge, ChallengeParticipant
-import Backend.models.community        # ← CommunityPost, CommunityReaction
-import Backend.models.arena           # ← Arena: profiles, battles, ELO, boss, season, matchmaking
-import Backend.nova.memory.models      # ← NOVA User Memory ORM models
-import Backend.nova.resources.models     # ← NOVA Resource Intelligence ORM models
-import Backend.nova.critic.models        # ← NOVA Critic & Verification ORM models
-import Backend.nova.planner.models       # ← NOVA Planner ORM models
-import Backend.nova.progress.models      # ← NOVA Progress Intelligence ORM models
-import Backend.nova.adaptive.models      # ← NOVA Adaptive Engine ORM models
-import Backend.nova.rag.models        # ← NOVA RAG ORM models
-import Backend.nova.knowledge.models   # ← NOVA Knowledge Base RAG ORM models (alias)
+import Backend.models.leaderboard       # ← UserXP, LeaderboardEvent
+import Backend.models.leaderboard_history  # ← WeeklyLeaderboardSnapshot
+import Backend.models.challenges        # ← Challenge, ChallengeParticipant
+import Backend.models.community         # ← CommunityPost, CommunityReaction
+import Backend.models.social            # ← UserFriendship, UserPresence
+import Backend.models.arena             # ← Arena: profiles, battles, ELO, boss, season, matchmaking
+import Backend.nova.memory.models       # ← NOVA User Memory ORM models
+import Backend.nova.resources.models    # ← NOVA Resource Intelligence ORM models
+import Backend.nova.critic.models       # ← NOVA Critic & Verification ORM models
+import Backend.nova.planner.models      # ← NOVA Planner ORM models
+import Backend.nova.progress.models     # ← NOVA Progress Intelligence ORM models
+import Backend.nova.adaptive.models     # ← NOVA Adaptive Engine ORM models
+import Backend.nova.rag.models          # ← NOVA RAG ORM models
+import Backend.nova.knowledge.models    # ← NOVA Knowledge Base RAG ORM models (alias)
 
 
 def init_db():
@@ -99,7 +101,40 @@ def init_db():
         except Exception as e:
             print(f"Skipping pgvector extension/column setup: {e}")
 
+        # ── Leaderboard v2 scale columns ──────────────────────────────────────
+        for col_def in [
+            "cached_score BIGINT DEFAULT 0",
+            "field_key VARCHAR(100)",
+            "batch_key VARCHAR(150)",
+            "previous_weekly_rank INTEGER",
+        ]:
+            try:
+                conn.execute(text(f"ALTER TABLE user_xp ADD COLUMN IF NOT EXISTS {col_def};"))
+            except Exception as e:
+                print(f"Skipping user_xp column add ({col_def}): {e}")
+
+        # Indexes for leaderboard v2 scale queries
+        for idx_sql in [
+            "CREATE INDEX IF NOT EXISTS idx_uxp_field_score  ON user_xp (field_key, cached_score);",
+            "CREATE INDEX IF NOT EXISTS idx_uxp_batch_score  ON user_xp (batch_key, cached_score);",
+            "CREATE INDEX IF NOT EXISTS idx_uxp_global_score ON user_xp (cached_score);",
+        ]:
+            try:
+                conn.execute(text(idx_sql))
+            except Exception as e:
+                print(f"Skipping index create: {e}")
+
+        # ── Onboarding institution fields ─────────────────────────────────────
+        for col_def in [
+            "institution_name VARCHAR(200)",
+            "graduation_year  VARCHAR(10)",
+        ]:
+            try:
+                conn.execute(text(f"ALTER TABLE user_onboarding ADD COLUMN IF NOT EXISTS {col_def};"))
+            except Exception as e:
+                print(f"Skipping user_onboarding column add ({col_def}): {e}")
+
         conn.commit()
 
 
-    print("[SUCCESS] Database tables created and schema verified.")
+    print("[SUCCESS] Database tables created and schema verified.")

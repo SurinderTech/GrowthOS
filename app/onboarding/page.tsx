@@ -59,6 +59,10 @@ type OnboardingState = {
 
   productivity_style: string
   twelve_month_goal: string
+
+  // Leaderboard batch classification
+  institution_name: string
+  graduation_year: string
 }
 
 
@@ -98,7 +102,10 @@ const INITIAL: OnboardingState = {
   weak_subjects: [],
 
   productivity_style: "",
-  twelve_month_goal: ""
+  twelve_month_goal: "",
+
+  institution_name: "",
+  graduation_year: ""
 }
 
 
@@ -192,7 +199,9 @@ export default function OnboardingPage() {
           full_name: data.full_name,
           age_group: data.age_group,
           country: data.country,
-          primary_goal: data.primary_goal
+          primary_goal: data.primary_goal,
+          institution_name: data.institution_name || undefined,
+          graduation_year: data.graduation_year || undefined,
         })
 
       }
@@ -499,10 +508,11 @@ function Step2({ data, set }: any) {
     { value: "financial_independence", label: "Financial Independence" },
   ];
   const ages = ["13-17", "18-24", "25-34", "35-44", "45+"];
+  const gradYears = ["2024", "2025", "2026", "2027", "2028", "2029", "2030", "2031"];
   return (
     <div style={s.stepWrap}>
       <h2 style={s.stepTitle}>Tell us about yourself</h2>
-      <p style={s.stepSub}>Basic info to personalise your dashboard</p>
+      <p style={s.stepSub}>This powers your leaderboard batch and personalises your dashboard</p>
       <div style={s.formGrid}>
         <div style={s.fieldWrap}>
           <label style={s.lbl}>Full Name (optional)</label>
@@ -522,6 +532,24 @@ function Step2({ data, set }: any) {
           <label style={s.lbl}>Country / Region</label>
           <input style={s.input} placeholder="e.g. India, USA, UK" value={data.country}
             onChange={e => set("country", e.target.value)} />
+        </div>
+        <div style={s.fieldWrap}>
+          <label style={s.lbl}>School / College Name <span style={{color:"#64748b",fontWeight:400}}>(optional)</span></label>
+          <input style={s.input}
+            placeholder="e.g. IIT Bombay, Delhi Public School, MIT"
+            value={data.institution_name}
+            onChange={e => set("institution_name", e.target.value)} />
+          <p style={{margin:"4px 0 0",fontSize:12,color:"#475569"}}>Used to place you in the right batch leaderboard</p>
+        </div>
+        <div style={s.fieldWrap}>
+          <label style={s.lbl}>Graduation / Target Year <span style={{color:"#64748b",fontWeight:400}}>(optional)</span></label>
+          <div style={s.chipRow}>
+            {gradYears.map(y => (
+              <button key={y} onClick={() => set("graduation_year", y)}
+                style={{ ...s.chip, ...(data.graduation_year === y ? s.chipActive : {}) }}>{y}</button>
+            ))}
+          </div>
+          <p style={{margin:"4px 0 0",fontSize:12,color:"#475569"}}>Groups you with your cohort in batch leaderboards</p>
         </div>
         <div style={s.fieldWrap}>
           <label style={s.lbl}>Primary Goal on GrowthOS</label>

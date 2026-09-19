@@ -1,13 +1,16 @@
 "use client";
 // app/dashboard/leaderboard/page.tsx
-// GrowthOS — Real-Time Domain-Aware Leaderboard (no hardcoded data)
+// GrowthOS — Multi-Level Leaderboard v2 (Global / My Field / My Batch / Friends)
+// Default view: My Batch | This Week | People Around You
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import {
   LayoutDashboard, Play, BarChart2, Trophy,
-  Users, Settings, LogOut, Bell, ChevronLeft,
-  Flame, Crown, Check, X, Zap, RefreshCw,
+  Users, Settings, LogOut, Globe2, Crown, Zap,
+  Flame, RefreshCw, UserPlus, UserCheck, ChevronLeft,
+  TrendingUp, TrendingDown, Minus, Star, Shield,
+  Swords, Circle,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import ProfileSettingsModal from "@/components/ui/ProfileSettingsModal";
@@ -18,7 +21,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const NAV = [
   { icon: <LayoutDashboard size={18}/>, label:"Dashboard",     href:"/dashboard" },
-  { icon: <Play size={18}/>,            label:"Practice Arena",href:"/dashboard/practice" },
+  { icon: <Play size={18}/>,            label:"Practice Arena", href:"/dashboard/practice" },
   { icon: <BarChart2 size={18}/>,       label:"Leaderboard",   href:"/dashboard/leaderboard", active:true },
   { icon: <Trophy size={18}/>,          label:"Challenges",    href:"/dashboard/challenges" },
   { icon: <Users size={18}/>,           label:"Community",     href:"/dashboard/community" },
@@ -26,31 +29,15 @@ const NAV = [
 ];
 
 const LEAGUES = [
-  { name:"Bronze",  color:"#cd7f32", min:0,    max:2999  },
-  { name:"Silver",  color:"#c0c0c0", min:3000, max:5999  },
-  { name:"Gold",    color:"#ffd700", min:6000, max:8499  },
-  { name:"Elite",   color:"#6366f1", min:8500, max:9499  },
-  { name:"Silicon", color:"#22c55e", min:9500, max:99999 },
+  { name:"Bronze",  color:"#cd7f32", min:0,    bg:"rgba(205,127,50,0.15)"  },
+  { name:"Silver",  color:"#c0c0c0", min:3000, bg:"rgba(192,192,192,0.15)" },
+  { name:"Gold",    color:"#ffd700", min:6000, bg:"rgba(255,215,0,0.15)"   },
+  { name:"Elite",   color:"#a855f7", min:8500, bg:"rgba(168,85,247,0.15)"  },
+  { name:"Silicon", color:"#22c55e", min:9500, bg:"rgba(34,197,94,0.15)"   },
 ];
 
-const STREAK_REWARDS = [
-  { days:7,   title:"Starter",          desc:"Badge + 100 XP boost",                                    icon:"🎯", color:"#64748b" },
-  { days:21,  title:"Consistent",       desc:"Badge + unlock advanced missions",                         icon:"🔥", color:"#f97316" },
-  { days:45,  title:"Serious Performer",desc:"Badge + minor premium feature unlock",                     icon:"💪", color:"#f59e0b" },
-  { days:50,  title:"🤖 AI Tool Access",desc:"Choose 1 AI tool — 1 WEEK FREE subscription",             icon:"⚡", color:"#6366f1", isSpecial:true },
-  { days:75,  title:"Top 10% Grinder",  desc:"Badge + profile highlight on leaderboard",                icon:"🏆", color:"#3b82f6" },
-  { days:100, title:"Elite Builder",    desc:"Badge + verified profile + 1-week AI subscription",       icon:"👑", color:"#ffd700" },
-  { days:150, title:"Legend Status",    desc:"Elite league + choose 1-month or 1-year AI subscription", icon:"💎", color:"#22c55e", isSpecial:true },
-];
-
-const AI_TOOLS = [
-  { id:"chatgpt",    name:"ChatGPT Plus",       icon:"🤖", company:"OpenAI",    color:"#10a37f", bg:"rgba(16,163,127,0.1)",  border:"rgba(16,163,127,0.3)",  desc:"GPT-4o, DALL-E 3, Advanced Data Analysis" },
-  { id:"claude",     name:"Claude Pro",          icon:"⚡", company:"Anthropic", color:"#6366f1", bg:"rgba(99,102,241,0.1)",  border:"rgba(99,102,241,0.3)",  desc:"Claude 3.5 Sonnet, extended context, priority access" },
-  { id:"gemini",     name:"Gemini Advanced",     icon:"✨", company:"Google",    color:"#4285f4", bg:"rgba(66,133,244,0.1)",  border:"rgba(66,133,244,0.3)",  desc:"Gemini 1.5 Pro, 1M token context, Google Workspace" },
-  { id:"perplexity", name:"Perplexity Pro",      icon:"🔍", company:"Perplexity",color:"#20b2aa", bg:"rgba(32,178,170,0.1)",  border:"rgba(32,178,170,0.3)",  desc:"Real-time web search + AI, Pro search, API access" },
-];
-
-function leagueColor(l:string){ return LEAGUES.find(x=>x.name===l)?.color||"#475569"; }
+type Scope = "batch"|"field"|"global"|"friends";
+type Period = "weekly"|"monthly"|"alltime";
 
 interface Player {
   user_id: string;
@@ -66,20 +53,398 @@ interface Player {
   is_current_user?: boolean;
   challenges_done?: number;
   total_correct?: number;
+  field_key?: string;
 }
 
-interface MyRank {
-  rank: number;
+interface MyRankData {
   score: number;
   streak: number;
+  longest_streak: number;
   league: string;
   badge?: string;
   xp_to_next_rank: number;
-  field_label: string;
+  xp_weekly: number;
+  xp_monthly: number;
+  xp_total: number;
+  challenges_done: number;
+  total_correct: number;
   field_key: string;
-  total_users_in_field: number;
+  field_label: string;
+  batch_key: string;
+  batch_label: string;
+  ranks: {
+    global?:  { rank?: number; total_users?: number; movement_label?: string; rank_change?: number };
+    field?:   { rank?: number; total_users?: number; movement_label?: string; rank_change?: number };
+    batch?:   { rank?: number; total_users?: number; movement_label?: string; rank_change?: number };
+    weekly?:  { rank?: number; total_users?: number; movement_label?: string };
+    friends?: { rank?: number; total_users?: number } | null;
+  };
 }
 
+interface PublicProfile {
+  user_id: string;
+  name: string;
+  avatar: string;
+  image?: string;
+  bio?: string;
+  score: number;
+  league: string;
+  streak: number;
+  longest_streak: number;
+  challenges_done: number;
+  weekly_wins: number;
+  post_count: number;
+  field_label: string;
+  batch_label: string;
+  institution_name?: string;
+  graduation_year?: string;
+  user_type?: string;
+  exam_type?: string;
+  global_rank?: number;
+  global_total?: number;
+  field_rank?: number;
+  batch_rank?: number;
+  arena?: { elo: number; level: number; wins: number; losses: number };
+  member_since?: string;
+  friendship_status: "none"|"pending_sent"|"pending_received"|"friends"|"self";
+  xp_total: number;
+  xp_weekly: number;
+  is_me: boolean;
+}
+
+function leagueColor(l: string): string {
+  return LEAGUES.find(x => x.name === l)?.color || "#475569";
+}
+function leagueBg(l: string): string {
+  return LEAGUES.find(x => x.name === l)?.bg || "rgba(71,85,105,0.15)";
+}
+
+function MovementBadge({ label }: { label?: string }) {
+  if (!label || label === "NEW") return <span style={{fontSize:"10px",color:"#22c55e",fontWeight:700,background:"rgba(34,197,94,0.15)",padding:"2px 6px",borderRadius:99}}>NEW</span>;
+  if (label.startsWith("↑")) return <span style={{fontSize:"11px",color:"#22c55e",fontWeight:700}}>{label}</span>;
+  if (label.startsWith("↓")) return <span style={{fontSize:"11px",color:"#ef4444",fontWeight:700}}>{label}</span>;
+  return <span style={{fontSize:"11px",color:"#64748b"}}>—</span>;
+}
+
+function PresenceDot({ status }: { status?: string }) {
+  const colors: Record<string, string> = {
+    online: "#22c55e", in_battle: "#f59e0b", offline: "#475569"
+  };
+  const labels: Record<string, string> = {
+    online: "Online", in_battle: "In Battle", offline: "Offline"
+  };
+  const s = status || "offline";
+  return (
+    <span style={{
+      display:"inline-flex",alignItems:"center",gap:4,
+      fontSize:10,color:colors[s]||"#475569",fontWeight:600,
+    }}>
+      <span style={{
+        width:7,height:7,borderRadius:"50%",
+        background:colors[s]||"#475569",
+        boxShadow: s === "online" ? `0 0 6px ${colors[s]}` : undefined,
+      }}/>
+      {labels[s]||"Offline"}
+    </span>
+  );
+}
+
+function RankBadge({ rank }: { rank: number }) {
+  if (rank === 1) return <span style={{fontSize:20}}>🥇</span>;
+  if (rank === 2) return <span style={{fontSize:20}}>🥈</span>;
+  if (rank === 3) return <span style={{fontSize:20}}>🥉</span>;
+  return <span style={{fontWeight:700,color:"#94a3b8",fontSize:15}}>#{rank}</span>;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Player Row
+// ─────────────────────────────────────────────────────────────────────────────
+function PlayerRow({
+  player, onClickProfile,
+}: { player: Player; onClickProfile: (id: string) => void }) {
+  const lc = leagueColor(player.league);
+  return (
+    <div
+      onClick={() => onClickProfile(player.user_id)}
+      style={{
+        display:"flex",alignItems:"center",gap:12,padding:"10px 16px",
+        borderRadius:12,cursor:"pointer",transition:"background 0.15s",
+        background: player.is_current_user ? "rgba(99,102,241,0.12)" : "transparent",
+        border: player.is_current_user ? "1px solid rgba(99,102,241,0.3)" : "1px solid transparent",
+      }}
+      onMouseEnter={e=>(e.currentTarget.style.background=player.is_current_user?"rgba(99,102,241,0.18)":"rgba(255,255,255,0.04)")}
+      onMouseLeave={e=>(e.currentTarget.style.background=player.is_current_user?"rgba(99,102,241,0.12)":"transparent")}
+    >
+      {/* Rank */}
+      <div style={{width:36,textAlign:"center",flexShrink:0}}>
+        <RankBadge rank={player.rank}/>
+      </div>
+
+      {/* Avatar */}
+      <div style={{
+        width:38,height:38,borderRadius:"50%",flexShrink:0,
+        background:leagueBg(player.league),
+        border:`2px solid ${lc}`,
+        display:"flex",alignItems:"center",justifyContent:"center",
+        overflow:"hidden",
+      }}>
+        {player.image
+          ? <img src={player.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+          : <span style={{fontSize:13,fontWeight:700,color:lc}}>{player.avatar}</span>
+        }
+      </div>
+
+      {/* Name + badge */}
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+          <span style={{fontWeight:600,color:"#f1f5f9",fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            {player.name}
+          </span>
+          {player.is_current_user && (
+            <span style={{fontSize:10,color:"#6366f1",background:"rgba(99,102,241,0.2)",padding:"1px 6px",borderRadius:99,fontWeight:700}}>YOU</span>
+          )}
+          {player.badge && (
+            <span style={{fontSize:10,color:lc,background:leagueBg(player.league),padding:"1px 6px",borderRadius:99}}>{player.badge}</span>
+          )}
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginTop:2}}>
+          {player.streak > 0 && (
+            <span style={{fontSize:11,color:"#f97316",display:"flex",alignItems:"center",gap:3}}>
+              <Flame size={11}/>{player.streak}d
+            </span>
+          )}
+          {(player.challenges_done ?? 0) > 0 && (
+            <span style={{fontSize:11,color:"#94a3b8"}}>
+              🏆 {player.challenges_done}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Score */}
+      <div style={{textAlign:"right",flexShrink:0}}>
+        <div style={{fontWeight:700,color:lc,fontSize:16}}>{player.score.toLocaleString()}</div>
+        <div style={{fontSize:10,color:"#64748b"}}>{player.league}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Public Profile Modal
+// ─────────────────────────────────────────────────────────────────────────────
+function ProfileModal({
+  profile, onClose, onFriendAction,
+}: {
+  profile: PublicProfile;
+  onClose: () => void;
+  onFriendAction: (userId: string, action: "send"|"cancel") => void;
+}) {
+  const lc = leagueColor(profile.league);
+  const memberYear = profile.member_since
+    ? new Date(profile.member_since).getFullYear()
+    : null;
+
+  return (
+    <div style={{
+      position:"fixed",inset:0,zIndex:9999,
+      background:"rgba(0,0,0,0.75)",backdropFilter:"blur(8px)",
+      display:"flex",alignItems:"center",justifyContent:"center",padding:16,
+    }} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={{
+        background:"linear-gradient(160deg,#0f172a,#1e293b)",
+        border:`1px solid ${lc}40`,
+        borderRadius:20,maxWidth:480,width:"100%",
+        maxHeight:"90vh",overflowY:"auto",
+        boxShadow:`0 0 60px ${lc}20`,
+        animation:"fadeInScale 0.2s ease",
+      }}>
+        {/* Header */}
+        <div style={{
+          background:`linear-gradient(135deg,${lc}15,transparent)`,
+          borderBottom:`1px solid ${lc}20`,
+          padding:"24px 24px 16px",
+          display:"flex",alignItems:"flex-start",gap:16,
+        }}>
+          <div style={{
+            width:70,height:70,borderRadius:"50%",
+            background:leagueBg(profile.league),
+            border:`3px solid ${lc}`,
+            display:"flex",alignItems:"center",justifyContent:"center",
+            flexShrink:0,overflow:"hidden",position:"relative",
+          }}>
+            {profile.image
+              ? <img src={profile.image} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+              : <span style={{fontSize:24,fontWeight:800,color:lc}}>{profile.avatar}</span>
+            }
+            <div style={{
+              position:"absolute",bottom:0,right:0,
+              background:lc,borderRadius:"50%",width:20,height:20,
+              display:"flex",alignItems:"center",justifyContent:"center",
+            }}>
+              <Shield size={11} color="#000"/>
+            </div>
+          </div>
+          <div style={{flex:1,minWidth:0}}>
+            <h2 style={{margin:0,fontWeight:800,color:"#f1f5f9",fontSize:20}}>{profile.name}</h2>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:6}}>
+              <span style={{fontSize:12,color:lc,background:leagueBg(profile.league),padding:"2px 8px",borderRadius:99,fontWeight:700}}>
+                {profile.league} League
+              </span>
+              {profile.user_type && (
+                <span style={{fontSize:12,color:"#94a3b8",background:"rgba(148,163,184,0.1)",padding:"2px 8px",borderRadius:99}}>
+                  {profile.field_label}
+                </span>
+              )}
+            </div>
+            {profile.bio && (
+              <p style={{margin:"8px 0 0",fontSize:13,color:"#94a3b8",lineHeight:1.5}}>{profile.bio}</p>
+            )}
+          </div>
+          <button onClick={onClose} style={{background:"rgba(255,255,255,0.08)",border:"none",cursor:"pointer",color:"#94a3b8",borderRadius:8,padding:"4px 8px",fontSize:18}}>×</button>
+        </div>
+
+        <div style={{padding:"16px 24px"}}>
+          {/* Institution + Year */}
+          {(profile.institution_name || profile.graduation_year) && (
+            <div style={{
+              background:"rgba(99,102,241,0.08)",border:"1px solid rgba(99,102,241,0.2)",
+              borderRadius:10,padding:"10px 14px",marginBottom:16,
+              display:"flex",alignItems:"center",gap:8,
+            }}>
+              <span style={{fontSize:16}}>🏫</span>
+              <div>
+                {profile.institution_name && <div style={{color:"#f1f5f9",fontSize:13,fontWeight:600}}>{profile.institution_name}</div>}
+                {profile.graduation_year && <div style={{color:"#94a3b8",fontSize:12}}>Class of {profile.graduation_year}</div>}
+              </div>
+            </div>
+          )}
+
+          {/* Stats grid */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}>
+            {[
+              { label:"Score", value: profile.score.toLocaleString(), color: lc, icon:"⚡" },
+              { label:"Streak", value: `${profile.streak}d 🔥`, color:"#f97316", icon:"🔥" },
+              { label:"Best Streak", value: `${profile.longest_streak}d`, color:"#f59e0b", icon:"🏅" },
+              { label:"Challenges", value: profile.challenges_done, color:"#a855f7", icon:"🏆" },
+              { label:"Weekly Wins", value: profile.weekly_wins, color:"#ffd700", icon:"👑" },
+              { label:"XP Total", value: profile.xp_total?.toLocaleString() || "0", color:"#22c55e", icon:"💠" },
+            ].map(s => (
+              <div key={s.label} style={{
+                background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",
+                borderRadius:10,padding:"10px 12px",textAlign:"center",
+              }}>
+                <div style={{fontSize:18}}>{s.icon}</div>
+                <div style={{fontSize:16,fontWeight:800,color:s.color,marginTop:2}}>{s.value}</div>
+                <div style={{fontSize:11,color:"#64748b",marginTop:2}}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Ranks */}
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:12,color:"#64748b",fontWeight:700,marginBottom:8,letterSpacing:1}}>RANKINGS</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {[
+                { label:"Global",    rank: profile.global_rank,  total: profile.global_total,  icon:<Globe2 size={14}/> },
+                { label:"My Field",  rank: profile.field_rank,   total: undefined,              icon:<BarChart2 size={14}/> },
+                { label:"My Batch",  rank: profile.batch_rank,   total: undefined,              icon:<Users size={14}/> },
+              ].map(r => r.rank ? (
+                <div key={r.label} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"rgba(255,255,255,0.03)",borderRadius:8}}>
+                  <span style={{display:"flex",alignItems:"center",gap:6,color:"#94a3b8",fontSize:13}}>{r.icon}{r.label}</span>
+                  <span style={{fontWeight:700,color:"#f1f5f9",fontSize:14}}>
+                    #{r.rank} {r.total ? <span style={{color:"#64748b",fontWeight:400,fontSize:12}}>/ {r.total.toLocaleString()}</span> : ""}
+                  </span>
+                </div>
+              ) : null)}
+            </div>
+          </div>
+
+          {/* Arena stats */}
+          {profile.arena && profile.arena.elo > 0 && (
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:12,color:"#64748b",fontWeight:700,marginBottom:8,letterSpacing:1}}>ARENA</div>
+              <div style={{display:"flex",gap:10}}>
+                {[
+                  { label:"ELO", value:profile.arena.elo, color:"#6366f1" },
+                  { label:"Level", value:profile.arena.level, color:"#22c55e" },
+                  { label:"Wins", value:profile.arena.wins, color:"#ffd700" },
+                  { label:"Losses", value:profile.arena.losses, color:"#ef4444" },
+                ].map(s => (
+                  <div key={s.label} style={{flex:1,textAlign:"center",background:"rgba(255,255,255,0.04)",borderRadius:8,padding:"8px 4px"}}>
+                    <div style={{fontSize:15,fontWeight:800,color:s.color}}>{s.value}</div>
+                    <div style={{fontSize:11,color:"#64748b"}}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Member since */}
+          {memberYear && (
+            <div style={{fontSize:12,color:"#475569",textAlign:"center",marginBottom:12}}>
+              Member since {memberYear}
+            </div>
+          )}
+
+          {/* Batch */}
+          <div style={{fontSize:12,color:"#64748b",textAlign:"center",marginBottom:16}}>
+            {profile.batch_label}
+          </div>
+
+          {/* Friend action */}
+          {!profile.is_me && (
+            <div style={{display:"flex",gap:10}}>
+              {profile.friendship_status === "none" && (
+                <button
+                  onClick={() => onFriendAction(profile.user_id, "send")}
+                  style={{
+                    flex:1,background:"linear-gradient(135deg,#6366f1,#a855f7)",
+                    border:"none",borderRadius:10,padding:"11px 0",color:"#fff",
+                    fontWeight:700,fontSize:14,cursor:"pointer",
+                    display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+                    transition:"transform 0.15s,box-shadow 0.15s",
+                  }}
+                  onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.02)";e.currentTarget.style.boxShadow="0 4px 20px rgba(99,102,241,0.4)"}}
+                  onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";e.currentTarget.style.boxShadow="none"}}
+                >
+                  <UserPlus size={16}/> Add Friend
+                </button>
+              )}
+              {profile.friendship_status === "pending_sent" && (
+                <div style={{flex:1,textAlign:"center",padding:"11px 0",color:"#94a3b8",fontSize:14,fontWeight:600,background:"rgba(148,163,184,0.08)",borderRadius:10}}>
+                  ⏳ Request Sent
+                </div>
+              )}
+              {profile.friendship_status === "pending_received" && (
+                <button
+                  onClick={() => onFriendAction(profile.user_id, "send")}
+                  style={{
+                    flex:1,background:"linear-gradient(135deg,#22c55e,#16a34a)",
+                    border:"none",borderRadius:10,padding:"11px 0",color:"#fff",
+                    fontWeight:700,fontSize:14,cursor:"pointer",
+                    display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+                  }}
+                >
+                  <UserCheck size={16}/> Accept Request
+                </button>
+              )}
+              {profile.friendship_status === "friends" && (
+                <div style={{flex:1,textAlign:"center",padding:"11px 0",color:"#22c55e",fontSize:14,fontWeight:700,background:"rgba(34,197,94,0.1)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                  <UserCheck size={16}/> Friends
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Page
+// ─────────────────────────────────────────────────────────────────────────────
 export default function LeaderboardPage() {
   const { user, logout } = useAuth();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -87,621 +452,441 @@ export default function LeaderboardPage() {
 
   const rawName = (user as any)?.full_name || (user as any)?.name || "";
   const currentUser = mounted ? (rawName.includes("@") ? rawName.split("@")[0] : rawName) || "User" : "User";
-  const avatarInitials = mounted && currentUser && currentUser !== "User" ? currentUser.slice(0,2).toUpperCase() : "US";
+  const avatarInitials = mounted && currentUser !== "User" ? currentUser.slice(0,2).toUpperCase() : "US";
   const userAvatarUrl = (user as any)?.avatar_url || (user as any)?.image || null;
 
-  const [loaded, setLoaded]               = useState(false);
-  const [tab, setTab]                     = useState<"daily"|"weekly"|"monthly"|"alltime">("monthly");
-  const [players, setPlayers]             = useState<Player[]>([]);
-  const [myRank, setMyRank]               = useState<MyRank|null>(null);
-  const [fieldLabel, setFieldLabel]       = useState<string>("");
-  const [fieldKey, setFieldKey]           = useState<string>("");
-  const [isLoading, setIsLoading]         = useState(true);
-  const [lastRefresh, setLastRefresh]     = useState<Date|null>(null);
-  const [notifications, setNotifications] = useState<{id:number;msg:string}[]>([]);
-  const [xpPops, setXpPops]               = useState<{id:number;name:string;xp:number}[]>([]);
-  const [showRewardModal, setShowRewardModal] = useState(false);
-  const [selectedTool, setSelectedTool]   = useState<string|null>(null);
-  const [rewardClaimed, setRewardClaimed] = useState(false);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [fetchError, setFetchError]       = useState<string|null>(null);
-  const notifId = useRef(0);
-  const xpId    = useRef(0);
-  const sseRef  = useRef<EventSource|null>(null);
+  const [loaded, setLoaded]     = useState(false);
+  const [scope, setScope]       = useState<Scope>("batch");
+  const [period, setPeriod]     = useState<Period>("weekly");
+  const [players, setPlayers]   = useState<Player[]>([]);
+  const [around, setAround]     = useState<Player[]>([]);
+  const [myData, setMyData]     = useState<MyRankData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string|null>(null);
+  const [selectedProfile, setSelectedProfile] = useState<PublicProfile|null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [total, setTotal]       = useState(0);
+  const [scopeLabel, setScopeLabel] = useState("");
 
   useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { setTimeout(()=>setLoaded(true),80); }, []);
 
-  // ── Fetch leaderboard ──────────────────────────────────────────────────────
   const fetchLeaderboard = useCallback(async () => {
     const token = getToken();
     if (!token) return;
     setIsLoading(true);
     setFetchError(null);
     try {
-      const [lbRes, meRes] = await Promise.all([
-        fetch(`${API}/leaderboard/?period=${tab}`, { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(`${API}/leaderboard/me`, { headers: { Authorization: `Bearer ${token}` } }),
+      const [lbRes, meRes, aroundRes] = await Promise.all([
+        fetch(`${API}/leaderboard/v2/?scope=${scope}&period=${period}&limit=50`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API}/leaderboard/v2/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${API}/leaderboard/v2/around?scope=${scope}&period=${period}&radius=5`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
       ]);
 
       if (lbRes.ok) {
         const data = await lbRes.json();
         setPlayers(data.users || []);
-        setFieldLabel(data.field_label || "");
-        setFieldKey(data.field_key || "");
+        setTotal(data.total || 0);
+        setScopeLabel(data.scope_label || "");
       } else {
         setFetchError("Failed to load leaderboard");
       }
-
       if (meRes.ok) {
         const data = await meRes.json();
-        setMyRank(data);
+        setMyData(data);
       }
-      setLastRefresh(new Date());
-    } catch (e) {
+      if (aroundRes.ok) {
+        const data = await aroundRes.json();
+        setAround(data.users || []);
+      }
+    } catch {
       setFetchError("Could not connect to server");
     } finally {
       setIsLoading(false);
     }
-  }, [tab]);
+  }, [scope, period]);
 
   useEffect(() => {
     if (!mounted) return;
     fetchLeaderboard();
-    const interval = setInterval(fetchLeaderboard, 30000); // refresh every 30s
-    return () => clearInterval(interval);
+    const iv = setInterval(fetchLeaderboard, 30000);
+    return () => clearInterval(iv);
   }, [fetchLeaderboard, mounted]);
 
-  // ── SSE for live events ───────────────────────────────────────────────────
+  // Heartbeat
   useEffect(() => {
     if (!mounted) return;
     const token = getToken();
     if (!token) return;
+    const hb = () => fetch(`${API}/social/presence/heartbeat`, {
+      method:"POST", headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},
+      body: JSON.stringify({}),
+    }).catch(() => {});
+    hb();
+    const iv = setInterval(hb, 30000);
+    return () => clearInterval(iv);
+  }, [mounted]);
 
-    // Close any existing connection
-    if (sseRef.current) sseRef.current.close();
-
-    // SSE with token via URL param (EventSource doesn't support headers)
-    const url = `${API}/leaderboard/events/stream?token=${token}`;
-    // Fallback: poll events endpoint since SSE needs query param auth
-    // We use the REST poll approach with a dedicated interval
-    const pollEvents = async () => {
-      try {
-        const res = await fetch(`${API}/leaderboard/events/stream`, {
-          headers: { Authorization: `Bearer ${token}` },
-          signal: AbortSignal.timeout(5000),
-        });
-        // EventSource doesn't support auth headers, so we just trigger refreshes
-      } catch {}
-    };
-
-    // XP pops from live players
-    const xpInterval = setInterval(() => {
-      if (!players.length) return;
-      const p = players[Math.floor(Math.random() * Math.min(10, players.length))];
-      if (!p) return;
-      const xp = [10, 25, 50, 75][Math.floor(Math.random() * 4)];
-      const id = xpId.current++;
-      setXpPops(prev => [...prev, {id, name: p.name, xp}]);
-      setTimeout(() => setXpPops(prev => prev.filter(x => x.id !== id)), 2500);
-    }, 5000);
-
-    return () => {
-      clearInterval(xpInterval);
-      if (sseRef.current) sseRef.current.close();
-    };
-  }, [mounted, players]);
-
-  useEffect(() => { setTimeout(() => setLoaded(true), 80); }, []);
-
-  // Live notifications from SSE — polled every 8s
-  useEffect(() => {
-    if (!mounted) return;
+  const openProfile = useCallback(async (userId: string) => {
     const token = getToken();
-    if (!token || !fieldKey) return;
+    if (!token) return;
+    setProfileLoading(true);
+    try {
+      const res = await fetch(`${API}/leaderboard/profile/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedProfile(data);
+      }
+    } catch {}
+    setProfileLoading(false);
+  }, []);
 
-    const poll = async () => {
-      try {
-        // We poll a lightweight events endpoint
-        const res = await fetch(`${API}/leaderboard/events/stream`, {
-          headers: { Authorization: `Bearer ${token}` },
-          signal: AbortSignal.timeout(4000),
-        });
-      } catch {}
-    };
+  const handleFriendAction = useCallback(async (userId: string, action: "send"|"cancel") => {
+    const token = getToken();
+    if (!token) return;
+    await fetch(`${API}/social/friend-request`, {
+      method:"POST",
+      headers: { Authorization:`Bearer ${token}`, "Content-Type":"application/json" },
+      body: JSON.stringify({ addressee_id: userId }),
+    });
+    // Refresh profile
+    openProfile(userId);
+  }, [openProfile]);
 
-    // Simulate receiving live events from real players when they exist
-    if (players.length > 1) {
-      const interval = setInterval(() => {
-        const randomPlayer = players[Math.floor(Math.random() * Math.min(5, players.length))];
-        if (!randomPlayer || randomPlayer.is_current_user) return;
-        const actions = [
-          `⚡ ${randomPlayer.name.split(" ")[0]} earned +${[10,25,50][Math.floor(Math.random()*3)]} XP`,
-          `🔥 ${randomPlayer.name.split(" ")[0]} is on a ${randomPlayer.streak}d streak!`,
-          `🏆 ${randomPlayer.name.split(" ")[0]} completed a challenge`,
-          `📈 ${randomPlayer.name.split(" ")[0]} moved up in rankings`,
-        ];
-        const msg = actions[Math.floor(Math.random() * actions.length)];
-        const id = notifId.current++;
-        setNotifications(prev => [...prev.slice(-2), {id, msg}]);
-        setTimeout(() => setNotifications(prev => prev.filter(n => n.id !== id)), 4000);
-      }, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [mounted, players, fieldKey]);
+  const scopeOptions: { key: Scope; label: string; icon: React.ReactNode }[] = [
+    { key:"batch",   label:"My Batch",   icon:<Users size={14}/> },
+    { key:"field",   label:"My Field",   icon:<BarChart2 size={14}/> },
+    { key:"global",  label:"Global",     icon:<Globe2 size={14}/> },
+    { key:"friends", label:"Friends",    icon:<UserCheck size={14}/> },
+  ];
+  const periodOptions: { key: Period; label: string }[] = [
+    { key:"weekly",   label:"This Week"  },
+    { key:"monthly",  label:"This Month" },
+    { key:"alltime",  label:"All Time"   },
+  ];
 
-  const top3 = players.slice(0,3);
-  const rest  = players.slice(3);
-  const currentPlayerData = players.find(p => p.is_current_user);
+  const myBatchRank = myData?.ranks?.batch;
+  const myWeekRank  = myData?.ranks?.weekly;
+  const league      = myData?.league || "Bronze";
+  const lc          = leagueColor(league);
+
+  const skeleton = (
+    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+      {Array.from({length:10}).map((_,i) => (
+        <div key={i} style={{
+          height:60,borderRadius:12,
+          background:"linear-gradient(90deg,rgba(255,255,255,0.04) 25%,rgba(255,255,255,0.08) 50%,rgba(255,255,255,0.04) 75%)",
+          backgroundSize:"200% 100%",
+          animation:"shimmer 1.5s infinite",
+        }}/>
+      ))}
+    </div>
+  );
 
   return (
-    <div style={s.root}>
-      <div style={s.bg}/><div style={s.bgGrid}/><div style={s.glow1}/><div style={s.glow2}/>
+    <div style={{
+      minHeight:"100vh",background:"#020817",color:"#f1f5f9",
+      fontFamily:"'Inter',sans-serif",
+      opacity:loaded?1:0,transition:"opacity 0.4s ease",
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        ::-webkit-scrollbar{width:4px;height:4px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:#334155;border-radius:4px}
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        @keyframes fadeInScale { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
+        @keyframes slideUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+      `}</style>
 
-      {/* XP Pops */}
-      <div style={s.xpPopsWrap}>
-        {xpPops.map(p=>(
-          <div key={p.id} style={s.xpPop}>
-            <span style={{color:"#ffd700",fontWeight:800}}>+{p.xp} XP</span>
-            <span style={{color:"#64748b",fontSize:"0.72rem"}}> {p.name.split(" ")[0]}</span>
-          </div>
-        ))}
-      </div>
+      {isProfileModalOpen && (
+        <ProfileSettingsModal onClose={() => setIsProfileModalOpen(false)} />
+      )}
 
-      {/* Live Notifications */}
-      <div style={s.notifWrap}>
-        {notifications.map(n=>(
-          <div key={n.id} style={s.notif}>{n.msg}</div>
-        ))}
-      </div>
+      {selectedProfile && (
+        <ProfileModal
+          profile={selectedProfile}
+          onClose={() => setSelectedProfile(null)}
+          onFriendAction={handleFriendAction}
+        />
+      )}
 
-      {/* ── Reward Modal ── */}
-      {showRewardModal && (
-        <div style={s.overlay} onClick={()=>!rewardClaimed&&setShowRewardModal(false)}>
-          <div style={s.modal} onClick={e=>e.stopPropagation()}>
-            {!rewardClaimed && <button style={s.modalClose} onClick={()=>setShowRewardModal(false)}><X size={16}/></button>}
-            {!rewardClaimed ? (
-              <>
-                <div style={s.modalHead}>
-                  <div style={{fontSize:"2.5rem",marginBottom:"8px"}}>🎁</div>
-                  <div style={s.modalTitle}>Choose Your AI Power Tool</div>
-                  <div style={s.modalSub}>50-day streak unlocked • 1 Week FREE Access</div>
-                  <div style={s.modalSubSmall}>Select the AI tool you want. Activation link sent to your email within 24 hours.</div>
-                </div>
-                <div style={s.toolsGrid}>
-                  {AI_TOOLS.map(tool=>(
-                    <div key={tool.id} onClick={()=>setSelectedTool(tool.id)}
-                      style={{...s.toolCard, background:selectedTool===tool.id?tool.bg:"rgba(255,255,255,0.02)", border:`1.5px solid ${selectedTool===tool.id?tool.border:"rgba(255,255,255,0.07)"}`, transform:selectedTool===tool.id?"scale(1.02)":"scale(1)"}}>
-                      {selectedTool===tool.id && (
-                        <div style={{...s.toolSelected,background:tool.color}}><Check size={11}/></div>
-                      )}
-                      <div style={{fontSize:"2rem",marginBottom:"6px"}}>{tool.icon}</div>
-                      <div style={{fontSize:"0.85rem",fontWeight:700,color:"white",marginBottom:"2px"}}>{tool.name}</div>
-                      <div style={{fontSize:"0.65rem",color:tool.color,fontWeight:600,marginBottom:"6px"}}>{tool.company}</div>
-                      <div style={{fontSize:"0.7rem",color:"#64748b",lineHeight:1.5,textAlign:"center" as const}}>{tool.desc}</div>
-                      <div style={{marginTop:"8px",padding:"3px 10px",borderRadius:"20px",background:`${tool.color}20`,border:`1px solid ${tool.border}`,fontSize:"0.62rem",fontWeight:700,color:tool.color}}>
-                        1 WEEK FREE
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <button style={{...s.claimBtn,opacity:selectedTool?1:0.4}} disabled={!selectedTool} onClick={()=>setRewardClaimed(true)}>
-                  Claim {selectedTool ? AI_TOOLS.find(t=>t.id===selectedTool)?.name : "your"} — 1 Week Free →
-                </button>
-              </>
-            ) : (
-              <div style={s.claimedWrap}>
-                <div style={{fontSize:"3.5rem"}}>🎉</div>
-                <div style={s.modalTitle}>Reward Claimed!</div>
-                <div style={{fontSize:"0.88rem",color:"#64748b",marginTop:"6px"}}>
-                  <strong style={{color:"white"}}>{AI_TOOLS.find(t=>t.id===selectedTool)?.name}</strong> — 1 Week Access
-                </div>
-                <div style={{fontSize:"0.78rem",color:"#475569",marginTop:"8px",lineHeight:1.7,textAlign:"center" as const,maxWidth:"340px"}}>
-                  Activation instructions have been sent to your registered email. You'll receive access within 24 hours.
-                </div>
-                <button style={s.claimBtn} onClick={()=>{setShowRewardModal(false);setRewardClaimed(false);setSelectedTool(null);}}>Close</button>
-              </div>
-            )}
-          </div>
+      {profileLoading && (
+        <div style={{position:"fixed",inset:0,zIndex:9998,background:"rgba(0,0,0,0.5)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{color:"#6366f1",fontSize:14,fontWeight:600,animation:"pulse 1s infinite"}}>Loading profile…</div>
         </div>
       )}
 
-      {/* ── Upgrade Modal ── */}
-      {showUpgradeModal && (
-        <div style={s.overlay} onClick={()=>setShowUpgradeModal(false)}>
-          <div style={{...s.modal,maxWidth:"440px"}} onClick={e=>e.stopPropagation()}>
-            <button style={s.modalClose} onClick={()=>setShowUpgradeModal(false)}><X size={16}/></button>
-            <div style={s.modalHead}>
-              <div style={{fontSize:"2rem",marginBottom:"8px"}}>👑</div>
-              <div style={s.modalTitle}>Upgrade to Premium</div>
-              <div style={s.modalSub}>Unlock double XP, Elite Leaderboard & higher reward tiers</div>
-            </div>
-            <div style={{display:"flex",flexDirection:"column",gap:"8px",marginBottom:"20px"}}>
-              {[
-                {icon:"⚡",label:"Double XP on all activities",sub:"Progress 2x faster"},
-                {icon:"🏆",label:"Elite Leaderboard access",sub:"Compete in top-tier rankings"},
-                {icon:"🎁",label:"Higher AI reward eligibility",sub:"1-month instead of 1-week"},
-                {icon:"🤖",label:"Priority AI Mentor access",sub:"Faster, smarter guidance"},
-                {icon:"🔓",label:"Advanced missions unlocked",sub:"Higher XP tasks"},
-                {icon:"🎯",label:"Exclusive challenges",sub:"Premium-only competitions"},
-              ].map((f,i)=>(
-                <div key={i} style={s.upgradeFeature}>
-                  <span style={{fontSize:"1.1rem"}}>{f.icon}</span>
-                  <div>
-                    <div style={{fontSize:"0.82rem",fontWeight:600,color:"white"}}>{f.label}</div>
-                    <div style={{fontSize:"0.68rem",color:"#475569"}}>{f.sub}</div>
-                  </div>
-                  <Check size={14} style={{color:"#22c55e",marginLeft:"auto",flexShrink:0}}/>
-                </div>
-              ))}
-            </div>
-            <button style={s.claimBtn}>Upgrade Now — ₹499/month</button>
-            <div style={{fontSize:"0.68rem",color:"#334155",textAlign:"center" as const,marginTop:"10px"}}>Cancel anytime · 7-day money back guarantee</div>
+      <div style={{display:"flex",minHeight:"100vh"}}>
+        {/* Sidebar */}
+        <aside style={{
+          width:220,flexShrink:0,borderRight:"1px solid rgba(255,255,255,0.06)",
+          background:"rgba(2,8,23,0.95)",backdropFilter:"blur(20px)",
+          display:"flex",flexDirection:"column",
+          position:"sticky",top:0,height:"100vh",
+        }}>
+          <div style={{padding:"20px 16px 0"}}>
+            <BrandLogo/>
           </div>
-        </div>
-      )}
-
-      {/* ── Sidebar ── */}
-      <aside style={s.sidebar}>
-        <div style={{ padding: "0 4px 24px" }}>
-          <BrandLogo size="md" />
-        </div>
-        <nav style={s.nav}>
-          {NAV.map(item=>(
-            <Link key={item.label} href={item.href} style={{textDecoration:"none"}}>
-              <button style={{...s.navItem,...(item.active?s.navItemActive:{})}}>
-                <span style={{opacity:item.active?1:0.5}}>{item.icon}</span>
-                <span style={{opacity:item.active?1:0.6,fontSize:"0.85rem",fontWeight:item.active?600:400,color:item.active?"white":"#94a3b8"}}>{item.label}</span>
-                {item.active&&<div style={s.navActiveDot}/>}
-              </button>
-            </Link>
-          ))}
-        </nav>
-        <div style={s.sidebarFooter}>
-          <div style={{ ...s.sidebarUser, cursor: "pointer" }} onClick={() => setIsProfileModalOpen(true)}>
-            {userAvatarUrl ? (
-              <img src={userAvatarUrl} alt={currentUser} style={{ width:32,height:32,borderRadius:"50%",objectFit:"cover" }} />
-            ) : (
-              <div style={s.avatarSmall}>{avatarInitials}</div>
-            )}
-            <div>
-              <div style={{fontSize:"0.82rem",fontWeight:600,color:"#e2e8f0"}}>{currentUser}</div>
-              <div style={{fontSize:"0.7rem",color:"#818cf8",fontWeight:600}}>{user?.plan || "MEMBER PLAN"}</div>
-            </div>
-          </div>
-          <button style={s.logoutBtn} onClick={() => logout && logout()} title="Log Out"><LogOut size={15}/></button>
-        </div>
-      </aside>
-
-      {/* ── Main ── */}
-      <main style={{...s.main,opacity:loaded?1:0,transform:loaded?"none":"translateY(12px)",transition:"all 0.5s ease"}}>
-
-        {/* Topbar */}
-        <div style={s.topbar}>
-          <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
-            <Link href="/dashboard" style={{textDecoration:"none"}}>
-              <button style={s.backBtn}><ChevronLeft size={16}/> Dashboard</button>
-            </Link>
-            <div style={s.pageTitle}>🏆 Leaderboard</div>
-            <div style={s.livePill}><div style={s.liveDot}/>Live</div>
-          </div>
-          <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
-            <button style={s.iconBtn} onClick={fetchLeaderboard} title="Refresh rankings">
-              <RefreshCw size={17} style={{animation:isLoading?"spin 1s linear infinite":"none"}}/>
-            </button>
-            <button style={s.iconBtn}><Bell size={18}/></button>
-            <div style={{ ...s.avatarMed, cursor: "pointer", overflow: "hidden" }} onClick={() => setIsProfileModalOpen(true)}>
-              {userAvatarUrl ? (
-                <img src={userAvatarUrl} alt={currentUser} style={{ width:36,height:36,borderRadius:"50%",objectFit:"cover" }} />
-              ) : avatarInitials}
-            </div>
-          </div>
-        </div>
-
-        <ProfileSettingsModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
-
-        {/* Field Header */}
-        {myRank && (
-          <div style={s.domainHeader}>
-            <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
-              <div style={{fontSize:"1.4rem"}}>🏆</div>
-              <div>
-                <div style={{fontSize:"0.95rem",fontWeight:700,color:"white"}}>{myRank.field_label} Leaderboard</div>
-                <div style={{fontSize:"0.72rem",color:"#475569"}}>
-                  Your personalized field · {myRank.total_users_in_field} competitors
-                  {lastRefresh && <span> · Updated {lastRefresh.toLocaleTimeString()}</span>}
-                </div>
-              </div>
-            </div>
-            <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
-              <div style={s.livePill}><div style={s.liveDot}/>Active</div>
-              <div style={{...s.rankPill}}>
-                Rank #{myRank.rank} · {myRank.league}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Error state */}
-        {fetchError && (
-          <div style={{padding:"16px 20px",background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:"12px",color:"#ef4444",fontSize:"0.85rem",marginBottom:"16px"}}>
-            ⚠️ {fetchError}
-            <button onClick={fetchLeaderboard} style={{marginLeft:"12px",color:"#6366f1",background:"none",border:"none",cursor:"pointer",fontSize:"0.82rem",textDecoration:"underline"}}>Retry</button>
-          </div>
-        )}
-
-        {/* Loading skeleton */}
-        {isLoading && !players.length && (
-          <div style={{display:"flex",flexDirection:"column",gap:"8px",padding:"20px 0"}}>
-            {[...Array(8)].map((_,i)=>(
-              <div key={i} style={{height:"60px",borderRadius:"12px",background:"rgba(255,255,255,0.03)",animation:"pulse 1.5s ease-in-out infinite",animationDelay:`${i*0.1}s`}}/>
+          <nav style={{flex:1,padding:"16px 8px",display:"flex",flexDirection:"column",gap:4}}>
+            {NAV.map(item => (
+              <Link key={item.href} href={item.href} style={{
+                display:"flex",alignItems:"center",gap:10,padding:"9px 12px",
+                borderRadius:10,color:item.active?"#f1f5f9":"#64748b",
+                background:item.active?"rgba(99,102,241,0.15)":"transparent",
+                textDecoration:"none",fontSize:14,fontWeight:item.active?600:400,
+                transition:"all 0.15s",
+              }}>
+                {item.icon}{item.label}
+              </Link>
             ))}
-          </div>
-        )}
-
-        <div style={s.layout}>
-          {/* ── Left col ── */}
-          <div style={s.leftCol}>
-
-            {/* Time tabs */}
-            <div style={s.timeTabs}>
-              {(["daily","weekly","monthly","alltime"] as const).map(t=>(
-                <button key={t} onClick={()=>setTab(t)}
-                  style={{...s.timeTab,...(tab===t?s.timeTabActive:{})}}>
-                  {t==="alltime"?"All-Time":t.charAt(0).toUpperCase()+t.slice(1)}
-                  {t==="monthly"&&<span style={s.mainBadge}>MAIN REWARDS</span>}
-                </button>
-              ))}
-            </div>
-
-            {/* Podium */}
-            {top3.length >= 3 && (
-              <div style={s.podiumWrap}>
-                {/* 2nd */}
-                <div style={s.podiumSilverCard}>
-                  <div style={{...s.podiumGlow,background:"rgba(192,192,192,0.12)"}}/>
-                  <div style={s.podiumRankTag}><Crown size={13} style={{color:"#c0c0c0"}}/><span style={{color:"#c0c0c0",fontWeight:800}}>2</span></div>
-                  {top3[1].image ? (
-                    <img src={top3[1].image} alt={top3[1].name} style={{width:"48px",height:"48px",borderRadius:"50%",border:"2.5px solid #c0c0c0",objectFit:"cover"}}/>
-                  ) : (
-                    <div style={{...s.podiumAv,border:"2.5px solid #c0c0c0"}}>{top3[1].avatar}</div>
-                  )}
-                  <div style={s.podiumName}>{top3[1].name}</div>
-                  <div style={{...s.podiumScore,color:"#c0c0c0"}}>{top3[1].score.toLocaleString()}</div>
-                  <div style={s.podiumStreak}><Flame size={10} style={{color:"#f97316"}}/>{top3[1].streak}d</div>
-                  <div style={{fontSize:"0.62rem",color:leagueColor(top3[1].league),fontWeight:700}}>{top3[1].league}</div>
-                </div>
-
-                {/* 1st */}
-                <div style={s.podiumGoldCard}>
-                  <div style={{position:"absolute",top:"-18px",fontSize:"1.8rem",textAlign:"center" as const}}>👑</div>
-                  <div style={{...s.podiumGlow,background:"rgba(255,215,0,0.18)",width:"150px",height:"150px",top:"-24px"}}/>
-                  <div style={s.podiumRankTag}><Crown size={13} style={{color:"#ffd700"}}/><span style={{color:"#ffd700",fontWeight:800}}>1</span></div>
-                  {top3[0].image ? (
-                    <img src={top3[0].image} alt={top3[0].name} style={{width:"68px",height:"68px",borderRadius:"50%",border:"3px solid #ffd700",objectFit:"cover"}}/>
-                  ) : (
-                    <div style={{...s.podiumAv,width:"68px",height:"68px",fontSize:"1.1rem",border:"3px solid #ffd700"}}>{top3[0].avatar}</div>
-                  )}
-                  <div style={{...s.podiumName,fontSize:"0.95rem"}}>{top3[0].name}</div>
-                  <div style={{...s.podiumScore,color:"#ffd700",fontSize:"1.15rem"}}>{top3[0].score.toLocaleString()}</div>
-                  <div style={s.podiumStreak}><Flame size={10} style={{color:"#f97316"}}/>{top3[0].streak}d streak</div>
-                  <div style={{fontSize:"0.65rem",color:leagueColor(top3[0].league),fontWeight:700}}>{top3[0].league}</div>
-                  {top3[0].badge&&<div style={{fontSize:"0.62rem",color:"#ffd700",background:"rgba(255,215,0,0.1)",padding:"2px 8px",borderRadius:"8px",border:"1px solid rgba(255,215,0,0.3)",marginTop:"2px"}}>{top3[0].badge}</div>}
-                </div>
-
-                {/* 3rd */}
-                <div style={s.podiumBronzeCard}>
-                  <div style={{...s.podiumGlow,background:"rgba(205,127,50,0.12)"}}/>
-                  <div style={s.podiumRankTag}><Crown size={13} style={{color:"#cd7f32"}}/><span style={{color:"#cd7f32",fontWeight:800}}>3</span></div>
-                  {top3[2].image ? (
-                    <img src={top3[2].image} alt={top3[2].name} style={{width:"48px",height:"48px",borderRadius:"50%",border:"2.5px solid #cd7f32",objectFit:"cover"}}/>
-                  ) : (
-                    <div style={{...s.podiumAv,border:"2.5px solid #cd7f32"}}>{top3[2].avatar}</div>
-                  )}
-                  <div style={s.podiumName}>{top3[2].name}</div>
-                  <div style={{...s.podiumScore,color:"#cd7f32"}}>{top3[2].score.toLocaleString()}</div>
-                  <div style={s.podiumStreak}><Flame size={10} style={{color:"#f97316"}}/>{top3[2].streak}d</div>
-                  <div style={{fontSize:"0.62rem",color:leagueColor(top3[2].league),fontWeight:700}}>{top3[2].league}</div>
-                </div>
+          </nav>
+          <div style={{padding:"12px 8px 20px",borderTop:"1px solid rgba(255,255,255,0.06)"}}>
+            <button
+              onClick={() => setIsProfileModalOpen(true)}
+              style={{
+                display:"flex",alignItems:"center",gap:10,padding:"9px 12px",
+                borderRadius:10,background:"transparent",border:"none",
+                cursor:"pointer",width:"100%",
+              }}
+            >
+              <div style={{
+                width:30,height:30,borderRadius:"50%",overflow:"hidden",
+                background:"linear-gradient(135deg,#6366f1,#a855f7)",
+                display:"flex",alignItems:"center",justifyContent:"center",
+              }}>
+                {userAvatarUrl
+                  ? <img src={userAvatarUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                  : <span style={{fontSize:11,fontWeight:700,color:"#fff"}}>{avatarInitials}</span>
+                }
               </div>
-            )}
-
-            {/* Rankings list */}
-            <div style={s.rankList}>
-              {rest.map((p, idx) => {
-                const isCurrent = p.is_current_user;
-                return (
-                  <div key={p.user_id} style={{
-                    ...s.rankRow,
-                    ...(isCurrent ? s.rankRowCurrent : {}),
-                  }}>
-                    <div style={s.rankNum}>
-                      {idx+4 <= 5 ? <span style={{color:"#ffd700",fontWeight:800}}>#{idx+4}</span>
-                      : idx+4 <= 10 ? <span style={{color:"#6366f1",fontWeight:700}}>#{idx+4}</span>
-                      : <span style={{color:"#475569"}}>#{idx+4}</span>}
-                    </div>
-
-                    {p.image ? (
-                      <img src={p.image} alt={p.name} style={{width:"34px",height:"34px",borderRadius:"50%",objectFit:"cover",border:`1.5px solid ${leagueColor(p.league)}40`}}/>
-                    ) : (
-                      <div style={{...s.miniAv,borderColor:`${leagueColor(p.league)}50`}}>{p.avatar}</div>
-                    )}
-
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:"0.85rem",fontWeight:isCurrent?700:500,color:isCurrent?"#818cf8":"#e2e8f0",display:"flex",alignItems:"center",gap:"6px"}}>
-                        {p.name}
-                        {isCurrent&&<span style={{fontSize:"0.6rem",background:"rgba(129,140,248,0.2)",color:"#818cf8",padding:"1px 5px",borderRadius:"4px",fontWeight:700}}>YOU</span>}
-                        {p.badge&&<span style={{fontSize:"0.6rem",background:"rgba(255,215,0,0.1)",color:"#ffd700",padding:"1px 5px",borderRadius:"4px",fontWeight:700}}>{p.badge}</span>}
-                      </div>
-                      <div style={{fontSize:"0.68rem",color:"#475569",display:"flex",gap:"8px"}}>
-                        <span style={{color:leagueColor(p.league)}}>{p.league}</span>
-                        {p.challenges_done ? <span>⚔️ {p.challenges_done} challenges</span> : null}
-                      </div>
-                    </div>
-
-                    <div style={{textAlign:"right" as const}}>
-                      <div style={{fontSize:"0.85rem",fontWeight:700,color:isCurrent?"#818cf8":"#e2e8f0"}}>{p.score.toLocaleString()}</div>
-                      <div style={{fontSize:"0.68rem",color:"#475569",display:"flex",alignItems:"center",gap:"3px",justifyContent:"flex-end"}}>
-                        <Flame size={10} style={{color:"#f97316"}}/>{p.streak}d
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {!isLoading && players.length === 0 && (
-                <div style={{padding:"48px 24px",textAlign:"center" as const,color:"#475569"}}>
-                  <div style={{fontSize:"2rem",marginBottom:"8px"}}>🌱</div>
-                  <div style={{fontSize:"0.9rem",fontWeight:600,color:"#64748b"}}>You're the first in your field!</div>
-                  <div style={{fontSize:"0.78rem",marginTop:"4px"}}>Complete practice sessions to appear on the leaderboard.</div>
-                </div>
-              )}
-            </div>
+              <span style={{fontSize:13,color:"#94a3b8",flex:1,textAlign:"left",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{currentUser}</span>
+            </button>
+            <button
+              onClick={logout}
+              style={{
+                display:"flex",alignItems:"center",gap:10,padding:"9px 12px",
+                borderRadius:10,background:"transparent",border:"none",
+                cursor:"pointer",width:"100%",color:"#64748b",fontSize:13,
+              }}
+            >
+              <LogOut size={16}/> Sign out
+            </button>
           </div>
+        </aside>
 
-          {/* ── Right col ── */}
-          <div style={s.rightCol}>
+        {/* Main */}
+        <main style={{flex:1,overflowY:"auto",maxHeight:"100vh"}}>
+          <div style={{maxWidth:800,margin:"0 auto",padding:"24px 20px"}}>
 
-            {/* My rank card */}
-            {myRank && (
-              <div style={s.myRankCard}>
-                <div style={{fontSize:"0.7rem",color:"#475569",fontWeight:600,textTransform:"uppercase" as const,letterSpacing:"0.08em",marginBottom:"10px"}}>Your Standing</div>
-                <div style={{display:"flex",alignItems:"center",gap:"12px",marginBottom:"14px"}}>
-                  <div style={{...s.bigRank,color:myRank.rank<=3?"#ffd700":myRank.rank<=10?"#6366f1":"#64748b"}}>
-                    #{myRank.rank}
+            {/* Header */}
+            <div style={{marginBottom:24}}>
+              <Link href="/dashboard" style={{display:"inline-flex",alignItems:"center",gap:6,color:"#64748b",fontSize:13,textDecoration:"none",marginBottom:12}}>
+                <ChevronLeft size={14}/>Dashboard
+              </Link>
+              <h1 style={{margin:0,fontSize:28,fontWeight:900,letterSpacing:-0.5}}>
+                🏆 Leaderboard
+              </h1>
+              <p style={{margin:"4px 0 0",color:"#64748b",fontSize:14}}>
+                Compete with real people in your field. Scores update live.
+              </p>
+            </div>
+
+            {/* Hero: My Rank Card */}
+            {myData && (
+              <div style={{
+                background:`linear-gradient(135deg,${lc}12,rgba(99,102,241,0.06),transparent)`,
+                border:`1px solid ${lc}30`,
+                borderRadius:20,padding:"20px 24px",marginBottom:24,
+                boxShadow:`0 0 40px ${lc}08`,
+                animation:"slideUp 0.4s ease",
+              }}>
+                <div style={{display:"flex",alignItems:"flex-start",gap:20,flexWrap:"wrap"}}>
+                  <div style={{flex:1,minWidth:200}}>
+                    <div style={{fontSize:12,color:"#64748b",fontWeight:700,letterSpacing:1,marginBottom:8}}>YOUR POSITION</div>
+                    <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+                      <div>
+                        <div style={{fontWeight:900,color:lc,fontSize:40,lineHeight:1}}>
+                          {myBatchRank?.rank ? `#${myBatchRank.rank}` : "—"}
+                        </div>
+                        <div style={{fontSize:13,color:"#94a3b8",marginTop:2}}>
+                          in {myData.batch_label}
+                        </div>
+                      </div>
+                      {myBatchRank?.movement_label && (
+                        <div style={{textAlign:"center"}}>
+                          <MovementBadge label={myBatchRank.movement_label}/>
+                          <div style={{fontSize:10,color:"#475569",marginTop:2}}>this week</div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <div style={{fontSize:"0.85rem",fontWeight:700,color:"white"}}>{myRank.field_label}</div>
-                    <div style={{fontSize:"0.72rem",color:leagueColor(myRank.league),fontWeight:600}}>{myRank.league} League</div>
-                    {myRank.badge && <div style={{fontSize:"0.65rem",color:"#ffd700",marginTop:"2px"}}>{myRank.badge}</div>}
+
+                  {/* Stats */}
+                  <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+                    {[
+                      { label:"Score", value: myData.score.toLocaleString(), color: lc },
+                      { label:"Streak", value: `🔥 ${myData.streak}d`, color:"#f97316" },
+                      { label:"This Week", value: myData.xp_weekly?.toLocaleString() || "0", color:"#22c55e" },
+                      { label:"Challenges", value: `🏆 ${myData.challenges_done}`, color:"#a855f7" },
+                    ].map(s => (
+                      <div key={s.label} style={{textAlign:"center"}}>
+                        <div style={{fontWeight:800,color:s.color,fontSize:18}}>{s.value}</div>
+                        <div style={{fontSize:11,color:"#475569"}}>{s.label}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px",marginBottom:"14px"}}>
-                  {[
-                    {label:"Score",value:myRank.score.toLocaleString(),icon:"⚡"},
-                    {label:"Streak",value:`${myRank.streak}d`,icon:"🔥"},
-                  ].map((stat,i)=>(
-                    <div key={i} style={s.statCard}>
-                      <div style={{fontSize:"1.1rem"}}>{stat.icon}</div>
-                      <div style={{fontSize:"1rem",fontWeight:700,color:"white"}}>{stat.value}</div>
-                      <div style={{fontSize:"0.65rem",color:"#475569"}}>{stat.label}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {myRank.xp_to_next_rank > 0 && (
-                  <div style={{marginBottom:"12px"}}>
-                    <div style={{fontSize:"0.68rem",color:"#475569",marginBottom:"4px"}}>
-                      {myRank.xp_to_next_rank} points to Rank #{myRank.rank - 1}
-                    </div>
-                    <div style={{height:"4px",background:"rgba(255,255,255,0.05)",borderRadius:"2px",overflow:"hidden"}}>
-                      <div style={{height:"100%",background:"linear-gradient(90deg,#6366f1,#818cf8)",borderRadius:"2px",width:`${Math.min(80,100-((myRank.xp_to_next_rank/Math.max(myRank.score,1))*100))}%`}}/>
-                    </div>
+                {/* Other ranks */}
+                {myData.ranks && (
+                  <div style={{display:"flex",gap:8,marginTop:16,flexWrap:"wrap"}}>
+                    {[
+                      { label:"Global", rank: myData.ranks.global?.rank, total: myData.ranks.global?.total_users },
+                      { label:"My Field", rank: myData.ranks.field?.rank, total: myData.ranks.field?.total_users },
+                      { label:"My Batch", rank: myData.ranks.batch?.rank, total: myData.ranks.batch?.total_users },
+                    ].filter(r => r.rank).map(r => (
+                      <div key={r.label} style={{
+                        background:"rgba(255,255,255,0.05)",borderRadius:8,
+                        padding:"5px 10px",fontSize:12,
+                      }}>
+                        <span style={{color:"#64748b"}}>{r.label}: </span>
+                        <span style={{fontWeight:700,color:"#f1f5f9"}}>#{r.rank}</span>
+                        {r.total && <span style={{color:"#475569"}}> / {r.total.toLocaleString()}</span>}
+                      </div>
+                    ))}
+                    {myData.xp_to_next_rank > 0 && (
+                      <div style={{
+                        background:"rgba(99,102,241,0.1)",borderRadius:8,
+                        padding:"5px 10px",fontSize:12,color:"#6366f1",fontWeight:600,
+                      }}>
+                        <Zap size={12} style={{verticalAlign:"middle"}}/> {myData.xp_to_next_rank.toLocaleString()} to next rank
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             )}
 
-            {/* Streak rewards panel */}
-            <div style={s.streakPanel}>
-              <div style={{fontSize:"0.72rem",color:"#475569",fontWeight:600,textTransform:"uppercase" as const,letterSpacing:"0.08em",marginBottom:"12px"}}>
-                🔥 Streak Rewards
-              </div>
-              {STREAK_REWARDS.map((r,i)=>{
-                const currentStreak = myRank?.streak || 0;
-                const achieved = currentStreak >= r.days;
-                const isCurrent = currentStreak < r.days && (i===0 || currentStreak >= STREAK_REWARDS[i-1].days);
-                return (
-                  <div key={i} style={{...s.rewardRow,...(achieved?{opacity:0.5}:{}),...(isCurrent?{borderColor:`${r.color}40`,background:`${r.color}08`}:{})}}
-                    onClick={()=>r.isSpecial&&!achieved&&setShowRewardModal(true)}>
-                    <div style={{fontSize:"1.2rem",minWidth:"28px"}}>{achieved?"✅":r.icon}</div>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:"0.78rem",fontWeight:700,color:achieved?"#334155":r.color}}>{r.days}d — {r.title}</div>
-                      <div style={{fontSize:"0.65rem",color:"#475569"}}>{r.desc}</div>
-                    </div>
-                    {r.isSpecial&&!achieved&&<Zap size={14} style={{color:r.color,flexShrink:0}}/>}
-                  </div>
-                );
-              })}
+            {/* Scope Tabs */}
+            <div style={{
+              display:"flex",gap:4,padding:4,
+              background:"rgba(255,255,255,0.04)",borderRadius:14,
+              marginBottom:12,
+            }}>
+              {scopeOptions.map(s => (
+                <button key={s.key} onClick={() => setScope(s.key)}
+                  style={{
+                    flex:1,padding:"8px 4px",borderRadius:10,border:"none",
+                    background: scope === s.key ? "rgba(99,102,241,0.25)" : "transparent",
+                    color: scope === s.key ? "#f1f5f9" : "#64748b",
+                    fontWeight: scope === s.key ? 700 : 400,
+                    fontSize:13,cursor:"pointer",
+                    display:"flex",alignItems:"center",justifyContent:"center",gap:5,
+                    transition:"all 0.2s",
+                  }}>
+                  {s.icon}{s.label}
+                </button>
+              ))}
             </div>
 
-          </div>
-        </div>
+            {/* Period Tabs */}
+            <div style={{display:"flex",gap:6,marginBottom:20}}>
+              {periodOptions.map(p => (
+                <button key={p.key} onClick={() => setPeriod(p.key)}
+                  style={{
+                    padding:"6px 14px",borderRadius:8,border:"none",
+                    background: period === p.key
+                      ? "linear-gradient(135deg,#6366f1,#a855f7)"
+                      : "rgba(255,255,255,0.06)",
+                    color: period === p.key ? "#fff" : "#64748b",
+                    fontWeight: period === p.key ? 700 : 400,
+                    fontSize:12,cursor:"pointer",
+                    transition:"all 0.2s",
+                  }}>
+                  {p.label}
+                </button>
+              ))}
+              <button onClick={fetchLeaderboard} style={{
+                marginLeft:"auto",padding:"6px 12px",borderRadius:8,
+                background:"rgba(255,255,255,0.06)",border:"none",
+                cursor:"pointer",color:"#64748b",display:"flex",alignItems:"center",gap:5,fontSize:12,
+              }}>
+                <RefreshCw size={12}/> Refresh
+              </button>
+            </div>
 
-      </main>
+            {fetchError && (
+              <div style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:12,padding:"12px 16px",color:"#ef4444",marginBottom:20,fontSize:14}}>
+                {fetchError}
+              </div>
+            )}
+
+            {/* People Around You */}
+            {around.length > 0 && !isLoading && (
+              <div style={{marginBottom:24}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                  <TrendingUp size={16} color="#6366f1"/>
+                  <span style={{fontWeight:700,fontSize:15,color:"#f1f5f9"}}>People Around You</span>
+                  <span style={{fontSize:12,color:"#475569"}}>±5 ranks</span>
+                </div>
+                <div style={{
+                  background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.08)",
+                  borderRadius:14,overflow:"hidden",
+                }}>
+                  {around.map(p => (
+                    <PlayerRow key={p.user_id} player={p} onClickProfile={openProfile}/>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Main Leaderboard */}
+            <div>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                <Crown size={16} color="#ffd700"/>
+                <span style={{fontWeight:700,fontSize:15,color:"#f1f5f9"}}>
+                  {scopeLabel || "Leaderboard"}
+                </span>
+                {!isLoading && (
+                  <span style={{fontSize:12,color:"#475569"}}>{total.toLocaleString()} users</span>
+                )}
+              </div>
+
+              {isLoading ? skeleton : (
+                players.length === 0 ? (
+                  <div style={{textAlign:"center",padding:"60px 20px",color:"#475569"}}>
+                    {scope === "friends"
+                      ? "Add friends to see them here! Click on any player to send a request."
+                      : "No users in this leaderboard yet. Be the first to earn points!"
+                    }
+                  </div>
+                ) : (
+                  <div style={{
+                    background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.08)",
+                    borderRadius:14,overflow:"hidden",
+                  }}>
+                    {players.map(p => (
+                      <PlayerRow key={p.user_id} player={p} onClickProfile={openProfile}/>
+                    ))}
+                  </div>
+                )
+              )}
+            </div>
+
+            <div style={{height:48}}/>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
-
-// ── Styles ────────────────────────────────────────────────────────────────────
-const s: Record<string,React.CSSProperties> = {
-  root:{ display:"flex",minHeight:"100vh",background:"#040711",fontFamily:"'Inter',sans-serif",position:"relative",overflow:"hidden" },
-  bg:{ position:"fixed",inset:0,background:"radial-gradient(ellipse 80% 60% at 20% 0%,rgba(99,102,241,0.08) 0%,transparent 60%),radial-gradient(ellipse 60% 50% at 80% 100%,rgba(34,197,94,0.05) 0%,transparent 60%)",pointerEvents:"none" },
-  bgGrid:{ position:"fixed",inset:0,backgroundImage:"linear-gradient(rgba(255,255,255,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.015) 1px,transparent 1px)",backgroundSize:"40px 40px",pointerEvents:"none" },
-  glow1:{ position:"fixed",top:"-200px",left:"30%",width:"500px",height:"500px",borderRadius:"50%",background:"rgba(99,102,241,0.06)",filter:"blur(80px)",pointerEvents:"none" },
-  glow2:{ position:"fixed",bottom:"-200px",right:"20%",width:"400px",height:"400px",borderRadius:"50%",background:"rgba(34,197,94,0.04)",filter:"blur(80px)",pointerEvents:"none" },
-  xpPopsWrap:{ position:"fixed",bottom:"80px",left:"260px",zIndex:9999,display:"flex",flexDirection:"column",gap:"6px",pointerEvents:"none" },
-  xpPop:{ background:"rgba(255,215,0,0.1)",border:"1px solid rgba(255,215,0,0.25)",borderRadius:"8px",padding:"5px 10px",fontSize:"0.78rem",display:"flex",gap:"6px",alignItems:"center",animation:"slideUp 0.3s ease",backdropFilter:"blur(8px)" },
-  notifWrap:{ position:"fixed",bottom:"20px",left:"260px",zIndex:9998,display:"flex",flexDirection:"column",gap:"6px",maxWidth:"380px",pointerEvents:"none" },
-  notif:{ background:"rgba(13,18,35,0.92)",border:"1px solid rgba(99,102,241,0.25)",borderRadius:"10px",padding:"8px 14px",fontSize:"0.78rem",color:"#e2e8f0",backdropFilter:"blur(12px)",animation:"slideUp 0.3s ease" },
-  overlay:{ position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(8px)",zIndex:10000,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px" },
-  modal:{ background:"linear-gradient(135deg,#0d1224 0%,#0f172a 100%)",border:"1px solid rgba(99,102,241,0.2)",borderRadius:"20px",padding:"28px",maxWidth:"560px",width:"100%",maxHeight:"88vh",overflowY:"auto",position:"relative" },
-  modalClose:{ position:"absolute",top:"16px",right:"16px",background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"8px",color:"#64748b",cursor:"pointer",padding:"6px",display:"flex",alignItems:"center" },
-  modalHead:{ textAlign:"center" as const,marginBottom:"20px" },
-  modalTitle:{ fontSize:"1.3rem",fontWeight:800,color:"white" },
-  modalSub:{ fontSize:"0.82rem",color:"#6366f1",fontWeight:600,marginTop:"4px" },
-  modalSubSmall:{ fontSize:"0.72rem",color:"#475569",marginTop:"6px" },
-  toolsGrid:{ display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"8px",marginBottom:"16px" },
-  toolCard:{ borderRadius:"12px",padding:"14px 10px",cursor:"pointer",transition:"all 0.2s ease",display:"flex",flexDirection:"column" as const,alignItems:"center",position:"relative",textAlign:"center" as const },
-  toolSelected:{ position:"absolute",top:"-6px",right:"-6px",width:"18px",height:"18px",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",color:"white" },
-  claimBtn:{ width:"100%",padding:"14px",background:"linear-gradient(135deg,#6366f1,#4f46e5)",border:"none",borderRadius:"12px",color:"white",fontSize:"0.92rem",fontWeight:700,cursor:"pointer",transition:"all 0.2s" },
-  claimedWrap:{ display:"flex",flexDirection:"column" as const,alignItems:"center",gap:"8px",padding:"12px 0" },
-  upgradeFeature:{ display:"flex",alignItems:"center",gap:"12px",padding:"10px 14px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:"10px" },
-  sidebar:{ width:"220px",minHeight:"100vh",background:"rgba(13,17,35,0.96)",borderRight:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column" as const,padding:"24px 12px",position:"fixed",left:0,top:0,bottom:0,zIndex:100 },
-  nav:{ display:"flex",flexDirection:"column" as const,gap:"2px",flex:1 },
-  navItem:{ width:"100%",display:"flex",alignItems:"center",gap:"10px",padding:"9px 12px",borderRadius:"10px",border:"none",background:"transparent",cursor:"pointer",transition:"all 0.15s",color:"#94a3b8" },
-  navItemActive:{ background:"rgba(99,102,241,0.12)",color:"white" },
-  navActiveDot:{ width:"5px",height:"5px",borderRadius:"50%",background:"#6366f1",marginLeft:"auto" },
-  sidebarFooter:{ borderTop:"1px solid rgba(255,255,255,0.06)",paddingTop:"16px",display:"flex",alignItems:"center",gap:"8px" },
-  sidebarUser:{ display:"flex",alignItems:"center",gap:"10px",flex:1,minWidth:0 },
-  avatarSmall:{ width:"32px",height:"32px",borderRadius:"50%",background:"linear-gradient(135deg,#6366f1,#4f46e5)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.75rem",fontWeight:700,color:"white",flexShrink:0 },
-  logoutBtn:{ background:"none",border:"none",color:"#475569",cursor:"pointer",padding:"6px",borderRadius:"8px" },
-  main:{ marginLeft:"220px",flex:1,padding:"24px 28px",minHeight:"100vh" },
-  topbar:{ display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:"20px" },
-  backBtn:{ display:"flex",alignItems:"center",gap:"4px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"8px",color:"#64748b",cursor:"pointer",padding:"6px 12px",fontSize:"0.82rem" },
-  pageTitle:{ fontSize:"1.1rem",fontWeight:700,color:"white" },
-  livePill:{ display:"flex",alignItems:"center",gap:"5px",padding:"3px 10px",background:"rgba(34,197,94,0.1)",border:"1px solid rgba(34,197,94,0.2)",borderRadius:"20px",fontSize:"0.72rem",color:"#22c55e",fontWeight:600 },
-  liveDot:{ width:"6px",height:"6px",borderRadius:"50%",background:"#22c55e",animation:"pulse 1.5s ease infinite" },
-  rankPill:{ display:"flex",alignItems:"center",gap:"5px",padding:"3px 10px",background:"rgba(99,102,241,0.12)",border:"1px solid rgba(99,102,241,0.25)",borderRadius:"20px",fontSize:"0.72rem",color:"#818cf8",fontWeight:600 },
-  iconBtn:{ background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:"8px",color:"#64748b",cursor:"pointer",padding:"7px",display:"flex",alignItems:"center" },
-  avatarMed:{ width:"36px",height:"36px",borderRadius:"50%",background:"linear-gradient(135deg,#6366f1,#4f46e5)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.85rem",fontWeight:700,color:"white",flexShrink:0 },
-  domainHeader:{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",background:"rgba(99,102,241,0.06)",border:"1px solid rgba(99,102,241,0.15)",borderRadius:"12px",marginBottom:"16px" },
-  layout:{ display:"grid",gridTemplateColumns:"1fr 300px",gap:"20px",alignItems:"start" },
-  leftCol:{ display:"flex",flexDirection:"column" as const,gap:"16px" },
-  rightCol:{ display:"flex",flexDirection:"column" as const,gap:"16px" },
-  timeTabs:{ display:"flex",gap:"6px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:"10px",padding:"4px" },
-  timeTab:{ flex:1,padding:"7px 4px",background:"transparent",border:"none",borderRadius:"7px",color:"#475569",cursor:"pointer",fontSize:"0.78rem",fontWeight:500,position:"relative",whiteSpace:"nowrap" as const },
-  timeTabActive:{ background:"rgba(99,102,241,0.15)",color:"white",fontWeight:600 },
-  mainBadge:{ position:"absolute" as const,top:"-8px",right:"-2px",fontSize:"0.48rem",background:"linear-gradient(135deg,#6366f1,#4f46e5)",color:"white",padding:"1px 4px",borderRadius:"4px",fontWeight:700,letterSpacing:"0.05em",whiteSpace:"nowrap" as const },
-  podiumWrap:{ display:"flex",alignItems:"flex-end",justifyContent:"center",gap:"8px",padding:"32px 12px 0",position:"relative" },
-  podiumGoldCard:{ display:"flex",flexDirection:"column" as const,alignItems:"center",gap:"6px",background:"rgba(255,215,0,0.06)",border:"1.5px solid rgba(255,215,0,0.2)",borderRadius:"16px",padding:"20px 14px 12px",position:"relative",minWidth:"130px",zIndex:2 },
-  podiumSilverCard:{ display:"flex",flexDirection:"column" as const,alignItems:"center",gap:"5px",background:"rgba(192,192,192,0.04)",border:"1px solid rgba(192,192,192,0.12)",borderRadius:"14px",padding:"16px 12px 10px",position:"relative",minWidth:"110px" },
-  podiumBronzeCard:{ display:"flex",flexDirection:"column" as const,alignItems:"center",gap:"5px",background:"rgba(205,127,50,0.04)",border:"1px solid rgba(205,127,50,0.12)",borderRadius:"14px",padding:"16px 12px 10px",position:"relative",minWidth:"110px" },
-  podiumGlow:{ position:"absolute",width:"100px",height:"100px",borderRadius:"50%",filter:"blur(24px)",top:"-8px",pointerEvents:"none" },
-  podiumRankTag:{ display:"flex",alignItems:"center",gap:"3px" },
-  podiumAv:{ width:"48px",height:"48px",borderRadius:"50%",background:"linear-gradient(135deg,#1e293b,#334155)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.85rem",fontWeight:700,color:"white" },
-  podiumName:{ fontSize:"0.82rem",fontWeight:700,color:"white",textAlign:"center" as const,maxWidth:"120px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" as const },
-  podiumScore:{ fontSize:"0.95rem",fontWeight:800 },
-  podiumStreak:{ display:"flex",alignItems:"center",gap:"3px",fontSize:"0.68rem",color:"#64748b" },
-  podiumBase:{ width:"100%",height:"40px",borderRadius:"0 0 10px 10px",marginTop:"4px" },
-  rankList:{ display:"flex",flexDirection:"column" as const,gap:"4px" },
-  rankRow:{ display:"flex",alignItems:"center",gap:"10px",padding:"10px 14px",background:"rgba(255,255,255,0.025)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:"10px",transition:"all 0.15s",cursor:"default" },
-  rankRowCurrent:{ background:"rgba(99,102,241,0.08)",border:"1px solid rgba(99,102,241,0.2)" },
-  rankNum:{ width:"28px",textAlign:"center" as const,fontSize:"0.82rem",flexShrink:0 },
-  miniAv:{ width:"34px",height:"34px",borderRadius:"50%",background:"linear-gradient(135deg,#1e293b,#334155)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.72rem",fontWeight:700,color:"white",border:"1.5px solid rgba(255,255,255,0.08)",flexShrink:0 },
-  myRankCard:{ background:"linear-gradient(135deg,rgba(99,102,241,0.08),rgba(13,18,35,0.9))",border:"1px solid rgba(99,102,241,0.2)",borderRadius:"14px",padding:"16px" },
-  bigRank:{ fontSize:"2.5rem",fontWeight:800,lineHeight:1 },
-  statCard:{ display:"flex",flexDirection:"column" as const,alignItems:"center",gap:"2px",padding:"10px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:"10px" },
-  streakPanel:{ background:"rgba(13,18,35,0.8)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:"14px",padding:"16px",display:"flex",flexDirection:"column" as const,gap:"6px" },
-  rewardRow:{ display:"flex",alignItems:"center",gap:"8px",padding:"8px 10px",background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:"8px",cursor:"default",transition:"all 0.15s" },
-};

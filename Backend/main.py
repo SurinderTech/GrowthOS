@@ -39,6 +39,7 @@ from Backend.routers.challenges import router as challenges_router
 from Backend.routers.community import router as community_router
 from Backend.routers.arena import router as arena_router_new
 from Backend.routers.arena_ws import router as arena_ws_router
+from Backend.routers.social import router as social_router
 
 from Backend.scheduler.task_scheduler import start_scheduler, shutdown_scheduler
 
@@ -122,6 +123,7 @@ app.include_router(challenges_router, prefix="/challenges", tags=["Challenges"])
 app.include_router(community_router, prefix="/community", tags=["Community"])
 app.include_router(arena_router_new, prefix="/arena", tags=["Arena"])
 app.include_router(arena_ws_router, prefix="/ws", tags=["Arena WebSocket"])
+app.include_router(social_router, prefix="/social", tags=["Social"])
 
 # ─────────────────────────────────
 # Root Endpoint

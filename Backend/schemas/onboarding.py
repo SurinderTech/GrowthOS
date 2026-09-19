@@ -20,6 +20,10 @@ class Step2Schema(BaseModel):
     country: Optional[str] = None
     primary_goal: Optional[str] = None
     experience_level: Optional[str] = None
+    # Leaderboard batch classification — optional, all user types
+    institution_name: Optional[str] = None   # School / college name
+    graduation_year: Optional[str] = None    # Graduation / target year
+
 
 
 # ── Step 3 ───────────────────────────────────────────────────────────────────

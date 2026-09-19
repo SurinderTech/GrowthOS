@@ -197,11 +197,26 @@ def save_step2(
         record.primary_goal = data.primary_goal
     if data.experience_level is not None:
         record.experience_level = data.experience_level
+    # New: leaderboard batch fields
+    if data.institution_name is not None:
+        record.institution_name = data.institution_name
+    if data.graduation_year is not None:
+        record.graduation_year = data.graduation_year
 
     record.current_step = max(record.current_step, 3)
     db.commit()
     db.refresh(record)
+
+    # Sync leaderboard classification immediately if we have enough info
+    if record.graduation_year or record.institution_name:
+        try:
+            from Backend.services.leaderboard_service import sync_user_classification
+            sync_user_classification(current_user.id, record, db)
+        except Exception:
+            pass
+
     return record
+
 
 
 # ── STEP 3 — Daily time / commitment ─────────────────────────────────────────
@@ -387,7 +402,16 @@ def save_step7(
     record.onboarding_completed = True
     record.current_step = 7
     db.commit(); db.refresh(record)
+
+    # Populate leaderboard field_key / batch_key / cached_score on completion
+    try:
+        from Backend.services.leaderboard_service import sync_user_classification
+        sync_user_classification(current_user.id, record, db)
+    except Exception:
+        pass
+
     return record
+
 
 
 # ── SKIP onboarding ──────────────────────────────────────────────────────────

@@ -74,6 +74,13 @@ class UserOnboarding(Base):
     study_hours_daily = Column(String(20), nullable=True)
     weak_subjects = Column(JSON, default=list)
 
+    # Institution & batch info — applies to ALL user types
+    # School/college name (e.g. "Delhi Public School", "IIT Bombay", "NIT Trichy")
+    institution_name = Column(String(200), nullable=True)
+    # Graduation/target year (e.g. "2027", "2028") — for students: year of graduation
+    # For exam aspirants: same as attempt_year (stored redundantly for uniform batch query)
+    graduation_year = Column(String(10), nullable=True)
+
     # Step 6 — Productivity style
     productivity_style = Column(String(50), nullable=True)
     # deep_focus | short_bursts | structured | flexible
