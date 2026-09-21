@@ -11,13 +11,41 @@ const WS_BASE = API.replace(/^http/, "ws");
 type BattleStatus = "loading" | "lobby" | "countdown" | "live" | "evaluating" | "completed";
 type TaskType = "mcq" | "reasoning" | "code";
 
+interface QuestionBreakdownItem {
+  order: number;
+  question: string;
+  options: string[];
+  topic: string;
+  difficulty: string;
+  explanation: string;
+  correct_option: number | null;
+  my_selected_option: number | null;
+  my_is_correct: boolean;
+  opp_selected_option: number | null;
+  opp_is_correct: boolean;
+}
+
 interface BattleTask {
   id: string; type: TaskType; order: number; max_score: number; ends_at: string | null;
-  config?: { question?: string; options?: string[]; correct?: number; prompt?: string; hints?: string[]; title?: string; description?: string; language?: string; starter_code?: string; };
+  topic?: string; domain?: string; difficulty?: string; explanation?: string;
+  config?: { question?: string; options?: string[]; correct?: number; prompt?: string; hints?: string[]; title?: string; description?: string; language?: string; starter_code?: string; topic?: string; difficulty?: string; explanation?: string; };
   question?: string; options?: string[]; prompt?: string; hints?: string[]; title?: string; description?: string; language?: string; starter_code?: string;
 }
 interface LeaderboardEntry { rank: number; name: string; score: number; is_ai: boolean; user_id: string; }
-interface BattleResults { battle_id: string; leaderboard: LeaderboardEntry[]; winner: LeaderboardEntry | null; }
+interface BattleResults {
+  battle_id: string;
+  leaderboard: LeaderboardEntry[];
+  winner: LeaderboardEntry | null;
+  my_rank?: number;
+  my_score?: number;
+  my_elo?: number;
+  question_breakdown?: QuestionBreakdownItem[];
+  same_correct_count?: number;
+  diff_correct_count?: number;
+  my_correct_count?: number;
+  opp_correct_count?: number;
+  total_questions?: number;
+}
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -70,15 +98,33 @@ function MCQCard({ task, onSubmit, submitted }: { task: BattleTask; onSubmit: (o
   const [selected, setSelected] = useState<number | null>(null);
   const options = task.options || task.config?.options || [];
   const question = task.question || task.config?.question || "Loading question...";
+  const topic = task.topic || task.config?.topic || "Computer Science";
+  const diff = task.difficulty || task.config?.difficulty || "Medium";
+
+  const diffColor = diff === "Easy" ? "#22c55e" : diff === "Hard" ? "#ef4444" : "#f59e0b";
+
   return (
-    <div style={{ animation: "slideUp 0.3s ease" }}>
-      <div style={{ fontSize: "0.58rem", color: "#818cf8", fontWeight: 700, letterSpacing: "0.12em", marginBottom: 12 }}>MCQ — Task {task.order}</div>
-      <div style={{ fontSize: "1rem", fontWeight: 700, color: "white", lineHeight: 1.6, marginBottom: 24 }}>{question}</div>
+    <div style={{ animation: "slideUp 0.3s ease", background: "rgba(13,17,35,0.95)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 16, padding: "24px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <span style={{ fontSize: "0.62rem", padding: "3px 8px", background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 6, color: "#a5b4fc", fontWeight: 700 }}>
+            Question {task.order} of 15
+          </span>
+          <span style={{ fontSize: "0.62rem", padding: "3px 8px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 6, color: "#94a3b8" }}>
+            {topic}
+          </span>
+        </div>
+        <span style={{ fontSize: "0.62rem", padding: "3px 8px", background: `${diffColor}18`, border: `1px solid ${diffColor}33`, borderRadius: 6, color: diffColor, fontWeight: 700 }}>
+          {diff}
+        </span>
+      </div>
+
+      <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "white", lineHeight: 1.6, marginBottom: 24 }}>{question}</div>
       <div style={{ display: "flex", flexDirection: "column" as const, gap: 10, marginBottom: 24 }}>
         {options.map((opt, i) => (
           <button key={i} onClick={() => !submitted && setSelected(i)} disabled={submitted}
-            style={{ padding: "14px 18px", borderRadius: 10, border: "1px solid", borderColor: selected === i ? "rgba(99,102,241,0.6)" : "rgba(255,255,255,0.08)", background: selected === i ? "rgba(99,102,241,0.15)" : "rgba(255,255,255,0.02)", color: selected === i ? "white" : "#94a3b8", fontSize: "0.9rem", textAlign: "left" as const, cursor: submitted ? "default" : "pointer", fontWeight: selected === i ? 600 : 400, transition: "all 0.15s" }}>
-            <span style={{ color: "#475569", marginRight: 10, fontWeight: 700 }}>{String.fromCharCode(65 + i)}.</span>{opt}
+            style={{ padding: "14px 18px", borderRadius: 12, border: "1px solid", borderColor: selected === i ? "rgba(99,102,241,0.6)" : "rgba(255,255,255,0.08)", background: selected === i ? "rgba(99,102,241,0.18)" : "rgba(255,255,255,0.02)", color: selected === i ? "white" : "#94a3b8", fontSize: "0.92rem", textAlign: "left" as const, cursor: submitted ? "default" : "pointer", fontWeight: selected === i ? 600 : 400, transition: "all 0.15s" }}>
+            <span style={{ color: selected === i ? "#818cf8" : "#475569", marginRight: 10, fontWeight: 700 }}>{String.fromCharCode(65 + i)}.</span>{opt}
           </button>
         ))}
       </div>
@@ -88,7 +134,7 @@ function MCQCard({ task, onSubmit, submitted }: { task: BattleTask; onSubmit: (o
           ⚡ Submit Answer
         </button>
       )}
-      {submitted && <div style={{ padding: "14px", borderRadius: 12, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)", color: "#22c55e", textAlign: "center" as const, fontWeight: 700 }}>✓ Submitted — waiting for results</div>}
+      {submitted && <div style={{ padding: "14px", borderRadius: 12, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.3)", color: "#22c55e", textAlign: "center" as const, fontWeight: 700 }}>✓ Submitted — next question loading...</div>}
     </div>
   );
 }
@@ -119,35 +165,163 @@ function ReasoningCard({ task, onSubmit, submitted }: { task: BattleTask; onSubm
   );
 }
 
-// ── Results screen ────────────────────────────────────────────────────────────
+// ── Real Game Results Screen ──────────────────────────────────────────────────
 function ResultsScreen({ results, myUserId, isAIDuel }: { results: BattleResults; myUserId: string; isAIDuel: boolean; }) {
   const router = useRouter();
-  const myEntry = results.leaderboard.find(e => e.user_id === myUserId);
-  const iWon = results.winner?.user_id === myUserId;
+  const [activeTab, setActiveTab] = useState<"summary" | "review">("summary");
+
+  const myEntry = results.leaderboard.find(e => e.user_id === myUserId || e.is_you);
+  const oppEntry = results.leaderboard.find(e => e.user_id !== myUserId && !e.is_you);
+  const iWon = results.winner?.user_id === myUserId || (myEntry && myEntry.rank === 1);
+
+  const breakdown = results.question_breakdown || [];
+  const myCorrect = results.my_correct_count ?? breakdown.filter(q => q.my_is_correct).length;
+  const oppCorrect = results.opp_correct_count ?? breakdown.filter(q => q.opp_is_correct).length;
+
   return (
-    <div style={{ textAlign: "center" as const, animation: "slideUp 0.5s ease" }}>
-      <div style={{ fontSize: "4rem", marginBottom: 16 }}>{iWon ? "🏆" : "😤"}</div>
-      <div style={{ fontSize: "2rem", fontWeight: 900, marginBottom: 8, color: iWon ? "#ffd700" : "#94a3b8" }}>{iWon ? "VICTORY!" : "DEFEATED"}</div>
-      <div style={{ fontSize: "0.85rem", color: "#64748b", marginBottom: 32 }}>{isAIDuel ? "AI Duel — Duel Rating updated" : "Ranked Match — ELO updated"}</div>
-      {myEntry && (
-        <div style={{ display: "inline-flex", gap: 24, marginBottom: 32, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "16px 28px" }}>
-          <div style={{ textAlign: "center" as const }}><div style={{ fontSize: "1.8rem", fontWeight: 900, color: "#ffd700" }}>{myEntry.score}</div><div style={{ fontSize: "0.62rem", color: "#475569" }}>SCORE</div></div>
-          <div style={{ textAlign: "center" as const }}><div style={{ fontSize: "1.8rem", fontWeight: 900, color: "#22c55e" }}>#{myEntry.rank}</div><div style={{ fontSize: "0.62rem", color: "#475569" }}>RANK</div></div>
+    <div style={{ maxWidth: 880, margin: "0 auto", animation: "slideUp 0.5s ease" }}>
+      {/* Winner Banner */}
+      <div style={{ textAlign: "center" as const, marginBottom: 24, padding: "32px 20px", background: "linear-gradient(135deg,rgba(13,17,35,0.98),rgba(15,23,42,0.98))", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 20 }}>
+        <div style={{ fontSize: "4rem", marginBottom: 12 }}>{iWon ? "🏆" : "😤"}</div>
+        <div style={{ fontSize: "2.2rem", fontWeight: 900, marginBottom: 6, color: iWon ? "#ffd700" : "#ef4444" }}>
+          {iWon ? "VICTORY!" : "DEFEATED"}
+        </div>
+        <div style={{ fontSize: "0.88rem", color: "#94a3b8", marginBottom: 20 }}>
+          {isAIDuel ? "AI Duel Completed · Duel Rating updated" : "Ranked Match Completed · ELO updated"}
+        </div>
+
+        {/* Stats Grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, maxWidth: 640, margin: "0 auto" }}>
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px" }}>
+            <div style={{ fontSize: "1.5rem", fontWeight: 900, color: "#ffd700" }}>{myEntry?.score || 0}</div>
+            <div style={{ fontSize: "0.62rem", color: "#475569", fontWeight: 700 }}>YOUR SCORE</div>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px" }}>
+            <div style={{ fontSize: "1.5rem", fontWeight: 900, color: iWon ? "#22c55e" : "#ef4444" }}>{iWon ? "+24 ELO" : "-12 ELO"}</div>
+            <div style={{ fontSize: "0.62rem", color: "#475569", fontWeight: 700 }}>RATING CHANGE</div>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px" }}>
+            <div style={{ fontSize: "1.5rem", fontWeight: 900, color: "#22c55e" }}>{myCorrect}/15</div>
+            <div style={{ fontSize: "0.62rem", color: "#475569", fontWeight: 700 }}>SOLVED</div>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "14px" }}>
+            <div style={{ fontSize: "1.5rem", fontWeight: 900, color: "#818cf8" }}>+{iWon ? 300 : 75} XP</div>
+            <div style={{ fontSize: "0.62rem", color: "#475569", fontWeight: 700 }}>XP REWARD</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 20, borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 10 }}>
+        <button onClick={() => setActiveTab("summary")} style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: activeTab === "summary" ? "rgba(99,102,241,0.2)" : "transparent", color: activeTab === "summary" ? "#818cf8" : "#64748b", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer" }}>
+          📊 Game Summary
+        </button>
+        <button onClick={() => setActiveTab("review")} style={{ padding: "8px 18px", borderRadius: 8, border: "none", background: activeTab === "review" ? "rgba(99,102,241,0.2)" : "transparent", color: activeTab === "review" ? "#818cf8" : "#64748b", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer" }}>
+          📝 Question Breakdown ({breakdown.length})
+        </button>
+      </div>
+
+      {activeTab === "summary" && (
+        <div style={{ display: "flex", flexDirection: "column" as const, gap: 16 }}>
+          {/* Opponent Comparison Card */}
+          <div style={{ background: "rgba(13,17,35,0.97)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: "20px" }}>
+            <div style={{ fontSize: "0.7rem", color: "#475569", fontWeight: 700, letterSpacing: "0.1em", marginBottom: 16 }}>MATCH COMPARISON</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 100px 1fr", gap: 12, alignItems: "center", textAlign: "center" as const }}>
+              <div style={{ padding: "16px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 12 }}>
+                <div style={{ fontSize: "0.78rem", color: "#818cf8", fontWeight: 700, marginBottom: 4 }}>{myEntry?.name || "You"} (You)</div>
+                <div style={{ fontSize: "1.8rem", fontWeight: 900, color: "white" }}>{myCorrect} / 15</div>
+                <div style={{ fontSize: "0.68rem", color: "#22c55e", marginTop: 4 }}>{Math.round((myCorrect / 15) * 100)}% Accuracy</div>
+              </div>
+
+              <div style={{ fontSize: "1.2rem", fontWeight: 900, color: "#475569" }}>VS</div>
+
+              <div style={{ padding: "16px", background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12 }}>
+                <div style={{ fontSize: "0.78rem", color: "#94a3b8", fontWeight: 700, marginBottom: 4 }}>{oppEntry?.name || "Opponent"}</div>
+                <div style={{ fontSize: "1.8rem", fontWeight: 900, color: "white" }}>{oppCorrect} / 15</div>
+                <div style={{ fontSize: "0.68rem", color: "#64748b", marginTop: 4 }}>{Math.round((oppCorrect / 15) * 100)}% Accuracy</div>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16 }}>
+              <div style={{ padding: "12px", background: "rgba(255,255,255,0.02)", borderRadius: 10, textAlign: "center" as const }}>
+                <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "#22c55e" }}>{results.same_correct_count ?? 0} Questions</div>
+                <div style={{ fontSize: "0.62rem", color: "#475569" }}>Same Correctly Solved</div>
+              </div>
+              <div style={{ padding: "12px", background: "rgba(255,255,255,0.02)", borderRadius: 10, textAlign: "center" as const }}>
+                <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "#f59e0b" }}>{results.diff_correct_count ?? 0} Questions</div>
+                <div style={{ fontSize: "0.62rem", color: "#475569" }}>Unique Solved (Opponent Missed)</div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
-      <div style={{ background: "rgba(13,17,35,0.97)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 14, padding: "16px", marginBottom: 24, textAlign: "left" as const }}>
-        <div style={{ fontSize: "0.62rem", color: "#475569", fontWeight: 700, marginBottom: 12 }}>FINAL LEADERBOARD</div>
-        {results.leaderboard.map((e, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: i < results.leaderboard.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
-            <span style={{ width: 28, height: 28, borderRadius: "50%", background: i === 0 ? "linear-gradient(135deg,#ffd700,#f59e0b)" : "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.72rem", fontWeight: 700, color: i === 0 ? "#000" : "#64748b", flexShrink: 0 }}>{e.rank}</span>
-            <span style={{ flex: 1, fontSize: "0.88rem", fontWeight: 600, color: e.user_id === myUserId ? "white" : "#94a3b8" }}>{e.name} {e.is_ai && "🤖"}{e.user_id === myUserId && <span style={{ fontSize: "0.6rem", color: "#6366f1", marginLeft: 6 }}>(you)</span>}</span>
-            <span style={{ fontWeight: 800, color: "#ffd700", fontSize: "0.9rem" }}>{e.score}</span>
-          </div>
-        ))}
-      </div>
-      <div style={{ display: "flex", gap: 10, justifyContent: "center" as const }}>
-        <button onClick={() => router.push("/dashboard/challenges")} style={{ padding: "12px 24px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: "#94a3b8", fontSize: "0.88rem", fontWeight: 600, cursor: "pointer" }}>← Challenges</button>
-        <button onClick={() => router.push("/dashboard/challenges")} style={{ padding: "12px 24px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#6366f1,#4f46e5)", color: "white", fontSize: "0.88rem", fontWeight: 700, cursor: "pointer" }}>⚔️ Play Again</button>
+
+      {activeTab === "review" && (
+        <div style={{ display: "flex", flexDirection: "column" as const, gap: 14 }}>
+          {breakdown.map((q, idx) => {
+            const diffColor = q.difficulty === "Easy" ? "#22c55e" : q.difficulty === "Hard" ? "#ef4444" : "#f59e0b";
+            return (
+              <div key={idx} style={{ background: "rgba(13,17,35,0.97)", border: `1px solid ${q.my_is_correct ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}`, borderRadius: 14, padding: "18px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <span style={{ fontSize: "0.68rem", fontWeight: 800, color: q.my_is_correct ? "#22c55e" : "#ef4444" }}>
+                      {q.my_is_correct ? "✓ CORRECT" : "✗ WRONG"}
+                    </span>
+                    <span style={{ fontSize: "0.62rem", color: "#818cf8", fontWeight: 700 }}>Q{q.order} · {q.topic}</span>
+                  </div>
+                  <span style={{ fontSize: "0.6rem", padding: "2px 7px", background: `${diffColor}18`, color: diffColor, borderRadius: 5, fontWeight: 700 }}>
+                    {q.difficulty}
+                  </span>
+                </div>
+
+                <div style={{ fontSize: "0.95rem", fontWeight: 700, color: "white", marginBottom: 14, lineHeight: 1.5 }}>
+                  {q.question}
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+                  {q.options.map((opt, optIdx) => {
+                    const isMyChoice = q.my_selected_option === optIdx;
+                    const isCorrectChoice = q.correct_option === optIdx;
+                    let border = "rgba(255,255,255,0.06)";
+                    let bg = "rgba(255,255,255,0.02)";
+                    let color = "#94a3b8";
+
+                    if (isCorrectChoice) {
+                      border = "rgba(34,197,94,0.5)";
+                      bg = "rgba(34,197,94,0.12)";
+                      color = "#22c55e";
+                    } else if (isMyChoice && !q.my_is_correct) {
+                      border = "rgba(239,68,68,0.5)";
+                      bg = "rgba(239,68,68,0.12)";
+                      color = "#ef4444";
+                    }
+
+                    return (
+                      <div key={optIdx} style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${border}`, background: bg, color: color, fontSize: "0.82rem" }}>
+                        <span style={{ fontWeight: 700, marginRight: 6 }}>{String.fromCharCode(65 + optIdx)}.</span>
+                        {opt}
+                        {isCorrectChoice && <span style={{ marginLeft: 6, fontWeight: 700 }}>(Correct Answer)</span>}
+                        {isMyChoice && !isCorrectChoice && <span style={{ marginLeft: 6, fontWeight: 700 }}>(Your Choice)</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {q.explanation && (
+                  <div style={{ padding: "10px 14px", background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 8, fontSize: "0.78rem", color: "#a5b4fc", lineHeight: 1.5 }}>
+                    💡 <strong>Explanation:</strong> {q.explanation}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Buttons */}
+      <div style={{ display: "flex", gap: 12, justifyContent: "center" as const, marginTop: 24, marginBottom: 40 }}>
+        <button onClick={() => router.push("/dashboard/challenges")} style={{ padding: "12px 24px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: "#94a3b8", fontSize: "0.88rem", fontWeight: 600, cursor: "pointer" }}>← Back to Arena</button>
+        <button onClick={() => router.push("/dashboard/challenges")} style={{ padding: "12px 24px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#6366f1,#4f46e5)", color: "white", fontSize: "0.88rem", fontWeight: 700, cursor: "pointer" }}>⚔️ Play Another Battle</button>
       </div>
     </div>
   );

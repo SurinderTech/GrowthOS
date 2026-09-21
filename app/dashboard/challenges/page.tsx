@@ -1,8 +1,6 @@
 "use client";
 // app/dashboard/challenges/page.tsx
-// GrowthOS Arena — Full real-time challenges page matching the approved design
-// All timers derived from server ends_at — no hardcoded countdowns
-// WebSocket connects to live battles for real-time score/HP updates
+// GrowthOS Arena — Fixed: no blue borders, all filters work, field-adaptive content
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -124,6 +122,131 @@ function StarRating({ n, max = 5 }: { n: number; max?: number }) {
   );
 }
 
+// ─── Field-Adaptive Challenge Types ─────────────────────────────────────────
+
+type ChallengeType = { icon: string; label: string; sub: string; color: string; filterKey: string };
+
+const FIELD_CHALLENGE_TYPES: Record<string, ChallengeType[]> = {
+  "exam:jee": [
+    { icon: "⚗️", label: "Physics MCQ",    sub: "Kinematics, Optics, Electro",   color: "#ef4444", filterKey: "MCQ" },
+    { icon: "🧪", label: "Chemistry",       sub: "Organic & Inorganic reactions",  color: "#22c55e", filterKey: "Written" },
+    { icon: "📐", label: "Maths Sprint",    sub: "Calculus, Algebra, Geometry",   color: "#3b82f6", filterKey: "MCQ" },
+    { icon: "📝", label: "Mock JEE",        sub: "Full paper simulations",         color: "#6366f1", filterKey: "MCQ" },
+    { icon: "⚡", label: "Speed Round",     sub: "Rapid-fire problem sets",        color: "#f59e0b", filterKey: "MCQ" },
+    { icon: "🏆", label: "JEE Champion",    sub: "Hard JEE Advanced problems",     color: "#8b5cf6", filterKey: "Written" },
+    { icon: "📊", label: "Data Analysis",   sub: "Graph & table interpretation",   color: "#06b6d4", filterKey: "Data" },
+    { icon: "🔀", label: "Mixed Mock",      sub: "All 3 subjects combined",        color: "#ec4899", filterKey: "MCQ" },
+  ],
+  "exam:neet": [
+    { icon: "🔬", label: "Biology MCQ",    sub: "NCERT-based cell & genetics",    color: "#22c55e", filterKey: "MCQ" },
+    { icon: "⚗️", label: "Chemistry",      sub: "Equilibrium, Biomolecules",       color: "#f59e0b", filterKey: "Written" },
+    { icon: "⚡", label: "Physics Clinic", sub: "Electrostatics, Optics, Fluids",  color: "#3b82f6", filterKey: "MCQ" },
+    { icon: "📝", label: "Mock NEET",      sub: "Full 720-mark simulations",       color: "#6366f1", filterKey: "MCQ" },
+    { icon: "🧬", label: "Genetics Deep",  sub: "Mendelian & molecular genetics",  color: "#ef4444", filterKey: "Written" },
+    { icon: "🏥", label: "Med Cases",      sub: "Clinical vignette practice",      color: "#8b5cf6", filterKey: "Written" },
+    { icon: "📊", label: "Stats & Data",   sub: "Biostatistics & graphs",          color: "#06b6d4", filterKey: "Data" },
+    { icon: "🔀", label: "Mixed Mock",     sub: "All subjects combined",           color: "#ec4899", filterKey: "MCQ" },
+  ],
+  "exam:upsc": [
+    { icon: "🏛️", label: "Polity MCQ",    sub: "Constitution & Governance",      color: "#6366f1", filterKey: "MCQ" },
+    { icon: "📚", label: "Current Affairs",sub: "Weekly news analysis",            color: "#f59e0b", filterKey: "Written" },
+    { icon: "🌍", label: "Geography",      sub: "Maps, Climate & Resources",       color: "#22c55e", filterKey: "MCQ" },
+    { icon: "📖", label: "History",        sub: "Ancient to Modern India",         color: "#ef4444", filterKey: "Written" },
+    { icon: "💰", label: "Economics",      sub: "Macro & micro economics",         color: "#3b82f6", filterKey: "MCQ" },
+    { icon: "📝", label: "Essay Writing",  sub: "GS IV ethics & essay",            color: "#8b5cf6", filterKey: "Written" },
+    { icon: "📊", label: "Data Analysis",  sub: "Stats & graph interpretation",    color: "#06b6d4", filterKey: "Data" },
+    { icon: "🔀", label: "Prelims Mock",   sub: "GS Paper 1 & CSAT simulation",    color: "#ec4899", filterKey: "MCQ" },
+  ],
+  "student:cs": [
+    { icon: "⚔️", label: "MCQ Battle",    sub: "Fast. Accurate. Win.",            color: "#6366f1", filterKey: "MCQ" },
+    { icon: "✍️", label: "Written Answer",sub: "Explain. Reason. Rank.",           color: "#f59e0b", filterKey: "Written" },
+    { icon: "💻", label: "Coding Battle", sub: "Solve real DSA problems.",         color: "#22c55e", filterKey: "Coding" },
+    { icon: "🏗️", label: "Build/Prototype",sub: "Create & Ship projects.",         color: "#3b82f6", filterKey: "Build/Prototype" },
+    { icon: "🤖", label: "AI Agent",      sub: "Build intelligent agents.",        color: "#8b5cf6", filterKey: "AI Agent" },
+    { icon: "🐛", label: "Debug & Fix",   sub: "Find. Fix. Learn.",               color: "#ef4444", filterKey: "Coding" },
+    { icon: "🏛️", label: "System Design", sub: "Architecture & Planning.",        color: "#06b6d4", filterKey: "System Design" },
+    { icon: "🔀", label: "Mixed Mode",    sub: "A bit of everything.",             color: "#ec4899", filterKey: "MCQ" },
+  ],
+  "student:datascience": [
+    { icon: "📊", label: "Data Analysis", sub: "Pandas, NumPy challenges",        color: "#3b82f6", filterKey: "Data" },
+    { icon: "🤖", label: "ML Models",     sub: "Build & evaluate models",          color: "#8b5cf6", filterKey: "AI Agent" },
+    { icon: "📝", label: "Statistics MCQ",sub: "Probability & inference",          color: "#22c55e", filterKey: "MCQ" },
+    { icon: "🏗️", label: "Data Pipeline", sub: "ETL & data engineering",          color: "#6366f1", filterKey: "Build/Prototype" },
+    { icon: "💻", label: "SQL Coding",    sub: "Complex query battles",            color: "#ef4444", filterKey: "Coding" },
+    { icon: "🔮", label: "Prediction",    sub: "Regression & forecasting",         color: "#f59e0b", filterKey: "Written" },
+    { icon: "🏛️", label: "Architecture",  sub: "Data architecture planning",      color: "#06b6d4", filterKey: "System Design" },
+    { icon: "🔀", label: "Kaggle-style",  sub: "End-to-end data challenges",       color: "#ec4899", filterKey: "MCQ" },
+  ],
+  "student:medical": [
+    { icon: "🔬", label: "Anatomy MCQ",   sub: "Body systems & structures",       color: "#22c55e", filterKey: "MCQ" },
+    { icon: "🧬", label: "Physiology",    sub: "Body function mechanisms",         color: "#3b82f6", filterKey: "Written" },
+    { icon: "💊", label: "Pharmacology",  sub: "Drug mechanisms & side effects",   color: "#ef4444", filterKey: "MCQ" },
+    { icon: "🏥", label: "Clinical Cases",sub: "Patient case simulations",         color: "#8b5cf6", filterKey: "Written" },
+    { icon: "🔍", label: "Pathology",     sub: "Disease mechanisms & diagnosis",   color: "#f59e0b", filterKey: "Written" },
+    { icon: "⚕️", label: "Medical Ethics",sub: "Ethical scenario analysis",       color: "#6366f1", filterKey: "Written" },
+    { icon: "📊", label: "Biostatistics", sub: "Research data interpretation",    color: "#06b6d4", filterKey: "Data" },
+    { icon: "🔀", label: "Mock Clinical", sub: "Full OSCE simulation",             color: "#ec4899", filterKey: "MCQ" },
+  ],
+  "freelancer": [
+    { icon: "💼", label: "Client MCQ",    sub: "Business & communication",        color: "#3b82f6", filterKey: "MCQ" },
+    { icon: "🏗️", label: "Project Build", sub: "Ship real client projects",       color: "#6366f1", filterKey: "Build/Prototype" },
+    { icon: "💻", label: "Code Battle",   sub: "Full-stack coding challenges",    color: "#22c55e", filterKey: "Coding" },
+    { icon: "📝", label: "Proposal Write",sub: "Write winning proposals",          color: "#f59e0b", filterKey: "Written" },
+    { icon: "🤖", label: "AI Productivity",sub: "AI tools for freelancers",       color: "#8b5cf6", filterKey: "AI Agent" },
+    { icon: "🏛️", label: "Architecture",  sub: "System design & planning",        color: "#06b6d4", filterKey: "System Design" },
+    { icon: "📊", label: "Analytics",     sub: "Client reporting & data",         color: "#ef4444", filterKey: "Data" },
+    { icon: "🔀", label: "Mixed",         sub: "Varied skill challenges",          color: "#ec4899", filterKey: "MCQ" },
+  ],
+  "entrepreneur": [
+    { icon: "🚀", label: "Startup MCQ",   sub: "Business fundamentals",           color: "#f97316", filterKey: "MCQ" },
+    { icon: "🏗️", label: "MVP Build",     sub: "Ship your prototype fast",        color: "#6366f1", filterKey: "Build/Prototype" },
+    { icon: "📝", label: "Pitch Writing", sub: "Investor pitch decks",             color: "#22c55e", filterKey: "Written" },
+    { icon: "💰", label: "Finance Battle",sub: "Unit economics & metrics",         color: "#f59e0b", filterKey: "MCQ" },
+    { icon: "🤖", label: "AI Integration",sub: "AI-powered product features",     color: "#8b5cf6", filterKey: "AI Agent" },
+    { icon: "🏛️", label: "System Design", sub: "Scalable architecture",           color: "#06b6d4", filterKey: "System Design" },
+    { icon: "📊", label: "Market Data",   sub: "Market analysis & research",      color: "#3b82f6", filterKey: "Data" },
+    { icon: "🔀", label: "Founder Mix",   sub: "All founder skills",               color: "#ec4899", filterKey: "MCQ" },
+  ],
+  "creator": [
+    { icon: "🎬", label: "Content MCQ",   sub: "Platform algorithms & trends",   color: "#ec4899", filterKey: "MCQ" },
+    { icon: "✍️", label: "Script Writing",sub: "Hooks, stories & CTAs",           color: "#f59e0b", filterKey: "Written" },
+    { icon: "🏗️", label: "Content Build", sub: "Plan & create content",           color: "#6366f1", filterKey: "Build/Prototype" },
+    { icon: "🤖", label: "AI Creation",   sub: "AI-assisted content tools",       color: "#8b5cf6", filterKey: "AI Agent" },
+    { icon: "📊", label: "Analytics",     sub: "Audience data & insights",        color: "#3b82f6", filterKey: "Data" },
+    { icon: "📝", label: "SEO Writing",   sub: "Search-optimized content",         color: "#22c55e", filterKey: "Written" },
+    { icon: "🏛️", label: "Brand Design",  sub: "Identity & visual strategy",     color: "#06b6d4", filterKey: "System Design" },
+    { icon: "🔀", label: "Creator Mix",   sub: "Cross-platform challenges",        color: "#ef4444", filterKey: "MCQ" },
+  ],
+  "self_growth": [
+    { icon: "🧠", label: "Mindset MCQ",   sub: "Psychology & growth mindset",     color: "#8b5cf6", filterKey: "MCQ" },
+    { icon: "📚", label: "Book Summary",  sub: "Key insights from top books",      color: "#6366f1", filterKey: "Written" },
+    { icon: "🏗️", label: "Habit Build",   sub: "Build consistency challenges",    color: "#22c55e", filterKey: "Build/Prototype" },
+    { icon: "💡", label: "Creativity",    sub: "Creative thinking exercises",      color: "#f59e0b", filterKey: "Written" },
+    { icon: "🤖", label: "AI Tools",      sub: "Productivity with AI",             color: "#3b82f6", filterKey: "AI Agent" },
+    { icon: "💰", label: "Finance",       sub: "Personal finance battles",         color: "#ef4444", filterKey: "MCQ" },
+    { icon: "📊", label: "Life Data",     sub: "Track & analyze your progress",   color: "#06b6d4", filterKey: "Data" },
+    { icon: "🔀", label: "Life Mix",      sub: "Multi-dimensional growth",         color: "#ec4899", filterKey: "MCQ" },
+  ],
+  "default": [
+    { icon: "⚔️", label: "MCQ Battle",    sub: "Fast. Accurate. Win.",            color: "#6366f1", filterKey: "MCQ" },
+    { icon: "✍️", label: "Written Answer",sub: "Explain. Reason. Rank.",           color: "#f59e0b", filterKey: "Written" },
+    { icon: "💻", label: "Coding Battle", sub: "Solve real problems.",             color: "#22c55e", filterKey: "Coding" },
+    { icon: "🏗️", label: "Build/Prototype",sub: "Create & Ship.",                 color: "#3b82f6", filterKey: "Build/Prototype" },
+    { icon: "🤖", label: "AI Agent",      sub: "Build intelligent agents.",        color: "#8b5cf6", filterKey: "AI Agent" },
+    { icon: "🐛", label: "Debug & Fix",   sub: "Find. Fix. Learn.",               color: "#ef4444", filterKey: "Coding" },
+    { icon: "🏛️", label: "System Design", sub: "Architecture & Planning.",        color: "#06b6d4", filterKey: "System Design" },
+    { icon: "🔀", label: "Mixed Mode",    sub: "A bit of everything.",             color: "#ec4899", filterKey: "MCQ" },
+  ],
+};
+
+function getChallengeTypes(fieldKey: string): ChallengeType[] {
+  if (FIELD_CHALLENGE_TYPES[fieldKey]) return FIELD_CHALLENGE_TYPES[fieldKey];
+  const prefix = fieldKey.split(":")[0];
+  const match = Object.keys(FIELD_CHALLENGE_TYPES).find(k => k.startsWith(prefix + ":") || k === prefix);
+  if (match) return FIELD_CHALLENGE_TYPES[match];
+  return FIELD_CHALLENGE_TYPES["default"];
+}
+
 const MODE_CFG: Record<string, { label: string; icon: string; color: string; bg: string }> = {
   "1v1":          { label: "1v1",          icon: "⚔️", color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
   "2v2":          { label: "2v2",          icon: "⚔️", color: "#8b5cf6", bg: "rgba(139,92,246,0.12)" },
@@ -134,13 +257,14 @@ const MODE_CFG: Record<string, { label: string; icon: string; color: string; bg:
 };
 
 const FORMAT_BADGE: Record<string, { label: string; color: string; bg: string }> = {
-  "mcq":          { label: "MCQ",          color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
-  "reasoning":    { label: "Written",      color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
-  "coding":       { label: "Coding",       color: "#6366f1", bg: "rgba(99,102,241,0.12)" },
-  "mixed":        { label: "Mixed",        color: "#ec4899", bg: "rgba(236,72,153,0.12)" },
-  "boss":         { label: "Boss",         color: "#ef4444", bg: "rgba(239,68,68,0.12)" },
-  "ai_agent":     { label: "AI Agent",     color: "#8b5cf6", bg: "rgba(139,92,246,0.12)" },
-  "system_design":{ label: "System Design",color: "#06b6d4", bg: "rgba(6,182,212,0.12)" },
+  "mcq":          { label: "MCQ Battle",   color: "#22c55e", bg: "rgba(34,197,94,0.14)" },
+  "reasoning":    { label: "Written",      color: "#f59e0b", bg: "rgba(245,158,11,0.14)" },
+  "coding":       { label: "DSA Battle",   color: "#3b82f6", bg: "rgba(59,130,246,0.14)" },
+  "dev":          { label: "Dev Battle",   color: "#6366f1", bg: "rgba(99,102,241,0.14)" },
+  "mixed":        { label: "Mixed Mode",   color: "#ec4899", bg: "rgba(236,72,153,0.14)" },
+  "boss":         { label: "Boss Raid",    color: "#ef4444", bg: "rgba(239,68,68,0.14)" },
+  "ai_agent":     { label: "AI Agent",     color: "#8b5cf6", bg: "rgba(139,92,246,0.14)" },
+  "system_design":{ label: "System Design",color: "#06b6d4", bg: "rgba(6,182,212,0.14)" },
 };
 
 const NAV = [
@@ -154,12 +278,12 @@ const NAV = [
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function ModeTile({ icon, label, sublabel, online, color, onClick }: {
-  icon: string; label: string; sublabel: string; online: number;
+function ModeTile({ icon, label, sublabel, color, onClick }: {
+  icon: string; label: string; sublabel: string;
   color: string; onClick: () => void;
 }) {
   return (
-    <button onClick={onClick} style={{
+    <button onClick={onClick} className="mode-tile" style={{
       flex: 1, minWidth: 130, padding: "14px 12px", borderRadius: 12,
       background: `linear-gradient(135deg,${color}22 0%,rgba(13,17,35,0.95) 100%)`,
       border: `1px solid ${color}33`, cursor: "pointer", textAlign: "left" as const,
@@ -168,12 +292,6 @@ function ModeTile({ icon, label, sublabel, online, color, onClick }: {
       <div style={{ fontSize: "1.5rem", marginBottom: 4 }}>{icon}</div>
       <div style={{ fontSize: "0.88rem", fontWeight: 700, color: "white" }}>{label}</div>
       <div style={{ fontSize: "0.65rem", color: "#64748b", marginTop: 2, lineHeight: 1.4 }}>{sublabel}</div>
-      {online > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 8 }}>
-          <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#22c55e" }} />
-          <span style={{ fontSize: "0.62rem", color: "#22c55e" }}>{fmt(online)} online</span>
-        </div>
-      )}
       <div style={{
         position: "absolute", bottom: 8, right: 8, color: `${color}88`, fontSize: "0.75rem",
       }}>→</div>
@@ -188,43 +306,47 @@ function LiveBattleCard({ battle, onJoin }: { battle: LiveBattle; onJoin: () => 
 
   return (
     <div style={{
-      borderRadius: 14, overflow: "hidden" as const, border: "1px solid rgba(255,255,255,0.07)",
+      borderRadius: 14, overflow: "hidden" as const, border: "1px solid rgba(99,102,241,0.2)",
       background: "linear-gradient(135deg,rgba(13,17,35,0.97) 0%,rgba(10,15,30,0.97) 100%)",
       minWidth: 280, flex: "0 0 280px", position: "relative" as const,
     }}>
       {/* Battle image placeholder */}
       <div style={{
-        height: 120, background: `linear-gradient(135deg,${mode.color}22,rgba(0,0,0,0.8))`,
+        height: 120, background: `linear-gradient(135deg,${mode.color}33,rgba(0,0,0,0.85))`,
         display: "flex", alignItems: "center", justifyContent: "center", position: "relative" as const,
       }}>
-        <div style={{ fontSize: "2.5rem", opacity: 0.4 }}>{mode.icon}</div>
+        <div style={{ fontSize: "2.5rem", opacity: 0.5 }}>{mode.icon}</div>
         {/* Badges */}
-        <div style={{ position: "absolute", top: 8, left: 8, display: "flex", gap: 4 }}>
+        <div style={{ position: "absolute", top: 8, left: 8, display: "flex", gap: 4, flexWrap: "wrap" as const }}>
           <span style={{ ...badgeSt, background: mode.bg, color: mode.color }}>{mode.label}</span>
           <span style={{ ...badgeSt, background: fmt_badge.bg, color: fmt_badge.color }}>{fmt_badge.label}</span>
         </div>
+        <div style={{ position: "absolute", top: 8, right: 8, display: "flex", alignItems: "center", gap: 4, background: "rgba(239,68,68,0.2)", padding: "2px 6px", borderRadius: 4 }}>
+          <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#ef4444", animation: "pulse 1s ease infinite" }} />
+          <span style={{ fontSize: "0.58rem", color: "#ef4444", fontWeight: 700 }}>LIVE</span>
+        </div>
       </div>
-      <div style={{ padding: "12px 14px" }}>
-        <div style={{ fontSize: "0.92rem", fontWeight: 700, color: "white", marginBottom: 4 }}>
+      <div style={{ padding: "14px" }}>
+        <div style={{ fontSize: "0.92rem", fontWeight: 800, color: "white", marginBottom: 4 }}>
           {battle.title}
         </div>
-        <div style={{ display: "flex", gap: 10, fontSize: "0.68rem", color: "#475569", marginBottom: 10 }}>
-          <span>👥 {fmt(battle.players)}</span>
-          <span>⏱ {fmt_badge.label}</span>
+        <div style={{ display: "flex", gap: 10, fontSize: "0.68rem", color: "#64748b", marginBottom: 10 }}>
+          <span>👥 {fmt(battle.players)} players</span>
+          <span>⚡ 15 Questions</span>
         </div>
         {/* Server countdown */}
-        <div style={{
-          fontFamily: "monospace", fontSize: "1.8rem", fontWeight: 800, color: "#ef4444",
-          letterSpacing: "0.05em", marginBottom: 10, fontVariantNumeric: "tabular-nums",
-        }}>
-          {formatted}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, background: "rgba(255,255,255,0.03)", padding: "6px 10px", borderRadius: 8 }}>
+          <span style={{ fontSize: "0.65rem", color: "#64748b" }}>Time Remaining</span>
+          <span style={{ fontFamily: "monospace", fontSize: "1.1rem", fontWeight: 800, color: "#ef4444", fontVariantNumeric: "tabular-nums" }}>
+            {formatted}
+          </span>
         </div>
         <button onClick={onJoin} style={{
-          width: "100%", padding: "8px", background: "linear-gradient(135deg,#6366f1,#4f46e5)",
+          width: "100%", padding: "10px", background: "linear-gradient(135deg,#6366f1,#4f46e5)",
           border: "none", borderRadius: 8, color: "white", fontSize: "0.82rem", fontWeight: 700,
           cursor: "pointer",
         }}>
-          Join Now
+          ⚡ Join Battle Now
         </button>
       </div>
     </div>
@@ -358,9 +480,11 @@ export default function ChallengesPage() {
   const [season, setSeason] = useState<Season | null>(null);
   const [boss, setBoss] = useState<Boss | null>(null);
   const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [myMatches, setMyMatches] = useState<Challenge[]>([]);
   const [playersOnline, setPlayersOnline] = useState(0);
   const [liveCount, setLiveCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [userField, setUserField] = useState("default");
 
   // Matchmaking
   const [mmModal, setMmModal] = useState(false);
@@ -401,7 +525,7 @@ export default function ChallengesPage() {
     };
 
     try {
-      const [prof, live, up, opp, seas, bs, ch] = await Promise.all([
+      const [prof, live, up, opp, seas, bs, ch, myCh] = await Promise.all([
         safe(`${API}/arena/profile`),
         safe(`${API}/arena/live`),
         safe(`${API}/arena/upcoming`),
@@ -409,6 +533,7 @@ export default function ChallengesPage() {
         safe(`${API}/arena/season`),
         safe(`${API}/arena/boss`),
         safe(`${API}/challenges/`),
+        safe(`${API}/challenges/my`),
       ]);
 
       if (prof)  setProfile(prof);
@@ -417,7 +542,8 @@ export default function ChallengesPage() {
       if (opp)   setOpponents(opp.opponents || []);
       if (seas)  setSeason(seas);
       if (bs)    setBoss(bs);
-      if (ch)    setChallenges(ch.challenges || []);
+      if (ch)    { setChallenges(ch.challenges || []); setUserField(ch.field || "default"); }
+      if (myCh)  setMyMatches(myCh.challenges || []);
     } finally {
       // Always clear loading — even if every request returned null
       setLoading(false);
@@ -498,35 +624,33 @@ export default function ChallengesPage() {
 
   const FILTERS = ["All", "Live Now", "Upcoming", "My Matches", "MCQ", "Written", "Coding", "Build/Prototype", "AI Agent", "System Design", "Data"];
 
-  const filteredChallenges = challenges.filter(c => {
+  // Section visibility flags
+  const showLiveSection     = activeFilter === "All" || activeFilter === "Live Now";
+  const showUpcomingSection = activeFilter === "All" || activeFilter === "Upcoming";
+  const showAIOpponents     = activeFilter === "All";
+
+  // Challenge grid filter
+  const filteredChallenges: Challenge[] = (() => {
+    if (activeFilter === "My Matches") return myMatches;
+    if (activeFilter === "Upcoming") return [];
+    let list = challenges;
     const q = searchQ.toLowerCase();
-    if (q && !c.title.toLowerCase().includes(q) && !c.description.toLowerCase().includes(q)) return false;
-    if (activeFilter === "All") return true;
-    if (activeFilter === "MCQ") return c.type.toLowerCase().includes("mcq") || c.tags.some(t => t.toLowerCase() === "mcq");
-    if (activeFilter === "Coding") return c.tags.some(t => ["python","javascript","java","code","coding"].includes(t.toLowerCase()));
-    if (activeFilter === "AI Agent") return c.tags.some(t => ["ai","agent","llm","rag"].includes(t.toLowerCase()));
-    return true;
-  });
+    if (q) list = list.filter(c => c.title.toLowerCase().includes(q) || (c.description || "").toLowerCase().includes(q));
+    if (activeFilter === "All" || activeFilter === "Live Now") return list;
+    const tagMatch = (tags: string[], kws: string[]) => tags.some(t => kws.includes(t.toLowerCase()));
+    if (activeFilter === "MCQ")             return list.filter(c => tagMatch(c.tags||[], ["mcq","quiz","multiple-choice"]) || c.type === "mcq");
+    if (activeFilter === "Written")         return list.filter(c => tagMatch(c.tags||[], ["written","essay","explanation","reasoning"]) || c.type === "reasoning");
+    if (activeFilter === "Coding")          return list.filter(c => tagMatch(c.tags||[], ["coding","code","dsa","python","javascript","java","algorithm","sql","programming"]) || c.type === "coding");
+    if (activeFilter === "Build/Prototype") return list.filter(c => tagMatch(c.tags||[], ["build","prototype","project","ship","fullstack","frontend","backend","dev"]) || c.type === "dev");
+    if (activeFilter === "AI Agent")        return list.filter(c => tagMatch(c.tags||[], ["ai","agent","llm","rag","ml","machine-learning","nlp","artificial-intelligence"]));
+    if (activeFilter === "System Design")   return list.filter(c => tagMatch(c.tags||[], ["system-design","architecture","design","scalability","distributed","database"]));
+    if (activeFilter === "Data")            return list.filter(c => tagMatch(c.tags||[], ["data","analytics","statistics","pandas","numpy","sql","tableau","data-science"]));
+    return list;
+  })();
 
   const seasonCountdown = useDaysCountdown(season?.ends_at);
 
-  // Mode tile online counts (from live battles)
-  const modeOnline = liveBattles.reduce<Record<string,number>>((acc, b) => {
-    acc[b.mode] = (acc[b.mode] || 0) + b.players;
-    return acc;
-  }, {});
-
-  // Challenge types grid
-  const CHALLENGE_TYPES = [
-    { icon: "⚔️", label: "MCQ Battle",   sub: "Fast. Accurate. Win.", color: "#6366f1" },
-    { icon: "✍️", label: "Written Answer", sub: "Explain. Reason. Rank.", color: "#f59e0b" },
-    { icon: "💻", label: "Coding Battle",  sub: "Solve real problems.", color: "#22c55e" },
-    { icon: "🏗️", label: "Build Challenge",sub: "Create & Ship.",        color: "#3b82f6" },
-    { icon: "🤖", label: "AI Agent",       sub: "Build intelligent agents.", color: "#8b5cf6" },
-    { icon: "🐛", label: "Debug & Fix",    sub: "Find. Fix. Learn.",     color: "#ef4444" },
-    { icon: "🏛️", label: "Design",         sub: "Architecture & Planning.", color: "#06b6d4" },
-    { icon: "🔀", label: "Mixed Mode",     sub: "A bit of everything.",   color: "#ec4899" },
-  ];
+  // (modeOnline removed — no fake counts shown)
 
   return (
     <div style={s.root}>
@@ -536,6 +660,10 @@ export default function ChallengesPage() {
         @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
         @keyframes slideUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:none} }
         @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        * { box-sizing: border-box; }
+        button { outline: none !important; }
+        button:focus, button:focus-visible { outline: none !important; box-shadow: none !important; }
+        input:focus { outline: none !important; box-shadow: none !important; }
         .mode-tile:hover { transform:translateY(-3px)!important; box-shadow:0 8px 24px rgba(0,0,0,0.3)!important; }
         .live-card:hover { transform:translateY(-2px)!important; }
         .ch-card:hover { transform:translateY(-2px)!important; border-color:rgba(99,102,241,0.3)!important; }
@@ -806,7 +934,7 @@ export default function ChallengesPage() {
             { icon: "💀", label: "Boss Raids",     sub: "Defeat powerful AI bosses with real-world scenarios", color: "#ef4444", mode: "boss_raid" },
           ].map(m => (
             <ModeTile key={m.mode} icon={m.icon} label={m.label} sublabel={m.sub}
-              online={modeOnline[m.mode] || 0} color={m.color}
+              color={m.color}
               onClick={() => m.mode === "boss_raid" ? setBossModal(true) : startMM(m.mode)}/>
           ))}
         </div>
@@ -828,43 +956,77 @@ export default function ChallengesPage() {
           </button>
         </div>
 
-        {/* ── LIVE NOW ── */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#ef4444", animation: "pulse 1s ease infinite" }}/>
-            <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "white" }}>LIVE NOW</span>
-            {liveCount > 0 && <span style={{ fontSize: "0.72rem", color: "#475569" }}>{liveCount} challenges running · {fmt(playersOnline)} players online</span>}
-          </div>
-          <button style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", color: "#6366f1", fontSize: "0.75rem", cursor: "pointer" }}>View All →</button>
-        </div>
-
-        <div style={{ display: "flex", gap: 14, marginBottom: 24, overflowX: "auto" as const, paddingBottom: 8 }}>
-          {liveBattles.length === 0 && !loading ? (
-            <div style={{ color: "#334155", padding: "40px 20px", textAlign: "center" as const, flex: 1 }}>No live battles right now — check back soon</div>
-          ) : (
-            liveBattles.map(b => (
-              <div key={b.id} className="live-card" style={{ transition: "transform 0.2s" }}>
-                <LiveBattleCard battle={b} onJoin={() => startMM(b.mode)}/>
+        {/* ── LIVE NOW — only shown for All or Live Now filter ── */}
+        {showLiveSection && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#ef4444", animation: "pulse 1s ease infinite" }}/>
+                <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "white" }}>LIVE NOW</span>
+                {liveCount > 0 && <span style={{ fontSize: "0.72rem", color: "#475569" }}>{liveCount} battles running · {fmt(playersOnline)} players online</span>}
               </div>
-            ))
-          )}
-          {loading && [...Array(3)].map((_, i) => (
-            <div key={i} style={{ ...s.skeleton, minWidth: 280, height: 240, flex: "0 0 280px" }}/>
-          ))}
-        </div>
+              <button style={{ background: "none", border: "none", color: "#6366f1", fontSize: "0.75rem", cursor: "pointer" }}>View All →</button>
+            </div>
+            <div style={{ display: "flex", gap: 14, overflowX: "auto" as const, paddingBottom: 8 }}>
+              {liveBattles.length === 0 && !loading ? (
+                <div style={{ color: "#334155", padding: "40px 20px", textAlign: "center" as const, flex: 1,
+                  background: "rgba(13,17,35,0.6)", borderRadius: 14, border: "1px dashed rgba(255,255,255,0.06)" }}>
+                  <div style={{ fontSize: "1.5rem", marginBottom: 8 }}>⚔️</div>
+                  <div style={{ fontSize: "0.85rem", color: "#475569", marginBottom: 4 }}>No live battles active right now</div>
+                  <div style={{ fontSize: "0.72rem", color: "#334155" }}>Battles auto-generate — check back shortly!</div>
+                </div>
+              ) : (
+                liveBattles.map(b => (
+                  <div key={b.id} className="live-card" style={{ transition: "transform 0.2s" }}>
+                    <LiveBattleCard battle={b} onJoin={() => startMM(b.mode)}/>
+                  </div>
+                ))
+              )}
+              {loading && [...Array(3)].map((_, i) => (
+                <div key={i} style={{ ...s.skeleton, minWidth: 280, height: 240, flex: "0 0 280px" }}/>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── UPCOMING BATTLES horizontal scroll — shown for All or Upcoming filter ── */}
+        {showUpcomingSection && upcoming.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <Clock size={14} style={{ color: "#6366f1" }}/>
+              <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "white" }}>UPCOMING BATTLES</span>
+              <span style={{ fontSize: "0.72rem", color: "#475569" }}>{upcoming.length} scheduled</span>
+            </div>
+            <div style={{ display: "flex", gap: 12, overflowX: "auto" as const, paddingBottom: 8 }}>
+              {upcoming.map(ev => (
+                <div key={ev.id} style={{ minWidth: 210, background: "rgba(13,17,35,0.9)", border: "1px solid rgba(99,102,241,0.15)", borderRadius: 12, padding: "14px" }}>
+                  <div style={{ fontSize: "0.78rem", fontWeight: 700, color: "white", marginBottom: 4, lineHeight: 1.3 }}>{ev.title}</div>
+                  <div style={{ fontSize: "0.65rem", color: "#475569", marginBottom: 8 }}>
+                    {new Date(ev.starts_at).toLocaleString("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </div>
+                  <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+                    <span style={{ ...badgeSt, background: "rgba(99,102,241,0.1)", color: "#818cf8" }}>{ev.type}</span>
+                    <span style={{ ...badgeSt, background: "rgba(245,158,11,0.1)", color: "#f59e0b" }}>+{ev.xp} XP</span>
+                  </div>
+                  <button style={{ width: "100%", padding: "6px", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 7, color: "#818cf8", fontSize: "0.7rem", fontWeight: 600, cursor: "pointer" }}>🔔 Notify Me</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Main grid: Challenges + Sidebar ── */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 18, alignItems: "start" }}>
           {/* Left: Challenge grid */}
           <div>
-            {/* AI Opponents */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: "0.72rem", color: "#475569", fontWeight: 700, letterSpacing: "0.1em", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-                <span>🤖 AI OPPONENTS</span>
-                <span style={{ opacity: 0.5 }}>Practice and climb your ELO</span>
-              </div>
-              <div style={{ display: "flex", gap: 10 }}>
-                {opponents.length === 0 && !loading && <div style={{ color: "#334155", fontSize: "0.78rem" }}>Loading bots...</div>}
+            {/* AI Opponents — only on All tab and only if data is available */}
+            {showAIOpponents && opponents.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: "0.72rem", color: "#475569", fontWeight: 700, letterSpacing: "0.1em", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>🤖 AI OPPONENTS</span>
+                  <span style={{ opacity: 0.5 }}>Practice and climb your ELO</span>
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
                 {opponents.map(bot => (
                   <div key={bot.id} style={{ flex: 1, padding: "14px", background: "rgba(13,17,35,0.9)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: 12, textAlign: "center" as const }}>
                     <div style={{ fontSize: "1.8rem", marginBottom: 6 }}>{bot.emoji}</div>
@@ -881,28 +1043,18 @@ export default function ChallengesPage() {
                   </div>
                 ))}
                 {loading && [...Array(3)].map((_, i) => <div key={i} style={{ ...s.skeleton, flex: 1, height: 140 }}/>)}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Challenge Types grid */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: "0.72rem", color: "#475569", fontWeight: 700, letterSpacing: "0.1em", marginBottom: 10 }}>
-                🎮 CHALLENGE TYPES <span style={{ opacity: 0.5 }}>Different formats. Real skills.</span>
+
+            {/* My Matches header */}
+            {activeFilter === "My Matches" && (
+              <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: "0.72rem", color: "#475569", fontWeight: 700, letterSpacing: "0.1em" }}>🏅 MY MATCHES</span>
+                <span style={{ fontSize: "0.72rem", color: "#334155" }}>Challenges you have joined</span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
-                {CHALLENGE_TYPES.map((ct, i) => (
-                  <button key={i} onClick={() => setActiveFilter(ct.label)} style={{
-                    padding: "10px", background: "rgba(13,17,35,0.9)", border: "1px solid rgba(255,255,255,0.05)",
-                    borderRadius: 10, cursor: "pointer", textAlign: "left" as const, transition: "all 0.15s",
-                  }}>
-                    <div style={{ fontSize: "1.2rem", marginBottom: 4 }}>{ct.icon}</div>
-                    <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "white" }}>{ct.label}</div>
-                    <div style={{ fontSize: "0.58rem", color: "#475569", marginTop: 2, lineHeight: 1.3 }}>{ct.sub}</div>
-                    <div style={{ fontSize: "0.6rem", color: ct.color, marginTop: 4 }}>→</div>
-                  </button>
-                ))}
-              </div>
-            </div>
+            )}
 
             {/* Challenges grid */}
             {filteredChallenges.length > 0 ? (
@@ -913,10 +1065,19 @@ export default function ChallengesPage() {
                   </div>
                 ))}
               </div>
-            ) : !loading ? (
-              <div style={{ textAlign: "center" as const, padding: "40px", color: "#334155" }}>
+            ) : !loading && activeFilter !== "Upcoming" ? (
+              <div style={{ textAlign: "center" as const, padding: "40px", color: "#334155",
+                background: "rgba(13,17,35,0.5)", borderRadius: 14, border: "1px dashed rgba(255,255,255,0.05)" }}>
                 <div style={{ fontSize: "2rem", marginBottom: 8 }}>⚔️</div>
-                <div>No challenges match this filter</div>
+                <div style={{ color: "#475569", marginBottom: 4 }}>
+                  {activeFilter === "My Matches" ? "You haven't joined any challenges yet" : `No ${activeFilter} challenges found`}
+                </div>
+                {activeFilter !== "All" && (
+                  <button onClick={() => setActiveFilter("All")} style={{
+                    marginTop: 12, padding: "6px 16px", background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.2)",
+                    borderRadius: 8, color: "#818cf8", fontSize: "0.75rem", cursor: "pointer",
+                  }}>View All Challenges</button>
+                )}
               </div>
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 12 }}>

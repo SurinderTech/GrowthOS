@@ -379,7 +379,17 @@ async def battle_ws(
                         "type": "answer:confirmed",
                         "result": result,
                     }))
-                    # NOTE: No inline finalization here. Engine timer owns that.
+
+                    # Check early finish: if player has submitted all tasks, finalize battle immediately
+                    total_tasks = db.query(BattleTask).filter(BattleTask.battle_id == UUID(battle_id)).count()
+                    sub_count = db.query(BattleSubmission).filter(
+                        BattleSubmission.battle_id == UUID(battle_id),
+                        BattleSubmission.user_id == UUID(user_id)
+                    ).count()
+
+                    if total_tasks > 0 and sub_count >= total_tasks:
+                        from Backend.services.battle_engine import _finalize_battle_internal
+                        asyncio.create_task(_finalize_battle_internal(battle_id, manager))
 
                 except ValueError as e:
                     await websocket.send_text(json.dumps({

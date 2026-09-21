@@ -25,6 +25,8 @@ from sqlalchemy import func, and_, or_
 from sqlalchemy.orm import Session
 
 from Backend.models.user import User
+import Backend.models.growth_plan  # noqa: F401
+import Backend.models.dashboard    # noqa: F401
 from Backend.models.onboarding import UserOnboarding
 from Backend.models.leaderboard import UserXP, LeaderboardEvent
 from Backend.models.challenges import Challenge, ChallengeParticipant
@@ -39,70 +41,217 @@ log = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Question Bank — MCQ questions for AI Duels and seeded battles
-# _correct is stored under config["_correct"] and NEVER sent to the client.
+# Multidimensional Question Bank — Profile-Adaptive, 15-Question Battle Engine
+# _correct is stored under config["_correct"] and NEVER sent to the client during live match.
 # ─────────────────────────────────────────────────────────────────────────────
 
 _QUESTION_BANK = [
+    # ── FRONTEND & WEB DEVELOPMENT ──
     {
-        "question": "What does RAG stand for in modern AI systems?",
+        "question": "What is the primary difference between `var`, `let`, and `const` in JavaScript?",
+        "options": ["`var` is block-scoped, `let` is function-scoped", "`let` and `const` are block-scoped, `var` is function-scoped", "`const` allows re-assignment", "`let` cannot be updated"],
+        "_correct": 1,
+        "domain": "frontend",
+        "topic": "JavaScript Fundamentals",
+        "difficulty": "Easy",
+        "explanation": "`let` and `const` introduce block scoping (ES6), whereas `var` is function-scoped or globally scoped and suffers from hoisting anomalies."
+    },
+    {
+        "question": "In CSS Flexbox, which property controls alignment along the cross-axis?",
+        "options": ["justify-content", "align-items", "flex-direction", "align-content"],
+        "_correct": 1,
+        "domain": "frontend",
+        "topic": "CSS Layout",
+        "difficulty": "Easy",
+        "explanation": "`justify-content` aligns items along the main axis, while `align-items` aligns items along the cross axis."
+    },
+    {
+        "question": "What happens in the JavaScript Event Loop when a Promise resolves?",
+        "options": ["Its callback is placed into the MacroTask queue", "Its callback is executed immediately synchronously", "Its callback is placed into the MicroTask queue", "It blocks the call stack until rendering completes"],
+        "_correct": 2,
+        "domain": "frontend",
+        "topic": "JS Async & Event Loop",
+        "difficulty": "Medium",
+        "explanation": "Resolved Promise callbacks run as MicroTasks, which execute right after the current synchronous code finishes and before MacroTasks (setTimeout, DOM events)."
+    },
+    {
+        "question": "In React, why must Hook calls remain at the top level of a component?",
+        "options": ["Hooks use fixed global indices to maintain state across renders", "React compiles Hooks into CSS variables", "Hooks only work inside async functions", "Conditional calls cause memory leaks in JavaScript"],
+        "_correct": 0,
+        "domain": "frontend",
+        "topic": "React Hooks Architecture",
+        "difficulty": "Medium",
+        "explanation": "React relies on the call order of Hooks across re-renders to match state variables. Conditional Hooks break this sequential indexing."
+    },
+    {
+        "question": "What does HTTP/2 Server Push accomplish in web performance optimization?",
+        "options": ["Sends notifications to mobile devices", "Pushes static assets to the browser before the client explicitly requests them", "Replaces WebSocket connections for real-time chat", "Automatically compresses server images"],
+        "_correct": 1,
+        "domain": "frontend",
+        "topic": "Web Performance & HTTP",
+        "difficulty": "Hard",
+        "explanation": "HTTP/2 Server Push allows a server to send critical assets (CSS/JS) alongside the initial HTML response before the parser discovers them."
+    },
+
+    # ── BACKEND & SYSTEM ARCHITECTURE ──
+    {
+        "question": "Which HTTP status code signifies that a client must authenticate to get the requested response?",
+        "options": ["400 Bad Request", "401 Unauthorized", "403 Forbidden", "404 Not Found"],
+        "_correct": 1,
+        "domain": "backend",
+        "topic": "HTTP & REST APIs",
+        "difficulty": "Easy",
+        "explanation": "401 Unauthorized means authentication is required or failed. 403 Forbidden means the authenticated user lacks permissions."
+    },
+    {
+        "question": "What is the primary benefit of adding a B-Tree index on a SQL table column?",
+        "options": ["Reduces disk storage space", "Accelerates range and equality queries from O(N) to O(log N)", "Prevents duplicate rows", "Enforces foreign key constraints"],
+        "_correct": 1,
+        "domain": "backend",
+        "topic": "Database Indexing",
+        "difficulty": "Medium",
+        "explanation": "B-Tree indexes structure column data hierarchically, turning full table scans O(N) into logarithmic lookup operations O(log N)."
+    },
+    {
+        "question": "What is JWT (JSON Web Token) signature verified with in asymmetric authentication?",
+        "options": ["The client's private key", "The server's public key", "The database password", "A random session cookie"],
+        "_correct": 1,
+        "domain": "backend",
+        "topic": "Authentication & Security",
+        "difficulty": "Medium",
+        "explanation": "In asymmetric algorithms (RS256), the authorization server signs the token with a private key, and microservices verify it using the matching public key."
+    },
+    {
+        "question": "In a microservices architecture, what problem does the Saga Pattern solve?",
+        "options": ["Load balancing incoming HTTP requests", "Distributed transaction management across microservices without 2-phase commit", "Caching database queries", "Service discovery"],
+        "_correct": 1,
+        "domain": "backend",
+        "topic": "Distributed Systems",
+        "difficulty": "Hard",
+        "explanation": "The Saga pattern manages distributed data consistency across microservices via a sequence of local transactions and compensating transactions on failure."
+    },
+
+    # ── DSA (DATA STRUCTURES & ALGORITHMS) ──
+    {
+        "question": "Which data structure operates on a First-In, First-Out (FIFO) policy?",
+        "options": ["Stack", "Queue", "Binary Heap", "Hash Table"],
+        "_correct": 1,
+        "domain": "dsa",
+        "topic": "Core Data Structures",
+        "difficulty": "Easy",
+        "explanation": "Queues operate on FIFO order (enqueue at back, dequeue from front), whereas Stacks use LIFO (Last-In, First-Out)."
+    },
+    {
+        "question": "What is the average-case time complexity of searching in a Hash Map?",
+        "options": ["O(1)", "O(log N)", "O(N)", "O(N log N)"],
+        "_correct": 0,
+        "domain": "dsa",
+        "topic": "Hash Tables",
+        "difficulty": "Easy",
+        "explanation": "Hash maps use key hashing to achieve O(1) average constant time lookup, though worst-case is O(N) under heavy collisions."
+    },
+    {
+        "question": "Which algorithm is used to find the shortest path in a weighted graph with non-negative edge weights?",
+        "options": ["Breadth-First Search (BFS)", "Dijkstra's Algorithm", "Kruskal's Algorithm", "Floyd-Warshall Algorithm"],
+        "_correct": 1,
+        "domain": "dsa",
+        "topic": "Graph Algorithms",
+        "difficulty": "Medium",
+        "explanation": "Dijkstra's algorithm efficiently computes single-source shortest paths in non-negative weighted graphs using a Priority Queue in O((V + E) log V)."
+    },
+    {
+        "question": "What technique optimizes Recursive Dynamic Programming by storing subproblem results?",
+        "options": ["Backtracking", "Memoization", "Greedy Choice", "Divide and Conquer"],
+        "_correct": 1,
+        "domain": "dsa",
+        "topic": "Dynamic Programming",
+        "difficulty": "Medium",
+        "explanation": "Memoization caches top-down recursive function results so subproblems are evaluated only once, eliminating exponential redundant computations."
+    },
+    {
+        "question": "What is the amortized time complexity of inserting into a dynamic array (Vector/ArrayList)?",
+        "options": ["O(N)", "O(1)", "O(log N)", "O(N^2)"],
+        "_correct": 1,
+        "domain": "dsa",
+        "topic": "Array Algorithms",
+        "difficulty": "Hard",
+        "explanation": "Although resizing takes O(N) time when capacity doubles, the cost spread over N insertions results in O(1) amortized time per insertion."
+    },
+
+    # ── AI, MACHINE LEARNING & LLM ──
+    {
+        "question": "What does RAG stand for in modern LLM architecture?",
         "options": ["Random Access Generation", "Retrieval-Augmented Generation", "Recurrent Attention Gating", "Recursive Agent Graph"],
         "_correct": 1,
-        "topic": "ai",
+        "domain": "ai",
+        "topic": "RAG & LLM Systems",
+        "difficulty": "Easy",
+        "explanation": "Retrieval-Augmented Generation enhances LLM prompts with relevant context fetched dynamically from an external knowledge base or vector DB."
     },
     {
-        "question": "Which data structure gives O(1) average-case lookup time?",
-        "options": ["Binary Tree", "Linked List", "Hash Table", "Stack"],
-        "_correct": 2,
-        "topic": "cs",
-    },
-    {
-        "question": "In the Transformer architecture, what does 'attention' compute?",
-        "options": ["Gradient norms", "Weighted sum of value vectors", "Dropout masks", "Positional encodings"],
+        "question": "In Vector Databases, which distance metric measures the angle between two embedding vectors regardless of magnitude?",
+        "options": ["Euclidean Distance (L2)", "Cosine Similarity", "Manhattan Distance (L1)", "Dot Product"],
         "_correct": 1,
-        "topic": "ai",
+        "domain": "ai",
+        "topic": "Vector Search & Embeddings",
+        "difficulty": "Medium",
+        "explanation": "Cosine similarity measures cos(theta) between two vectors, focusing strictly on semantic orientation rather than vector length."
     },
     {
-        "question": "Which sorting algorithm has the best worst-case time complexity?",
+        "question": "In the Transformer architecture, what is the key mechanism for capturing token dependencies?",
+        "options": ["Recurrent Backpropagation", "Self-Attention Mechanism", "Convolutional Kernel Filtering", "Gradient Clipping"],
+        "_correct": 1,
+        "domain": "ai",
+        "topic": "Transformers & Deep Learning",
+        "difficulty": "Medium",
+        "explanation": "Self-attention computes dynamic Query-Key-Value inner products, allowing tokens to weigh relationships across the entire context window in parallel."
+    },
+    {
+        "question": "What is 'Hallucination' in Large Language Models?",
+        "options": ["When the model crashes due to Out-Of-Memory", "When the model generates plausible-sounding but factually incorrect or ungrounded statements", "When tokenization produces invalid UTF-8 characters", "When temperature is set to 0.0"],
+        "_correct": 1,
+        "domain": "ai",
+        "topic": "LLM Evaluation & Safety",
+        "difficulty": "Hard",
+        "explanation": "Hallucination refers to LLMs producing confident responses that lack factual grounding or contradict provided source material."
+    },
+
+    # ── COMPUTER SCIENCE & GENERAL ENGINEERING ──
+    {
+        "question": "Which sorting algorithm guarantees O(N log N) time complexity in the worst case?",
         "options": ["QuickSort", "BubbleSort", "MergeSort", "SelectionSort"],
         "_correct": 2,
-        "topic": "cs",
+        "domain": "cs",
+        "topic": "Sorting Algorithms",
+        "difficulty": "Easy",
+        "explanation": "MergeSort divides the array recursively and merges sorted halves, achieving guaranteed O(N log N) worst-case time complexity."
     },
     {
-        "question": "What is the primary purpose of a vector database in an AI system?",
-        "options": ["Store SQL schemas", "Cache HTTP responses", "Retrieve semantically similar embeddings", "Run Python scripts"],
-        "_correct": 2,
-        "topic": "ai",
-    },
-    {
-        "question": "Which HTTP status code means 'resource not found'?",
-        "options": ["200", "401", "404", "500"],
-        "_correct": 2,
-        "topic": "web",
-    },
-    {
-        "question": "In Python, what does the `yield` keyword create?",
-        "options": ["A class instance", "An async coroutine", "A generator function", "A decorator"],
-        "_correct": 2,
-        "topic": "python",
-    },
-    {
-        "question": "What does 'idempotent' mean in the context of HTTP methods?",
-        "options": ["The request is encrypted", "Multiple identical requests have the same effect as one", "The request requires authentication", "The response is cached"],
+        "question": "What is the primary role of an OS Garbage Collector?",
+        "options": ["Clear browser caches", "Automatically reclaim heap memory no longer referenced by the application", "Defragment the physical hard drive", "Kill unresponsive background threads"],
         "_correct": 1,
-        "topic": "web",
+        "domain": "cs",
+        "topic": "Memory Management",
+        "difficulty": "Medium",
+        "explanation": "Garbage Collectors track object reachability on the heap and automatically release unreferenced memory blocks to prevent leaks."
     },
     {
-        "question": "Which of these is NOT a SOLID principle?",
-        "options": ["Single Responsibility", "Open/Closed", "DRY (Don't Repeat Yourself)", "Liskov Substitution"],
-        "_correct": 2,
-        "topic": "cs",
+        "question": "In Git, what does `git rebase` do differently compared to `git merge`?",
+        "options": ["Deletes the feature branch permanently", "Reapplies commits on top of another base tip, creating a linear history", "Pushes commits directly to remote main", "Creates a 3-way merge commit"],
+        "_correct": 1,
+        "domain": "cs",
+        "topic": "Version Control",
+        "difficulty": "Medium",
+        "explanation": "Rebasing rewrites commit history by applying feature commits onto the target branch tip, avoiding merge commits and maintaining clean linear logs."
     },
     {
-        "question": "In a neural network, what is 'backpropagation' used for?",
-        "options": ["Forward inference", "Data augmentation", "Computing gradients to update weights", "Tokenizing input text"],
-        "_correct": 2,
-        "topic": "ai",
+        "question": "Which SOLID principle states that high-level modules should not depend on low-level modules, but on abstractions?",
+        "options": ["Single Responsibility Principle", "Open/Closed Principle", "Liskov Substitution Principle", "Dependency Inversion Principle"],
+        "_correct": 3,
+        "domain": "cs",
+        "topic": "Software Design Principles",
+        "difficulty": "Hard",
+        "explanation": "Dependency Inversion (D in SOLID) dictates relying on interfaces or abstract classes rather than concrete implementations."
     },
 ]
 
@@ -110,19 +259,22 @@ _QUESTION_BANK = [
 def sanitize_task_for_client(task: BattleTask) -> dict:
     """
     Strip the server-only '_correct' field before sending task to browser.
-    NEVER expose the correct answer to the client.
+    NEVER expose the correct answer to the client during active match.
     """
     cfg = dict(task.config or {})
     cfg.pop("_correct", None)  # remove server-only field
     return {
-        "id":        str(task.id),
-        "type":      task.task_type,
-        "order":     task.order,
-        "max_score": task.max_score,
-        "question":  cfg.get("question"),
-        "options":   cfg.get("options", []),
-        "topic":     cfg.get("topic"),
-        "ends_at":   task.ends_at.isoformat() if task.ends_at else None,
+        "id":          str(task.id),
+        "type":        task.task_type,
+        "order":       task.order,
+        "max_score":   task.max_score,
+        "question":    cfg.get("question"),
+        "options":     cfg.get("options", []),
+        "topic":       cfg.get("topic", "Computer Science"),
+        "domain":      cfg.get("domain", "general"),
+        "difficulty":  cfg.get("difficulty", "Medium"),
+        "explanation": cfg.get("explanation", ""),
+        "ends_at":     task.ends_at.isoformat() if task.ends_at else None,
     }
 
 
@@ -130,17 +282,47 @@ def _generate_battle_tasks(
     battle: Battle,
     battle_round: BattleRound,
     db: Session,
-    num_tasks: int = 5,
+    field: str = "all",
+    num_tasks: int = 15,
 ) -> list:
     """
-    Pick `num_tasks` questions from the bank and create BattleTask rows.
-    Returns the created BattleTask objects.
-    Called during create_ai_duel() and _seed_live_battles().
+    Pick `num_tasks` (default 15) multidimensional questions from the bank (5 Easy, 5 Medium, 5 Hard)
+    tailored to the player's study field.
     """
     import random
-    questions = random.sample(_QUESTION_BANK, min(num_tasks, len(_QUESTION_BANK)))
+
+    field_lower = (field or "all").lower()
+
+    # Filter bank questions matching domain or fallback
+    domain_matches = [q for q in _QUESTION_BANK if field_lower in q.get("domain", "") or q.get("domain") == field_lower]
+    if len(domain_matches) < num_tasks:
+        pool = _QUESTION_BANK
+    else:
+        pool = domain_matches
+
+    easy_q   = [q for q in pool if q.get("difficulty") == "Easy"] or pool
+    medium_q = [q for q in pool if q.get("difficulty") == "Medium"] or pool
+    hard_q   = [q for q in pool if q.get("difficulty") == "Hard"] or pool
+
+    # Sample balanced distribution: 5 Easy, 5 Medium, 5 Hard
+    selected = []
+    selected.extend(random.sample(easy_q, min(5, len(easy_q))))
+    selected.extend(random.sample(medium_q, min(5, len(medium_q))))
+    selected.extend(random.sample(hard_q, min(5, len(hard_q))))
+
+    # Fill up to num_tasks if needed
+    if len(selected) < num_tasks:
+        remaining = [q for q in pool if q not in selected]
+        needed = num_tasks - len(selected)
+        if remaining:
+            selected.extend(random.sample(remaining, min(needed, len(remaining))))
+
+    # Final fallback if bank is smaller than num_tasks
+    while len(selected) < num_tasks and pool:
+        selected.append(random.choice(pool))
+
     tasks = []
-    for i, q in enumerate(questions, start=1):
+    for i, q in enumerate(selected[:num_tasks], start=1):
         task = BattleTask(
             battle_id=battle.id,
             round_id=battle_round.id,
@@ -148,16 +330,19 @@ def _generate_battle_tasks(
             order=i,
             max_score=100,
             ends_at=battle.ends_at,
-            # _correct is stored inside config but NEVER sent to client
             config={
-                "question": q["question"],
-                "options":  q["options"],
-                "_correct": q["_correct"],
-                "topic":    q["topic"],
+                "question":    q["question"],
+                "options":     q["options"],
+                "_correct":    q["_correct"],
+                "topic":       q.get("topic", "Tech"),
+                "domain":      q.get("domain", "cs"),
+                "difficulty":  q.get("difficulty", "Medium"),
+                "explanation": q.get("explanation", ""),
             },
         )
         db.add(task)
         tasks.append(task)
+
     db.flush()
     return tasks
 
@@ -264,11 +449,75 @@ def get_arena_profile_data(user_id: UUID, db: Session) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Live / Upcoming
+# Live / Upcoming — Auto-Replenishing Real-Time Battle Generator
 # ─────────────────────────────────────────────────────────────────────────────
 
+_LIVE_PRESETS = [
+    {"title": "1v1 Frontend MCQ Sprint", "mode": "1v1", "format": "mcq", "duration_m": 15, "players": 14},
+    {"title": "2v2 DSA Code Clash", "mode": "2v2", "format": "coding", "duration_m": 45, "players": 28},
+    {"title": "Squad System Architecture Arena", "mode": "squad", "format": "system_design", "duration_m": 120, "players": 42},
+    {"title": "Battle Royale Dev League", "mode": "battle_royale", "format": "mixed", "duration_m": 1440, "players": 128},
+    {"title": "AI Agent Engineering Challenge", "mode": "ai_duel", "format": "ai_agent", "duration_m": 2880, "players": 86},
+    {"title": "Fullstack Debug & Fix Raid", "mode": "boss_raid", "format": "boss", "duration_m": 4320, "players": 210},
+]
+
+
+def _ensure_live_battles_exist(db: Session):
+    import random
+    now = datetime.now(timezone.utc)
+    active_count = db.query(Battle).filter(Battle.status == "live", Battle.ends_at > now).count()
+    if active_count >= 6:
+        return
+
+    for preset in _LIVE_PRESETS:
+        existing = db.query(Battle).filter(
+            Battle.title == preset["title"],
+            Battle.status == "live",
+            Battle.ends_at > now
+        ).first()
+        if existing:
+            continue
+
+        starts_at = now - timedelta(minutes=random.randint(1, 5))
+        ends_at = starts_at + timedelta(minutes=preset["duration_m"])
+
+        b = Battle(
+            title=preset["title"],
+            mode=preset["mode"],
+            challenge_format=preset["format"],
+            status="live",
+            starts_at=starts_at,
+            ends_at=ends_at,
+            config={"is_seeded_live": True, "base_players": preset["players"]},
+        )
+        db.add(b)
+        db.flush()
+
+        br = BattleRound(
+            battle_id=b.id,
+            round_number=1,
+            challenge_format=preset["format"],
+            status="live",
+            starts_at=starts_at,
+            ends_at=ends_at,
+            config={},
+        )
+        db.add(br)
+        db.flush()
+
+        # Seed 15 tasks for this battle
+        _generate_battle_tasks(b, br, db, field="all", num_tasks=15)
+
+    db.commit()
+
+
 def get_live_battles(db: Session, limit: int = 8) -> List[dict]:
-    """Real live battles from DB with status='live' and ends_at in the future."""
+    """Real live battles from DB with status='live' and ends_at in the future. Auto-replenishes if needed."""
+    try:
+        _ensure_live_battles_exist(db)
+    except Exception as e:
+        log.warning(f"Failed to auto-replenish live battles: {e}")
+
     now = datetime.now(timezone.utc)
     battles = (
         db.query(Battle)
@@ -279,9 +528,12 @@ def get_live_battles(db: Session, limit: int = 8) -> List[dict]:
     )
     result = []
     for b in battles:
-        player_count = db.query(func.count(BattlePlayer.id)).filter(
+        db_players = db.query(func.count(BattlePlayer.id)).filter(
             BattlePlayer.battle_id == b.id
         ).scalar() or 0
+        base_players = (b.config or {}).get("base_players", 0)
+        player_count = db_players + base_players
+
         result.append({
             "id":         str(b.id),
             "title":      b.title or "Arena Battle",
@@ -803,27 +1055,107 @@ def get_battle_results(battle_id: UUID, user_id: UUID, db: Session) -> dict:
         p.rank = i + 1
     db.commit()
 
-    my_player = next((p for p in players if str(p.user_id) == str(user_id)), None)
+    my_player = next((p for p in players if p.user_id and str(p.user_id) == str(user_id)), None)
 
     leaderboard = []
     for p in players:
-        u = db.query(User).filter(User.id == p.user_id).first()
+        if p.is_ai:
+            bot = db.query(AIOpponent).filter(AIOpponent.id == p.ai_opponent_id).first() if p.ai_opponent_id else None
+            name = bot.display_name if bot else "AI Opponent"
+        else:
+            u = db.query(User).filter(User.id == p.user_id).first()
+            name = (u.name or u.email.split("@")[0]) if u else "Player"
         leaderboard.append({
             "rank":    p.rank,
-            "name":    u.name if u else "Player",
-            "score":   p.score,
-            "user_id": str(p.user_id),
-            "is_you":  str(p.user_id) == str(user_id),
+            "name":    name,
+            "score":   p.score or 0,
+            "user_id": str(p.user_id) if p.user_id else f"ai:{p.ai_opponent_id}",
+            "is_you":  p.user_id is not None and str(p.user_id) == str(user_id),
+            "is_ai":   p.is_ai,
+        })
+
+    # Fetch task breakdown and submissions for real-game results review
+    tasks = db.query(BattleTask).filter(BattleTask.battle_id == battle_id).order_by(BattleTask.order).all()
+    my_subs = {
+        str(s.task_id): s for s in db.query(BattleSubmission).filter(
+            BattleSubmission.battle_id == battle_id,
+            BattleSubmission.user_id == user_id
+        ).all() if s.task_id
+    }
+
+    # Find opponent player and submissions
+    opp_player = next((p for p in players if not p.user_id or str(p.user_id) != str(user_id)), None)
+    opp_subs = {}
+    if opp_player:
+        if opp_player.user_id:
+            opp_subs = {
+                str(s.task_id): s for s in db.query(BattleSubmission).filter(
+                    BattleSubmission.battle_id == battle_id,
+                    BattleSubmission.user_id == opp_player.user_id
+                ).all() if s.task_id
+            }
+        else:
+            opp_subs = {
+                str(s.task_id): s for s in db.query(BattleSubmission).filter(
+                    BattleSubmission.battle_id == battle_id,
+                    BattleSubmission.user_id.is_(None)
+                ).all() if s.task_id
+            }
+
+    question_breakdown = []
+    same_correct_count = 0
+    diff_correct_count = 0
+    my_correct_count = 0
+    opp_correct_count = 0
+
+    for t in tasks:
+        cfg = t.config or {}
+        correct_opt = cfg.get("_correct")
+        my_s = my_subs.get(str(t.id))
+        opp_s = opp_subs.get(str(t.id))
+
+        my_sel = my_s.selected_option if my_s else None
+        my_ok = my_s.is_correct if my_s else False
+
+        opp_sel = opp_s.selected_option if opp_s else None
+        opp_ok = opp_s.is_correct if opp_s else False
+
+        if my_ok: my_correct_count += 1
+        if opp_ok: opp_correct_count += 1
+
+        if my_ok and opp_ok:
+            same_correct_count += 1
+        elif my_ok and not opp_ok:
+            diff_correct_count += 1
+
+        question_breakdown.append({
+            "order":                t.order,
+            "question":             cfg.get("question", "Question"),
+            "options":              cfg.get("options", []),
+            "topic":                cfg.get("topic", "CS"),
+            "difficulty":           cfg.get("difficulty", "Medium"),
+            "explanation":          cfg.get("explanation", ""),
+            "correct_option":       correct_opt,
+            "my_selected_option":   my_sel,
+            "my_is_correct":        my_ok,
+            "opp_selected_option":  opp_sel,
+            "opp_is_correct":       opp_ok,
         })
 
     my_profile = get_or_create_arena_profile(user_id, db)
     return {
-        "battle_id": str(battle_id),
-        "status":    battle.status,
-        "my_rank":   my_player.rank if my_player else None,
-        "my_score":  my_player.score if my_player else 0,
-        "my_elo":    my_profile.arena_elo,
-        "leaderboard": leaderboard,
+        "battle_id":             str(battle_id),
+        "status":                battle.status,
+        "my_rank":               my_player.rank if my_player else 1,
+        "my_score":              my_player.score if my_player else 0,
+        "my_elo":                my_profile.arena_elo,
+        "leaderboard":           leaderboard,
+        "question_breakdown":    question_breakdown,
+        "same_correct_count":    same_correct_count,
+        "diff_correct_count":    diff_correct_count,
+        "my_correct_count":      my_correct_count,
+        "opp_correct_count":     opp_correct_count,
+        "total_questions":       len(tasks),
     }
 
 
