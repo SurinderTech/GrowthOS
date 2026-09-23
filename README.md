@@ -66,7 +66,7 @@
   - [3. Execution Lab \& Focus Mode](#3-execution-lab--focus-mode)
   - [4. Streak \& Consistency Heatmap 🔥](#4-streak--consistency-heatmap-)
   - [5. Leaderboard \& WebSocket Coding Battles ⚔️](#5-leaderboard--websocket-coding-battles-️)
-  - [6. Live Opportunities Engine 🔔](#6-live-opportunities-engine-)
+  - [6. Live Opportunities Engine ](#6-live-opportunities-engine-)
 - [ Visual Showcase \& UI Gallery](#️-visual-showcase--ui-gallery)
 - [🧬 End-to-End System Topology](#-end-to-end-system-topology)
 - [🛠 Tech Stack Matrix](#-tech-stack-matrix)
