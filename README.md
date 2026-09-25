@@ -106,7 +106,7 @@ GrowthOS is custom-engineered for high-output individuals who need structure ove
 | :--- | :--- | :--- |
 | **💻 Software Engineers & CS Students** | DSA problem solving, multi-language coding, system design, resume ATS optimization, mock interviews. | **Practice Arena** with built-in Monaco compiler (C++, Python, Java), **Interview Agent**, **Resume Agent**, and 1v1 WebSocket coding battles. |
 | **🎓 Competitive Exam Aspirants (JEE/NEET/UPSC/SSC)** | Time-boxed problem solving, numerical/objective practice, distraction elimination, subject-specific revision. | **Exam Simulation Mode** (30 Qs timed sprints), step-based Math/Physics/Chemistry solvers, automated study target generation. |
-| **🚀 SaaS Founders & Tech Builders** | Sprint planning, habit formation, outreach CRM, project execution, deep work focus. | **Task Planning Agent**, **Networking Agent** (outreach CRM), **Project Agent**, and **Execution Lab** focus timer. |
+| ** SaaS Founders & Tech Builders** | Sprint planning, habit formation, outreach CRM, project execution, deep work focus. | **Task Planning Agent**, **Networking Agent** (outreach CRM), **Project Agent**, and **Execution Lab** focus timer. |
 
 ---
 
