@@ -232,7 +232,7 @@ graph LR
     Context --> Agent5[📄 Resume Agent]
     Context --> Agent6[🎙️ Interview Agent]
     Context --> Agent7[🌐 Networking Agent]
-    Context --> Agent8[🚀 Project Agent]
+    Context --> Agent8[✳️ Project Agent]
     
     Agent1 & Agent2 & Agent3 --> DailyBriefing[Merged Payload: Daily Briefing]
 ```
