@@ -284,6 +284,16 @@ graph LR
 <table>
   <tr>
     <td align="center" width="50%">
+      <b>🥊 Problem Validation - Consumption Trap</b><br><br>
+      <img src="Screenshot_19-4-2026_21221_.jpeg" width="100%" alt="Problem Infographic 1">
+    </td>
+    <td align="center" width="50%">
+      <b>🎯 Execution vs Excuse Matrix</b><br><br>
+      <img src="Screenshot_19-4-2026_21626_.jpeg" width="100%" alt="Problem Infographic 2">
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
       <b>🌌 Living AI Command Center (Orbit Hero)</b><br><br>
       <img src="Screenshot (524).png" width="100%" alt="Command Center Landing">
     </td>
@@ -302,16 +312,7 @@ graph LR
       <img src="Screenshot (51).png" width="100%" alt="Auth Onboarding">
     </td>
   </tr>
-  <tr>
-    <td align="center" width="50%">
-      <b>🥊 Problem Validation - Consumption Trap</b><br><br>
-      <img src="Screenshot_19-4-2026_21221_.jpeg" width="100%" alt="Problem Infographic 1">
-    </td>
-    <td align="center" width="50%">
-      <b>🎯 Execution vs Excuse Matrix</b><br><br>
-      <img src="Screenshot_19-4-2026_21626_.jpeg" width="100%" alt="Problem Infographic 2">
-    </td>
-  </tr>
+
 </table>
 
 ---
