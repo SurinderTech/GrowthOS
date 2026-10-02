@@ -616,10 +616,10 @@ export default function PricingPage() {
           </div>
           <div style={{ flex: 1, display: "flex", flexDirection: "column" as const, gap: "10px" }}>
             {[
-              { stat: "10,000+", label: "Users grinding daily", icon: "👥" },
-              { stat: "Top 1%", label: "Unlocking AI rewards", icon: "🤖" },
-              { stat: "94%", label: "Report real improvement", icon: "📈" },
-              { stat: "₹50L+", label: "In rewards distributed", icon: "💰" },
+              { stat: "8", label: "AI agents working for you", icon: "🤖" },
+              { stat: "MVP", label: "Open beta — early access", icon: "🚀" },
+              { stat: "∞", label: "AI-generated daily challenges", icon: "⚡" },
+              { stat: "Real", label: "Rewards for top performers", icon: "🏆" },
             ].map((s, i) => (
               <div key={i} style={p.statCard}>
                 <span style={{ fontSize: "1.4rem" }}>{s.icon}</span>
@@ -667,7 +667,7 @@ export default function PricingPage() {
       {/* ── FINAL CTA ── */}
       <section style={p.finalCTA}>
         <div style={p.finalGlow} />
-        <div style={p.sectionTag}>Join 10,000+ Grinders</div>
+        <div style={p.sectionTag}>Be an Early Adopter</div>
         <h2 style={{ ...p.heroTitle, marginBottom: "12px" }}>
           Stop planning.{" "}
           <span style={{ background: "linear-gradient(135deg,#f59e0b,#ef4444)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>

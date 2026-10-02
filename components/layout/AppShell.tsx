@@ -13,6 +13,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const showNavbar =
     pathname === "/" ||
     pathname === "/pricing" ||
+    pathname === "/about" ||
+    pathname === "/features" ||
     pathname?.startsWith("/auth");
 
   return (

@@ -154,7 +154,7 @@ export default function SolutionSection() {
   }, []);
 
   return (
-    <section className="sol">
+    <section className="sol" id="features">
       <style>{`
         .sol {
           position: relative;

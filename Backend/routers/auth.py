@@ -1,4 +1,4 @@
-# backend/routes.py
+    # backend/routes.py
 # All authentication API routes:
 #   POST /auth/register      — create new account
 #   POST /auth/login         — sign in, get token
@@ -1100,4 +1100,4 @@ async def link_phone_with_msg91(
         "user": UserResponse.model_validate(current_user)
     }
 
-
+

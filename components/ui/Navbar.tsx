@@ -8,9 +8,9 @@ import { motion } from "framer-motion";
 
 const NAV_LINKS = [
   { label: "How it Works", href: "#HowItWorks", isAnchor: true },
-  { label: "Features", href: "#features", isAnchor: true },
-  { label: "About", href: "#about", isAnchor: true },
-  { label: "Community", href: "#community", isAnchor: true },
+  { label: "Features", href: "/features", isAnchor: false },
+  { label: "About", href: "/about", isAnchor: false },
+  { label: "Community", href: "/contact", isAnchor: false },
   { label: "Pricing", href: "/pricing", isAnchor: false },
 ];
 

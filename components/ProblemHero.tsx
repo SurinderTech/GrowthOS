@@ -281,7 +281,7 @@ export default function ProblemHero({ onStartTransformation, onComplete }: Probl
   }, [onStartTransformation, onComplete]);
 
   return (
-    <section className="ph">
+    <section className="ph" id="HowItWorks">
       <style>{`
         .ph {
           position: relative;
