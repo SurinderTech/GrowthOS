@@ -89,12 +89,26 @@ class ProgressSnapshot(BaseModel):
 
 
 class ProgressSignal(BaseModel):
-    """Structured progress intelligence signal detected from execution patterns."""
+    """
+    Structured progress intelligence signal detected from execution patterns.
+
+    Fields
+    ------
+    heuristic_basis : Human-readable description of the rule that fired.
+        Present so callers (LLM nodes, UI) understand the signal is heuristic
+        and not a validated ML prediction.
+    confidence : Model confidence in the detection (0.0–1.0). Manually
+        assigned; not derived from a probabilistic model.
+    """
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     signal_type: ProgressSignalType = ProgressSignalType.ON_TRACK
     title: str
     description: str
     confidence: float = 0.90
+    heuristic_basis: Optional[str] = Field(
+        default=None,
+        description="Plain-language description of the threshold rule that fired.",
+    )
     evidence: List[str] = Field(default_factory=list)
     affected_task_id: Optional[str] = None
 

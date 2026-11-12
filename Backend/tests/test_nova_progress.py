@@ -1,9 +1,25 @@
 """
 Backend/tests/test_nova_progress.py
 
-Comprehensive Unit & Integration Test Suite for NOVA Execution & Progress Intelligence Engine (Step 10).
-Tests execution events, task state transitions, time ratio tracking, partial completion, hierarchical progress propagation,
-struggle signal detection, adaptation signal generation, tenant isolation, idempotency, and 4 end-to-end scenarios.
+Unit & Integration Test Suite for NOVA Execution & Progress Intelligence Engine.
+
+Test design notes
+-----------------
+- All tests use in-memory SQLite (no live Postgres required).
+- LLM calls are mocked — tests verify structural correctness, not LLM output quality.
+- Signal detection uses heuristic thresholds. Tests verify that the RULES produce
+  the expected signals given controlled inputs — they do NOT validate that the
+  thresholds are optimal for real user behaviour.
+- `heuristic_basis` is asserted to be non-empty on every signal, ensuring the
+  system is always transparent about how signals are derived.
+
+Limitations documented
+----------------------
+- No controlled user study has validated that the signal thresholds accurately
+  represent human learning behaviour.
+- Confidence values (0.72 struggling, 0.80 inconsistent, etc.) are manually
+  calibrated estimates, not derived from data.
+- Tests use synthetic data; real-world signal accuracy may differ.
 """
 
 import unittest
@@ -188,6 +204,63 @@ class TestNovaProgressEngine(unittest.TestCase):
         self.assertEqual(res["execution_stage"], "turn_completed")
         self.assertIsNotNone(res["state"].progress_payload)
         self.assertEqual(res["state"].progress_payload.snapshot.task_progress_pct, 60.0)
+
+
+    def test_9_all_signals_carry_heuristic_basis(self):
+        """
+        Every signal returned by SignalDetector must carry a non-empty heuristic_basis.
+        This ensures the system always discloses HOW a signal was derived.
+        """
+        detector = SignalDetector()
+        scenarios = [
+            # struggle
+            (
+                [ExecutionEventRecord(user_id=self.user_id, task_id="tx", event_type=ExecutionEventType.TASK_FAILED),
+                 ExecutionEventRecord(user_id=self.user_id, task_id="tx", event_type=ExecutionEventType.TASK_FAILED)],
+                ProgressSnapshot(actual_vs_estimated_ratio=2.0),
+            ),
+            # inconsistent
+            (
+                [ExecutionEventRecord(user_id=self.user_id, task_id="ty", event_type=ExecutionEventType.TASK_SKIPPED),
+                 ExecutionEventRecord(user_id=self.user_id, task_id="ty", event_type=ExecutionEventType.TASK_SKIPPED)],
+                ProgressSnapshot(),
+            ),
+            # capacity higher
+            (
+                [ExecutionEventRecord(user_id=self.user_id, task_id="tz", event_type=ExecutionEventType.TASK_COMPLETED)],
+                ProgressSnapshot(actual_vs_estimated_ratio=0.3),
+            ),
+            # on-track (default)
+            (
+                [ExecutionEventRecord(user_id=self.user_id, task_id="ta", event_type=ExecutionEventType.TASK_COMPLETED)],
+                ProgressSnapshot(actual_vs_estimated_ratio=1.0),
+            ),
+        ]
+
+        for events, snapshot in scenarios:
+            signals = detector.detect_signals(events, snapshot)
+            for sig in signals:
+                self.assertIsNotNone(
+                    sig.heuristic_basis,
+                    f"Signal {sig.signal_type} must carry a heuristic_basis description",
+                )
+                self.assertGreater(
+                    len(sig.heuristic_basis), 10,
+                    f"Signal {sig.signal_type} heuristic_basis must be a meaningful description",
+                )
+
+    def test_10_signal_confidence_within_valid_range(self):
+        """Signal confidence must always be between 0.0 and 1.0."""
+        detector = SignalDetector()
+        events = [
+            ExecutionEventRecord(user_id=self.user_id, task_id="tv", event_type=ExecutionEventType.TASK_COMPLETED,
+                                 difficulty_rating="too_hard"),
+        ]
+        snapshot = ProgressSnapshot(actual_vs_estimated_ratio=2.0)
+        signals = detector.detect_signals(events, snapshot)
+        for sig in signals:
+            self.assertGreaterEqual(sig.confidence, 0.0)
+            self.assertLessEqual(sig.confidence, 1.0)
 
 
 if __name__ == "__main__":
