@@ -225,7 +225,7 @@ graph LR
     
     Orchestrator --> Context[Shared Memory Context]
     
-    Context --> Agent1[🎯 Task Planning Agent]
+    Context --> Agent1[ Task Planning Agent]
     Context --> Agent2[🛡️ Accountability Coach]
     Context --> Agent3[📊 Progress Analytics]
     Context --> Agent4[🧠 Learning Coach]
