@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Brain } from "lucide-react";
 import { motion } from "framer-motion";
+import BrandLogo from "@/components/ui/BrandLogo";
 
 const NAV_LINKS = [
   { label: "How it Works", href: "#HowItWorks", isAnchor: true },
@@ -14,20 +14,7 @@ const NAV_LINKS = [
   { label: "Pricing", href: "/pricing", isAnchor: false },
 ];
 
-function BrainOrb() {
-  return (
-    <div className="gos-orb" aria-hidden="true">
-      <div className="gos-orb__glow gos-orb__glow--outer" />
-      <div className="gos-orb__glow gos-orb__glow--inner" />
-      <div className="gos-orb__ring gos-orb__ring--outer" />
-      <div className="gos-orb__ring gos-orb__ring--middle" />
-      <div className="gos-orb__ring gos-orb__ring--inner" />
-      <div className="gos-orb__core">
-        <Brain size={18} />
-      </div>
-    </div>
-  );
-}
+
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -354,101 +341,6 @@ export default function Navbar() {
           background: linear-gradient(135deg, #00e5ff, #7c3aed);
         }
 
-        .gos-orb {
-          position: relative;
-          width: 56px;
-          height: 56px;
-          flex: 0 0 auto;
-          display: grid;
-          place-items: center;
-          border-radius: 50%;
-          background: rgba(0, 0, 0, 0.84);
-          transform: translateZ(0);
-          animation: gosOrbFloat 4s ease-in-out infinite;
-        }
-
-        .gos-orb__glow,
-        .gos-orb__ring,
-        .gos-orb__core {
-          position: absolute;
-          inset: 0;
-          border-radius: 50%;
-        }
-
-        .gos-orb__glow--outer {
-          inset: -20px;
-          background: radial-gradient(circle, rgba(0, 229, 255, 0.36) 0%, rgba(124, 58, 237, 0.18) 42%, transparent 72%);
-          filter: blur(12px);
-          animation: gosOrbPulse 2.4s ease-in-out infinite;
-        }
-
-        .gos-orb__glow--inner {
-          inset: -10px;
-          background: radial-gradient(circle, rgba(99, 102, 241, 0.28) 0%, transparent 68%);
-          filter: blur(8px);
-        }
-
-        .gos-orb__ring--outer {
-          border: 2px solid transparent;
-          border-top-color: #00e5ff;
-          border-right-color: #7c3aed;
-          animation: gosOrbSpin 3s linear infinite;
-          filter: drop-shadow(0 0 14px rgba(0, 229, 255, 0.65));
-        }
-
-        .gos-orb__ring--middle {
-          inset: 8px;
-          border: 2px solid transparent;
-          border-bottom-color: #7c3aed;
-          border-left-color: #3b82f6;
-          animation: gosOrbSpinReverse 2.4s linear infinite;
-        }
-
-        .gos-orb__ring--inner {
-          inset: 16px;
-          border: 1.5px solid transparent;
-          border-top-color: rgba(255, 255, 255, 0.9);
-          border-bottom-color: #00e5ff;
-          animation: gosOrbSpin 1.6s linear infinite;
-          opacity: 0.9;
-        }
-
-        .gos-orb__core {
-          inset: 12px;
-          display: grid;
-          place-items: center;
-          background: radial-gradient(circle at top, rgba(99, 102, 241, 0.96), rgba(8, 11, 20, 0.98));
-          border: 1px solid rgba(255, 255, 255, 0.18);
-          box-shadow: 0 0 22px rgba(0, 229, 255, 0.48), inset 0 0 16px rgba(255, 255, 255, 0.1);
-          color: white;
-          animation: gosOrbGlow 2.2s ease-in-out infinite;
-        }
-
-        @keyframes gosOrbSpin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-
-        @keyframes gosOrbSpinReverse {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(-360deg); }
-        }
-
-        @keyframes gosOrbGlow {
-          0%, 100% { transform: scale(0.96); opacity: 0.88; }
-          50% { transform: scale(1.05); opacity: 1; }
-        }
-
-        @keyframes gosOrbFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-4px); }
-        }
-
-        @keyframes gosOrbPulse {
-          0%, 100% { opacity: 0.55; transform: scale(0.98); }
-          50% { opacity: 1; transform: scale(1.08); }
-        }
-
         @media (max-width: 1023px) {
           .gos-nav {
             top: 12px;
@@ -476,15 +368,6 @@ export default function Navbar() {
             display: none;
           }
 
-          .gos-orb {
-            width: 48px;
-            height: 48px;
-          }
-
-          .gos-orb__core {
-            inset: 10px;
-          }
-
           .gos-nav__drawer {
             display: block;
           }
@@ -498,12 +381,7 @@ export default function Navbar() {
         className={`gos-nav ${scrolled ? "gos-nav--scrolled" : ""}`}
       >
         <Link href="/" className="gos-nav__brand" onClick={closeMenu}>
-          <BrainOrb />
-          <div className="gos-nav__brandText">
-            <div className="gos-nav__title">
-              Growth<span>OS</span>
-            </div>
-          </div>
+          <BrandLogo size="sm" showText={true} />
         </Link>
 
         <nav className="gos-nav__links" aria-label="Primary">

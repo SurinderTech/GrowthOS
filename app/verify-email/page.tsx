@@ -5,38 +5,12 @@ import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { Mail, CheckCircle2, AlertTriangle, Loader2, ArrowRight, RefreshCw, LogOut, ShieldCheck, Brain } from "lucide-react";
+import { Mail, CheckCircle2, AlertTriangle, Loader2, ArrowRight, RefreshCw, LogOut, ShieldCheck } from "lucide-react";
+import BrandLogo from "@/components/ui/BrandLogo";
 import { apiVerifyEmail, apiResendVerification, saveToken, saveUser } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
-/* ── Animated Neon Brain Orb ── */
-function BrainOrb() {
-  return (
-    <>
-      <style>{`
-        @keyframes spinSlow  { from { transform: rotate(0deg);   } to { transform: rotate(360deg);  } }
-        @keyframes spinRev   { from { transform: rotate(0deg);   } to { transform: rotate(-360deg); } }
-        @keyframes orbPulse  { 0%,100% { opacity:.6; transform:scale(.96); } 50% { opacity:1; transform:scale(1.05); } }
-        @keyframes orbFloat  { 0%,100% { transform:translateY(0px); } 50% { transform:translateY(-7px); } }
-        @keyframes conicSpin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
-      `}</style>
 
-      <div style={{ animation: "orbFloat 4s ease-in-out infinite", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ position: "relative", width: "clamp(80px,28vw,140px)", height: "clamp(80px,28vw,140px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ position: "absolute", inset: "clamp(-10px,-4vw,-18px)", borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.45) 0%, rgba(59,130,246,0.22) 45%, transparent 70%)", animation: "orbPulse 3s ease-in-out infinite", zIndex: 0 }} />
-          <div style={{ position: "absolute", inset: "clamp(-5px,-2vw,-8px)", borderRadius: "50%", background: "radial-gradient(circle, rgba(6,182,212,0.2) 0%, transparent 65%)", zIndex: 0 }} />
-          <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "conic-gradient(from 0deg, #6366f1 0deg, #3b82f6 60deg, #06b6d4 120deg, #818cf8 180deg, transparent 181deg, transparent 360deg)", animation: "conicSpin 3s linear infinite", zIndex: 1, filter: "blur(0.5px)" }} />
-          <div style={{ position: "absolute", inset: "clamp(2px,0.8vw,4px)", borderRadius: "50%", background: "#0d1f3c", zIndex: 1 }} />
-          <div style={{ position: "absolute", inset: "clamp(6px,2vw,10px)", borderRadius: "50%", border: "1.5px solid transparent", borderTopColor: "#818cf8", borderRightColor: "#3b82f6", animation: "spinSlow 2.8s linear infinite", filter: "drop-shadow(0 0 5px rgba(129,140,248,0.85))", zIndex: 2 }} />
-          <div style={{ position: "absolute", inset: "clamp(16px,5vw,24px)", borderRadius: "50%", border: "1.5px solid transparent", borderBottomColor: "#06b6d4", borderLeftColor: "rgba(6,182,212,0.4)", animation: "spinRev 2s linear infinite", filter: "drop-shadow(0 0 5px rgba(6,182,212,0.8))", zIndex: 2 }} />
-          <div style={{ position: "relative", zIndex: 3, width: "clamp(40px,14vw,64px)", height: "clamp(40px,14vw,64px)", borderRadius: "50%", background: "radial-gradient(circle at 38% 35%, rgba(147,197,253,0.22) 0%, rgba(13,31,60,0.97) 65%)", border: "1.5px solid rgba(129,140,248,0.55)", display: "flex", alignItems: "center", justifyContent: "center", animation: "orbPulse 2.2s ease-in-out infinite", backdropFilter: "blur(12px)", boxShadow: "0 0 32px rgba(99,102,241,0.6), inset 0 0 22px rgba(99,102,241,0.18)" }}>
-            <Brain style={{ width: "clamp(16px,5vw,26px)", height: "clamp(16px,5vw,26px)", color: "#a5b4fc", filter: "drop-shadow(0 0 8px rgba(165,180,252,0.9))" }} />
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
 
 function VerifyEmailContent() {
   const router = useRouter();
@@ -170,7 +144,7 @@ function VerifyEmailContent() {
 
       <div className="gos-glass-box">
         <div style={{ marginBottom: "24px" }}>
-          <BrainOrb />
+          <BrandLogo size="lg" vertical showText showSubtitle />
         </div>
 
         {/* State 1: Verifying Token */}

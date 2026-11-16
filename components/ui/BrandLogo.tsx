@@ -1,142 +1,213 @@
 "use client";
-// components/ui/BrandLogo.tsx
-// Universal Circulating Holographic AI Brain Orb Brand Logo for GrowthOS
+// components/ui/BrandLogo.tsx — GrowthOS Premium Animated Logo
+// Uses the actual logo image with CSS animated glowing orbital rings
 
 import React from "react";
-import { Brain } from "lucide-react";
+import Image from "next/image";
 
 interface BrandLogoProps {
   size?: "sm" | "md" | "lg";
+  showText?: boolean;
   showSubtitle?: boolean;
+  vertical?: boolean;
 }
 
-export default function BrandLogo({ size = "md", showSubtitle = true }: BrandLogoProps) {
-  const orbSize = size === "sm" ? 38 : size === "lg" ? 54 : 44;
-  const brainSize = size === "sm" ? 14 : size === "lg" ? 20 : 16;
-  const titleSize = size === "sm" ? "1.05rem" : size === "lg" ? "1.35rem" : "1.18rem";
-  const subSize = size === "sm" ? "0.56rem" : size === "lg" ? "0.68rem" : "0.6rem";
+const CFG = {
+  sm: { img: 52,  title: 20, sub: 10, gap: 12 },
+  md: { img: 68,  title: 24, sub: 11, gap: 14 },
+  lg: { img: 96,  title: 30, sub: 13, gap: 18 },
+};
+
+export default function BrandLogo({
+  size       = "md",
+  showText   = true,
+  showSubtitle = false,
+  vertical   = false,
+}: BrandLogoProps) {
+  const c = CFG[size];
+  const outerSize = Math.round(c.img * 1.5); // tighter ratio = image more prominent
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: size === "sm" ? "10px" : "12px" }}>
+    <>
       <style>{`
-        .gos-brand-orb {
-          position: relative;
-          width: ${orbSize}px;
-          height: ${orbSize}px;
-          flex: 0 0 auto;
-          display: grid;
-          place-items: center;
-          border-radius: 50%;
-          background: rgba(0, 0, 0, 0.85);
-          animation: gosOrbFloat 4s ease-in-out infinite;
+        @keyframes gos-ring-cw  { to { transform: rotate(360deg);  } }
+        @keyframes gos-ring-ccw { to { transform: rotate(-360deg); } }
+        @keyframes gos-pulse-glow {
+          0%,100% { opacity:.55; transform:scale(.97); }
+          50%      { opacity:1;   transform:scale(1.06); }
         }
-
-        .gos-brand-orb__glow,
-        .gos-brand-orb__ring,
-        .gos-brand-orb__core {
-          position: absolute;
-          inset: 0;
-          border-radius: 50%;
+        @keyframes gos-float {
+          0%,100% { transform:translateY(0px);  }
+          50%      { transform:translateY(-4px); }
         }
-
-        .gos-brand-orb__glow--outer {
-          inset: -10px;
-          background: radial-gradient(circle, rgba(0, 229, 255, 0.4) 0%, rgba(124, 58, 237, 0.2) 42%, transparent 72%);
-          filter: blur(8px);
-          animation: gosOrbPulse 2.4s ease-in-out infinite;
+        @keyframes gos-shimmer-w {
+          0%   { background-position:-200% center; }
+          100% { background-position: 200% center; }
         }
-
-        .gos-brand-orb__glow--inner {
-          inset: -4px;
-          background: radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, transparent 68%);
-          filter: blur(4px);
-        }
-
-        .gos-brand-orb__ring--outer {
-          border: 2px solid transparent;
-          border-top-color: #00e5ff;
-          border-right-color: #7c3aed;
-          animation: gosOrbSpin 3s linear infinite;
-          filter: drop-shadow(0 0 8px rgba(0, 229, 255, 0.7));
-        }
-
-        .gos-brand-orb__ring--middle {
-          inset: 5px;
-          border: 1.8px solid transparent;
-          border-bottom-color: #7c3aed;
-          border-left-color: #3b82f6;
-          animation: gosOrbSpinReverse 2.4s linear infinite;
-        }
-
-        .gos-brand-orb__ring--inner {
-          inset: 10px;
-          border: 1.5px solid transparent;
-          border-top-color: rgba(255, 255, 255, 0.9);
-          border-bottom-color: #00e5ff;
-          animation: gosOrbSpin 1.6s linear infinite;
-          opacity: 0.9;
-        }
-
-        .gos-brand-orb__core {
-          inset: 8px;
-          display: grid;
-          place-items: center;
-          background: radial-gradient(circle at top, rgba(99, 102, 241, 0.96), rgba(8, 11, 20, 0.98));
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          box-shadow: 0 0 14px rgba(0, 229, 255, 0.5), inset 0 0 10px rgba(255, 255, 255, 0.12);
-          color: white;
-          animation: gosOrbGlow 2.2s ease-in-out infinite;
-        }
-
-        @keyframes gosOrbSpin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-
-        @keyframes gosOrbSpinReverse {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(-360deg); }
-        }
-
-        @keyframes gosOrbGlow {
-          0%, 100% { transform: scale(0.96); opacity: 0.88; }
-          50% { transform: scale(1.05); opacity: 1; }
-        }
-
-        @keyframes gosOrbFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-3px); }
-        }
-
-        @keyframes gosOrbPulse {
-          0%, 100% { opacity: 0.55; transform: scale(0.98); }
-          50% { opacity: 1; transform: scale(1.08); }
+        @keyframes gos-shimmer-c {
+          0%   { background-position:-200% center; }
+          100% { background-position: 200% center; }
         }
       `}</style>
 
-      {/* Circulating Holographic AI Brain Orb */}
-      <div className="gos-brand-orb" aria-hidden="true">
-        <div className="gos-brand-orb__glow gos-brand-orb__glow--outer" />
-        <div className="gos-brand-orb__glow gos-brand-orb__glow--inner" />
-        <div className="gos-brand-orb__ring gos-brand-orb__ring--outer" />
-        <div className="gos-brand-orb__ring gos-brand-orb__ring--middle" />
-        <div className="gos-brand-orb__ring gos-brand-orb__ring--inner" />
-        <div className="gos-brand-orb__core">
-          <Brain size={brainSize} style={{ color: "#ffffff", filter: "drop-shadow(0 0 4px rgba(255,255,255,0.8))" }} />
-        </div>
-      </div>
+      <div style={{
+        display:       "flex",
+        flexDirection: vertical ? "column" : "row",
+        alignItems:    "center",
+        gap:           `${c.gap}px`,
+        userSelect:    "none",
+      }}>
 
-      {/* Brand Text */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-        <div style={{ fontFamily: "var(--font-syne), 'Syne', 'Rajdhani', sans-serif", fontSize: titleSize, fontWeight: 900, color: "#ffffff", letterSpacing: "-0.03em", lineHeight: 1.05 }}>
-          Growth<span style={{ color: "#00e5ff" }}>OS</span>
+        {/* ── Orbital orb with actual logo image ───────────────────── */}
+        <div style={{
+          position:   "relative",
+          width:      `${outerSize}px`,
+          height:     `${outerSize}px`,
+          flexShrink: 0,
+          display:    "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          animation:  "gos-float 4s ease-in-out infinite",
+        }}>
+
+          {/* Outer ambient glow */}
+          <div style={{
+            position:  "absolute",
+            inset:     `-${outerSize * 0.15}px`,
+            borderRadius: "50%",
+            background:   "radial-gradient(circle, rgba(0,229,255,.3) 0%, rgba(168,85,247,.15) 45%, transparent 72%)",
+            filter:    "blur(10px)",
+            animation: "gos-pulse-glow 3s ease-in-out infinite",
+            pointerEvents: "none",
+          }} />
+
+          {/* Ring 1 — cyan, tilted, clockwise */}
+          <div style={{
+            position:   "absolute",
+            inset:      0,
+            borderRadius: "50%",
+            border:     `${Math.max(1.5, c.img * 0.038)}px solid transparent`,
+            borderTopColor:   "#00e5ff",
+            borderRightColor: "#22d3ee",
+            borderBottomColor:"transparent",
+            borderLeftColor:  "transparent",
+            transform:  "rotateX(70deg) rotateY(-15deg)",
+            animation:  "gos-ring-cw 4s linear infinite",
+            filter:     "drop-shadow(0 0 5px rgba(0,229,255,.9))",
+          }} />
+
+          {/* Ring 2 — purple, tilted opposite, counter-clockwise */}
+          <div style={{
+            position:   "absolute",
+            inset:      `${outerSize * 0.03}px`,
+            borderRadius: "50%",
+            border:     `${Math.max(1.5, c.img * 0.034)}px solid transparent`,
+            borderTopColor:   "transparent",
+            borderRightColor: "#a855f7",
+            borderBottomColor:"#c084fc",
+            borderLeftColor:  "transparent",
+            transform:  "rotateX(70deg) rotateY(60deg)",
+            animation:  "gos-ring-ccw 5s linear infinite",
+            filter:     "drop-shadow(0 0 4px rgba(168,85,247,.85))",
+          }} />
+
+          {/* Ring 3 — indigo, diagonal, clockwise slower */}
+          <div style={{
+            position:   "absolute",
+            inset:      `${outerSize * 0.06}px`,
+            borderRadius: "50%",
+            border:     `${Math.max(1, c.img * 0.028)}px solid transparent`,
+            borderTopColor:   "#6366f1",
+            borderLeftColor:  "#818cf8",
+            borderBottomColor:"transparent",
+            borderRightColor: "transparent",
+            transform:  "rotateX(55deg) rotateY(-45deg)",
+            animation:  "gos-ring-cw 7s linear infinite",
+            filter:     "drop-shadow(0 0 3px rgba(99,102,241,.7))",
+          }} />
+
+          {/* Actual logo image */}
+          <div style={{
+            position:   "relative",
+            width:      `${c.img}px`,
+            height:     `${c.img}px`,
+            borderRadius:"50%",
+            overflow:   "hidden",
+            flexShrink: 0,
+            boxShadow:  `0 0 ${c.img * 0.4}px rgba(0,229,255,.4), 0 0 ${c.img * 0.15}px rgba(168,85,247,.3)`,
+          }}>
+            <Image
+              src="/growthos-logo.jpg"
+              alt="GrowthOS Logo"
+              fill
+              sizes={`${c.img}px`}
+              style={{ objectFit: "cover" }}
+              priority
+            />
+          </div>
         </div>
-        {showSubtitle && (
-          <div style={{ fontSize: subSize, letterSpacing: "0.22em", textTransform: "uppercase", color: "rgba(255, 255, 255, 0.45)", fontWeight: 600, marginTop: "2px" }}>
-            AI OPERATING SYSTEM
+
+        {/* ── Brand Text ───────────────────────────────────────────── */}
+        {showText && (
+          <div style={{
+            display:       "flex",
+            flexDirection: "column",
+            alignItems:    vertical ? "center" : "flex-start",
+            gap:           "2px",
+          }}>
+            <div style={{
+              display:    "flex",
+              alignItems: "baseline",
+              lineHeight: 1,
+            }}>
+              {/* "Growth" — white shimmer */}
+              <span style={{
+                fontFamily:    "'Syne','Inter',sans-serif",
+                fontSize:      `${c.title}px`,
+                fontWeight:    900,
+                letterSpacing: "-0.025em",
+                background:    "linear-gradient(90deg,#ffffff 0%,#e2e8f0 35%,#ffffff 55%,#e2e8f0 100%)",
+                backgroundSize:"200% auto",
+                WebkitBackgroundClip:"text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip:"text",
+                animation:     "gos-shimmer-w 4s linear infinite",
+              }}>
+                Growth
+              </span>
+              {/* "OS" — cyan glow shimmer */}
+              <span style={{
+                fontFamily:    "'Syne','Inter',sans-serif",
+                fontSize:      `${c.title}px`,
+                fontWeight:    900,
+                letterSpacing: "-0.025em",
+                background:    "linear-gradient(135deg,#00e5ff 0%,#67e8f9 40%,#00e5ff 70%,#22d3ee 100%)",
+                backgroundSize:"200% auto",
+                WebkitBackgroundClip:"text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip:"text",
+                filter:        "drop-shadow(0 0 6px rgba(0,229,255,.7))",
+                animation:     "gos-shimmer-c 3s linear infinite",
+              }}>
+                OS
+              </span>
+            </div>
+
+            {showSubtitle && (
+              <div style={{
+                fontSize:      `${c.sub}px`,
+                letterSpacing: "0.22em",
+                textTransform: "uppercase",
+                color:         "rgba(255,255,255,0.38)",
+                fontWeight:    600,
+                whiteSpace:    "nowrap",
+              }}>
+                AI Operating System
+              </div>
+            )}
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

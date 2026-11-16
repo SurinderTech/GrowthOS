@@ -6,53 +6,12 @@ import Script from "next/script";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { Eye, EyeOff, Mail, Lock, User, Loader2, Brain } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, User, Loader2 } from "lucide-react";
+import BrandLogo from "@/components/ui/BrandLogo";
 import { apiRegister, saveToken, saveUser, loginWithGoogle, loginWithFacebook, loginWithLinkedIn } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
-/* ── Animated Neon Brain Orb ── */
-function BrainOrb() {
-  return (
-    <>
-      <style>{`
-        @keyframes spinSlow  { from { transform: rotate(0deg);   } to { transform: rotate(360deg);  } }
-        @keyframes spinRev   { from { transform: rotate(0deg);   } to { transform: rotate(-360deg); } }
-        @keyframes orbPulse  { 0%,100% { opacity:.6; transform:scale(.96); } 50% { opacity:1; transform:scale(1.05); } }
-        @keyframes orbFloat  { 0%,100% { transform:translateY(0px); } 50% { transform:translateY(-7px); } }
-        @keyframes conicSpin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
-      `}</style>
 
-      <div style={{ animation: "orbFloat 4s ease-in-out infinite", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ position: "relative", width: "clamp(80px,28vw,160px)", height: "clamp(80px,28vw,160px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-
-          {/* Ambient bloom */}
-          <div style={{ position: "absolute", inset: "clamp(-10px,-4vw,-18px)", borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.45) 0%, rgba(59,130,246,0.22) 45%, transparent 70%)", animation: "orbPulse 3s ease-in-out infinite", zIndex: 0 }} />
-
-          {/* Cyan glow */}
-          <div style={{ position: "absolute", inset: "clamp(-5px,-2vw,-8px)", borderRadius: "50%", background: "radial-gradient(circle, rgba(6,182,212,0.2) 0%, transparent 65%)", zIndex: 0 }} />
-
-          {/* Conic ring */}
-          <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "conic-gradient(from 0deg, #6366f1 0deg, #3b82f6 60deg, #06b6d4 120deg, #818cf8 180deg, transparent 181deg, transparent 360deg)", animation: "conicSpin 3s linear infinite", zIndex: 1, filter: "blur(0.5px)" }} />
-
-          {/* Dark mask */}
-          <div style={{ position: "absolute", inset: "clamp(2px,0.8vw,4px)", borderRadius: "50%", background: "#0d1f3c", zIndex: 1 }} />
-
-          {/* Orbit ring 1 */}
-          <div style={{ position: "absolute", inset: "clamp(6px,2vw,10px)", borderRadius: "50%", border: "1.5px solid transparent", borderTopColor: "#818cf8", borderRightColor: "#3b82f6", animation: "spinSlow 2.8s linear infinite", filter: "drop-shadow(0 0 5px rgba(129,140,248,0.85))", zIndex: 2 }} />
-
-          {/* Orbit ring 2 */}
-          <div style={{ position: "absolute", inset: "clamp(16px,5vw,24px)", borderRadius: "50%", border: "1.5px solid transparent", borderBottomColor: "#06b6d4", borderLeftColor: "rgba(6,182,212,0.4)", animation: "spinRev 2s linear infinite", filter: "drop-shadow(0 0 5px rgba(6,182,212,0.8))", zIndex: 2 }} />
-
-          {/* Core */}
-          <div style={{ position: "relative", zIndex: 3, width: "clamp(40px,14vw,72px)", height: "clamp(40px,14vw,72px)", borderRadius: "50%", background: "radial-gradient(circle at 38% 35%, rgba(147,197,253,0.22) 0%, rgba(13,31,60,0.97) 65%)", border: "1.5px solid rgba(129,140,248,0.55)", display: "flex", alignItems: "center", justifyContent: "center", animation: "orbPulse 2.2s ease-in-out infinite", backdropFilter: "blur(12px)", boxShadow: "0 0 32px rgba(99,102,241,0.6), 0 0 12px rgba(59,130,246,0.4), inset 0 0 22px rgba(99,102,241,0.18)" }}>
-            <Brain style={{ width: "clamp(16px,5vw,30px)", height: "clamp(16px,5vw,30px)", color: "#a5b4fc", filter: "drop-shadow(0 0 8px rgba(165,180,252,0.9))" }} />
-          </div>
-
-        </div>
-      </div>
-    </>
-  );
-}
 
 export default function SignupPage() {
   const router = useRouter();
@@ -438,14 +397,7 @@ export default function SignupPage() {
           <div className="gos-left-inner">
 
             <div className="gos-orb-wrap">
-              <BrainOrb />
-            </div>
-
-            <div style={{ marginBottom: 8 }}>
-              <div className="gos-brand-name">
-                Growth<span style={{ background: "linear-gradient(135deg,#818cf8,#38bdf8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>OS</span>
-              </div>
-              <div className="gos-brand-sub">Digital Silicon Valley</div>
+              <BrandLogo size="lg" vertical showText showSubtitle />
             </div>
 
             <h1 className="gos-headline">
