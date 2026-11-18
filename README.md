@@ -45,7 +45,7 @@
 > 2. **Problem Authenticity Rate**: How genuine is this problem in your experience? **What percentage (1% to 100%) would you give this issue?**
 > 3. **The Solution**: Is an **AI-Enforced Operating System** (where human sets vision, AI orchestrates execution, and peers hold you accountable) the future of personal growth?
 > 
-> 💬 **[Click Here to Submit Feedback & Join the Discussion](../../issues)** | 🌟 **Star this repository if you believe execution environments matter!**
+> 💬 **[Click Here to Submit Feedback & Join the Discussion](../../issueshttps://www.growthosai.tech/dashboard/community)** | 🌟 **Star this repository if you believe execution environments matter!**
 
 ---
 
